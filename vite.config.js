@@ -11,5 +11,8 @@ export default defineConfig({
   server: {
     port: 5173,
     host: true,
+    allowedHosts: process.env.ALLOWED_HOSTS
+      ? process.env.ALLOWED_HOSTS.split(",")
+      : [],
   },
 });
