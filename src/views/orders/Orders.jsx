@@ -45,16 +45,16 @@ const Orders = () => {
     }
   };
 
-  const handleDelete = async (id) => {
-    if (!confirm("¿Estás seguro de eliminar esta orden?")) return;
-    try {
-      await ordersService.delete(id);
-      toast.success("Orden eliminada exitosamente");
-      fetchOrders();
-    } catch (error) {
-      toast.error(error.response?.data?.message || "Error al eliminar");
-    }
-  };
+  // const handleDelete = async (id) => {
+  //   if (!confirm("¿Estás seguro de eliminar esta orden?")) return;
+  //   try {
+  //     await ordersService.delete(id);
+  //     toast.success("Orden eliminada exitosamente");
+  //     fetchOrders();
+  //   } catch (error) {
+  //     toast.error(error.response?.data?.message || "Error al eliminar");
+  //   }
+  // };
 
   const handleFinish = async (id) => {
     if (!confirm("¿Marcar esta orden como terminada?")) return;
@@ -224,7 +224,7 @@ const Orders = () => {
                           <CheckCircle size={16} />
                         </Button>
                       )}
-                      <Button
+                      {/* <Button
                         size="icon"
                         variant="ghost"
                         onClick={() =>
@@ -233,7 +233,7 @@ const Orders = () => {
                         className="hover:text-red-600 hover:bg-red-50"
                       >
                         <Trash2 size={16} />
-                      </Button>
+                      </Button> */}
                     </div>
                   </TableCell>
                 </TableRow>

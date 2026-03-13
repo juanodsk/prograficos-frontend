@@ -1,7 +1,9 @@
+// src/views/users/Users.jsx
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import userService from "../../services/user.service";
+import ConfirmDialog from "../../components/common/ConfirmDialog";
+import UserForm from "../users/UserForm";
 import { useAuthStore } from "../../store/authStore";
 import {
   Table,
@@ -62,11 +64,24 @@ const RoleBadge = ({ role }) => {
 };
 
 const Users = () => {
-  const navigate = useNavigate();
   const { user: currentUser } = useAuthStore();
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+
+  // Modal de formulario
+  const [formModal, setFormModal] = useState({
+    isOpen: false,
+    userId: null, // null = crear, number = editar
+  });
+
+  // Modal de confirmación de eliminación
+  const [confirmDialog, setConfirmDialog] = useState({
+    isOpen: false,
+    userId: null,
+    userName: "",
+    loading: false,
+  });
 
   useEffect(() => {
     fetchUsers();
@@ -77,21 +92,64 @@ const Users = () => {
       setLoading(true);
       const data = await userService.getUsers();
       setUsers(data || []);
-    } catch (error) {
+    } catch {
       toast.error("Error al cargar los usuarios");
     } finally {
       setLoading(false);
     }
   };
 
-  const handleDelete = async (id) => {
-    if (!confirm("¿Estás seguro de eliminar este usuario?")) return;
-    try {
-      await userService.deleteUser(id);
-      toast.success("Usuario eliminado exitosamente");
+  // ── Form modal ──────────────────────────────────────────
+  const handleOpenCreate = () => setFormModal({ isOpen: true, userId: null });
+  const handleOpenEdit = (id) => setFormModal({ isOpen: true, userId: id });
+  const handleCloseForm = () => setFormModal({ isOpen: false, userId: null });
+
+  const handleFormSuccess = (savedUser) => {
+    if (formModal.userId) {
+      // Edición: actualiza en la lista local
+      setUsers((prev) =>
+        prev.map((u) =>
+          u.id === formModal.userId ? { ...u, ...savedUser } : u,
+        ),
+      );
+    } else {
+      // Creación: recarga la lista completa para tener el id real
       fetchUsers();
+    }
+  };
+
+  // ── Confirm dialog ──────────────────────────────────────
+  const handleDeleteClick = (user) => {
+    setConfirmDialog({
+      isOpen: true,
+      userId: user.id,
+      userName: `${user.name} ${user.surename}`,
+      loading: false,
+    });
+  };
+
+  const handleCloseDialog = () => {
+    if (confirmDialog.loading) return;
+    setConfirmDialog((prev) => ({ ...prev, isOpen: false, userId: null }));
+  };
+
+  const handleConfirmDelete = async () => {
+    setConfirmDialog((prev) => ({ ...prev, loading: true }));
+    try {
+      await userService.deleteUser(confirmDialog.userId);
+      setUsers((prev) => prev.filter((u) => u.id !== confirmDialog.userId));
+      toast.success("Usuario eliminado correctamente");
+      setConfirmDialog({
+        isOpen: false,
+        userId: null,
+        userName: "",
+        loading: false,
+      });
     } catch (error) {
-      toast.error(error.response?.data?.message || "Error al eliminar");
+      toast.error(
+        error.response?.data?.message || "No se pudo eliminar el usuario",
+      );
+      setConfirmDialog((prev) => ({ ...prev, loading: false }));
     }
   };
 
@@ -112,7 +170,7 @@ const Users = () => {
           </p>
         </div>
         <Button
-          onClick={() => navigate("/admin/users/create")}
+          onClick={handleOpenCreate}
           className="bg-[#13529a] hover:bg-[#0f3f7a] text-white"
         >
           <Plus size={16} className="mr-2" />
@@ -174,7 +232,6 @@ const Users = () => {
                   key={u.id}
                   className="hover:bg-[#13529a]/5 transition-colors"
                 >
-                  {/* Avatar */}
                   <TableCell>
                     <div className="w-9 h-9 rounded-full overflow-hidden bg-[#13529a]/10 flex items-center justify-center text-sm font-medium text-[#13529a]">
                       {u.avatar ? (
@@ -188,32 +245,22 @@ const Users = () => {
                       )}
                     </div>
                   </TableCell>
-
-                  {/* Nombre */}
                   <TableCell>
-                    <div>
-                      <p className="font-medium text-gray-900">
-                        {u.name} {u.surename}
-                      </p>
-                      <p className="text-xs text-gray-400">ID: {u.id}</p>
-                    </div>
+                    <p className="font-medium text-gray-900">
+                      {u.name} {u.surename}
+                    </p>
+                    <p className="text-xs text-gray-400">ID: {u.id}</p>
                   </TableCell>
-
-                  {/* Email */}
                   <TableCell className="text-gray-600">{u.email}</TableCell>
-
-                  {/* Rol */}
                   <TableCell>
                     <RoleBadge role={u.role} />
                   </TableCell>
-
-                  {/* Acciones */}
                   <TableCell>
                     <div className="flex items-center justify-end gap-2">
                       <Button
                         size="icon"
                         variant="ghost"
-                        onClick={() => navigate(`/admin/usuario/${u.id}/edit`)}
+                        onClick={() => handleOpenEdit(u.id)}
                         className="hover:text-[#13529a] hover:bg-[#13529a]/10 cursor-pointer"
                       >
                         <Pencil size={16} />
@@ -222,7 +269,7 @@ const Users = () => {
                         <Button
                           size="icon"
                           variant="ghost"
-                          onClick={() => handleDelete(u.id)}
+                          onClick={() => handleDeleteClick(u)}
                           className="hover:text-red-600 hover:bg-red-50 cursor-pointer"
                         >
                           <Trash2 size={16} />
@@ -236,6 +283,27 @@ const Users = () => {
           </Table>
         )}
       </div>
+
+      {/* Modal formulario crear/editar */}
+      <UserForm
+        isOpen={formModal.isOpen}
+        onClose={handleCloseForm}
+        onSuccess={handleFormSuccess}
+        userId={formModal.userId}
+      />
+
+      {/* Modal confirmación eliminar */}
+      <ConfirmDialog
+        isOpen={confirmDialog.isOpen}
+        onClose={handleCloseDialog}
+        onConfirm={handleConfirmDelete}
+        loading={confirmDialog.loading}
+        title="¿Eliminar usuario?"
+        description={`Estás a punto de eliminar a "${confirmDialog.userName}". Esta acción es permanente y no se puede deshacer.`}
+        confirmText="Sí, eliminar"
+        cancelText="Cancelar"
+        variant="danger"
+      />
     </div>
   );
 };

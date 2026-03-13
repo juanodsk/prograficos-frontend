@@ -7,7 +7,6 @@ import Users from "../views/users/Users";
 import Orders from "../views/orders/Orders";
 import Products from "../views/products/Products";
 import Unauthorized from "../views/Unauthorized";
-import UserForm from "../views/users/UserForm";
 
 const PublicRoute = ({ children }) => {
   const { isAuthenticated } = useAuthStore();
@@ -38,10 +37,16 @@ const router = createBrowserRouter([
     path: "/",
     element: <ProtectedRoute roles={["ADMIN", "SUPERVISOR"]} />,
     children: [
-      //RUTAS DE ADMINISTRACIÓN
       { path: "/admin/usuarios", element: <Users /> },
-      { path: "admin/usuario/create", element: <UserForm /> },
-      { path: "/admin/usuario/:id/edit", element: <UserForm /> },
+      // Redirigen al modal que está en la lista
+      {
+        path: "/admin/usuario/create",
+        element: <Navigate to="/admin/usuarios" replace />,
+      },
+      {
+        path: "/admin/usuario/:id/edit",
+        element: <Navigate to="/admin/usuarios" replace />,
+      },
     ],
   },
   // Rutas para ADMIN, SUPERVISOR y EMPLOYEE
