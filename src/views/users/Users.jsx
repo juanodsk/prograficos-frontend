@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import userService from "../../services/user.service";
 import ConfirmDialog from "../../components/common/ConfirmDialog";
 import UserForm from "../users/UserForm";
+import UserView from "./UserView";
 import { useAuthStore } from "../../store/authStore";
 import {
   Table,
@@ -25,6 +26,7 @@ import {
   UserCog,
   User,
   HardHat,
+  ScanEye,
 } from "lucide-react";
 
 const roleConfig = {
@@ -69,6 +71,12 @@ const Users = () => {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
 
+  // Modal de vista de información
+  const [viewModal, setViewModal] = useState({
+    isOpen: false,
+    userId: null,
+  });
+
   // Modal de formulario
   const [formModal, setFormModal] = useState({
     isOpen: false,
@@ -103,6 +111,10 @@ const Users = () => {
   const handleOpenCreate = () => setFormModal({ isOpen: true, userId: null });
   const handleOpenEdit = (id) => setFormModal({ isOpen: true, userId: id });
   const handleCloseForm = () => setFormModal({ isOpen: false, userId: null });
+
+  const handleView = (id) => setViewModal({ isOpen: true, userId: id });
+
+  const handleCloseView = () => setViewModal({ isOpen: false, userId: null });
 
   const handleFormSuccess = (savedUser) => {
     if (formModal.userId) {
@@ -171,7 +183,7 @@ const Users = () => {
         </div>
         <Button
           onClick={handleOpenCreate}
-          className="bg-[#13529a] hover:bg-[#0f3f7a] text-white"
+          className="bg-[#13529a] hover:bg-[#0f3f7a] text-white cursor-pointer"
         >
           <Plus size={16} className="mr-2" />
           Nuevo Usuario
@@ -233,15 +245,13 @@ const Users = () => {
                   className="hover:bg-[#13529a]/5 transition-colors"
                 >
                   <TableCell>
-                    <div className="w-9 h-9 rounded-full overflow-hidden bg-[#13529a]/10 flex items-center justify-center text-sm font-medium text-[#13529a]">
-                      {u.avatar ? (
+                    <div className="w-8 h-8 rounded-full overflow-hidden">
+                      {u?.avatar && (
                         <img
                           src={u.avatar}
                           alt={u.name}
                           className="w-full h-full object-cover"
                         />
-                      ) : (
-                        u.name?.charAt(0).toUpperCase()
                       )}
                     </div>
                   </TableCell>
@@ -260,21 +270,63 @@ const Users = () => {
                       <Button
                         size="icon"
                         variant="ghost"
-                        onClick={() => handleOpenEdit(u.id)}
+                        onClick={() => handleView(u.id)}
                         className="hover:text-[#13529a] hover:bg-[#13529a]/10 cursor-pointer"
+                        title="Ver información"
                       >
-                        <Pencil size={16} />
+                        <ScanEye size={16} />
                       </Button>
-                      {currentUser?.id !== u.id && (
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          onClick={() => handleDeleteClick(u)}
-                          className="hover:text-red-600 hover:bg-red-50 cursor-pointer"
-                        >
-                          <Trash2 size={16} />
-                        </Button>
-                      )}
+                      {/* Botón editar */}
+                      {(() => {
+                        const canEdit =
+                          u.role !== "ADMIN" || currentUser?.role === "ADMIN";
+                        return (
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            disabled={!canEdit}
+                            onClick={() => canEdit && handleOpenEdit(u.id)}
+                            title={
+                              !canEdit
+                                ? "No tienes permisos para editar este usuario"
+                                : "Editar usuario"
+                            }
+                            className={
+                              canEdit
+                                ? "hover:text-[#13529a] hover:bg-[#13529a]/10 cursor-pointer"
+                                : "text-gray-300 cursor-not-allowed opacity-50"
+                            }
+                          >
+                            <Pencil size={16} />
+                          </Button>
+                        );
+                      })()}
+                      {/* Botón eliminar — oculto solo para el propio usuario */}
+                      {currentUser?.id !== u.id &&
+                        (() => {
+                          const canDelete =
+                            u.role !== "ADMIN" || currentUser?.role === "ADMIN";
+                          return (
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              disabled={!canDelete}
+                              onClick={() => canDelete && handleDeleteClick(u)}
+                              title={
+                                !canDelete
+                                  ? "No tienes permisos para eliminar este usuario"
+                                  : "Eliminar usuario"
+                              }
+                              className={
+                                canDelete
+                                  ? "hover:text-red-600 hover:bg-red-50 cursor-pointer"
+                                  : "text-gray-300 cursor-not-allowed opacity-50"
+                              }
+                            >
+                              <Trash2 size={16} />
+                            </Button>
+                          );
+                        })()}
                     </div>
                   </TableCell>
                 </TableRow>
@@ -290,6 +342,13 @@ const Users = () => {
         onClose={handleCloseForm}
         onSuccess={handleFormSuccess}
         userId={formModal.userId}
+      />
+
+      {/* Modal ver información */}
+      <UserView
+        isOpen={viewModal.isOpen}
+        onClose={handleCloseView}
+        userId={viewModal.userId}
       />
 
       {/* Modal confirmación eliminar */}

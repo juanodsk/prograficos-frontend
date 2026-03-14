@@ -3,7 +3,7 @@ import { Bell } from "lucide-react";
 
 const Navbar = () => {
   const { user } = useAuthStore();
-
+  console.log(user);
   return (
     <header className="h-16 bg-[#13529a] border-b flex items-center justify-between px-6">
       <div>
@@ -27,8 +27,14 @@ const Navbar = () => {
           <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
         </button>
 
-        <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-sm font-medium">
-          {user?.name?.charAt(0).toUpperCase()}
+        <div className="w-8 h-8 rounded-full overflow-hidden">
+          {user?.avatar && (
+            <img
+              src={user.avatar}
+              alt={user.name}
+              className="w-full h-full object-cover"
+            />
+          )}
         </div>
       </div>
     </header>

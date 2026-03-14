@@ -5,7 +5,7 @@ import Login from "../views/auth/Login";
 import Dashboard from "../views/dashboard/Dashboard";
 import Users from "../views/users/Users";
 import Orders from "../views/orders/Orders";
-import Products from "../views/products/Products";
+import Thirds from "../views/thirds/Thirds";
 import Unauthorized from "../views/Unauthorized";
 
 const PublicRoute = ({ children }) => {
@@ -46,6 +46,10 @@ const router = createBrowserRouter([
       {
         path: "/admin/usuario/:id/edit",
         element: <Navigate to="/admin/usuarios" replace />,
+      },
+      {
+        path: "/admin/terceros",
+        element: <Thirds />,
       },
     ],
   },

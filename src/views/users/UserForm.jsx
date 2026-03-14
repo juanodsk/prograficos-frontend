@@ -113,6 +113,12 @@ export default function UserForm({ isOpen, onClose, onSuccess, userId }) {
       const payload = { ...form };
       if (isEditing && !payload.password) delete payload.password;
 
+      // Si no es ADMIN ni SUPERVISOR, no enviar role
+      // Si es edición y no tiene permisos para cambiar rol, no enviarlo
+      if (currentUser?.role !== "ADMIN" && currentUser?.role !== "SUPERVISOR") {
+        delete payload.role;
+      }
+
       let result;
       if (isEditing) {
         result = await userService.updateUser(userId, payload);
@@ -190,7 +196,7 @@ export default function UserForm({ isOpen, onClose, onSuccess, userId }) {
             disabled={loading}
             className="text-gray-400 hover:text-gray-600 transition-colors disabled:opacity-50"
           >
-            <X size={20} />
+            <X size={20} className="cursor-pointer" />
           </button>
         </div>
 
@@ -205,7 +211,7 @@ export default function UserForm({ isOpen, onClose, onSuccess, userId }) {
               {/* Nombre y Apellido */}
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
-                  <Label className="text-xs">Nombre.</Label>
+                  <Label className="text-xs">Nombre</Label>
                   <Input
                     name="name"
                     placeholder="Juan"
@@ -277,17 +283,22 @@ export default function UserForm({ isOpen, onClose, onSuccess, userId }) {
                     onValueChange={(value) =>
                       setForm((prev) => ({ ...prev, role: value }))
                     }
-                    disabled={currentUser?.role !== "ADMIN"}
+                    disabled={
+                      currentUser?.role !== "ADMIN" &&
+                      currentUser?.role !== "SUPERVISOR"
+                    }
                   >
                     <SelectTrigger className="h-8 text-sm">
                       <SelectValue placeholder="Seleccionar rol" />
                     </SelectTrigger>
                     <SelectContent>
-                      {roles.map((r) => (
-                        <SelectItem key={r.value} value={r.value}>
-                          {r.label}
-                        </SelectItem>
-                      ))}
+                      {roles
+                        .filter((r) => r.value !== "ADMIN")
+                        .map((r) => (
+                          <SelectItem key={r.value} value={r.value}>
+                            {r.label}
+                          </SelectItem>
+                        ))}
                     </SelectContent>
                   </Select>
                 </div>
