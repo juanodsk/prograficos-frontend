@@ -11,7 +11,6 @@ import {
 
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
 
 import {
   ArrowUpDown,
@@ -19,27 +18,15 @@ import {
   ChevronRight,
   Search,
   Download,
-  Columns,
 } from "lucide-react";
 
-const DataTable = ({ data = [], columns = [], actions, pageSize = 10 }) => {
+const DataTable = ({ data = [], columns = [], actions }) => {
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+
   const [sortKey, setSortKey] = useState(null);
   const [sortDirection, setSortDirection] = useState("asc");
-
-  const [selectedRows, setSelectedRows] = useState([]);
-  const [visibleColumns, setVisibleColumns] = useState(
-    columns.map((col) => col.key),
-  );
-
-  const toggleColumn = (key) => {
-    setVisibleColumns((prev) =>
-      prev.includes(key) ? prev.filter((c) => c !== key) : [...prev, key],
-    );
-  };
-
-  const visibleCols = columns.filter((col) => visibleColumns.includes(col.key));
 
   // 🔎 búsqueda
   const filteredData = useMemo(() => {
@@ -82,37 +69,18 @@ const DataTable = ({ data = [], columns = [], actions, pageSize = 10 }) => {
     }
   };
 
-  // seleccionar filas
-  const toggleRow = (id) => {
-    setSelectedRows((prev) =>
-      prev.includes(id) ? prev.filter((r) => r !== id) : [...prev, id],
-    );
-  };
-
-  const toggleAllRows = () => {
-    if (selectedRows.length === paginatedData.length) {
-      setSelectedRows([]);
-    } else {
-      setSelectedRows(paginatedData.map((r) => r.id));
-    }
-  };
-
   // exportar CSV
   const exportCSV = () => {
-    const headers = visibleCols.map((c) => c.label).join(",");
+    const headers = columns.map((c) => c.label).join(",");
 
-    const rows = data.map((row) =>
-      visibleCols.map((c) => row[c.key]).join(","),
-    );
+    const rows = data.map((row) => columns.map((c) => row[c.key]).join(","));
 
     const csv = [headers, ...rows].join("\n");
 
     const blob = new Blob([csv], { type: "text/csv" });
-
     const url = URL.createObjectURL(blob);
 
     const link = document.createElement("a");
-
     link.href = url;
     link.download = "table-data.csv";
     link.click();
@@ -140,37 +108,14 @@ const DataTable = ({ data = [], columns = [], actions, pageSize = 10 }) => {
           />
         </div>
 
-        {/* acciones */}
-        <div className="flex gap-2">
-          {/* export */}
-          <Button
-            variant="outline"
-            onClick={exportCSV}
-            className="cursor-pointer"
-          >
-            <Download size={16} className="mr-2" />
-            Exportar
-          </Button>
-
-          {/* columnas */}
-          <div className="flex items-center gap-2 border rounded-md px-3 py-2">
-            <Columns size={16} />
-
-            {columns.map((col) => (
-              <label
-                key={col.key}
-                className="flex items-center gap-1 text-sm cursor-pointer"
-              >
-                <Checkbox
-                  checked={visibleColumns.includes(col.key)}
-                  onCheckedChange={() => toggleColumn(col.key)}
-                />
-
-                {col.label}
-              </label>
-            ))}
-          </div>
-        </div>
+        <Button
+          variant="outline"
+          onClick={exportCSV}
+          className="cursor-pointer"
+        >
+          <Download size={16} className="mr-2" />
+          Exportar
+        </Button>
       </div>
 
       {/* tabla */}
@@ -178,14 +123,7 @@ const DataTable = ({ data = [], columns = [], actions, pageSize = 10 }) => {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>
-                <Checkbox
-                  checked={selectedRows.length === paginatedData.length}
-                  onCheckedChange={toggleAllRows}
-                />
-              </TableHead>
-
-              {visibleCols.map((col) => (
+              {columns.map((col) => (
                 <TableHead key={col.key}>
                   <Button
                     variant="ghost"
@@ -193,7 +131,6 @@ const DataTable = ({ data = [], columns = [], actions, pageSize = 10 }) => {
                     onClick={() => handleSort(col.key)}
                   >
                     {col.label}
-
                     <ArrowUpDown size={14} className="ml-1" />
                   </Button>
                 </TableHead>
@@ -209,7 +146,7 @@ const DataTable = ({ data = [], columns = [], actions, pageSize = 10 }) => {
             {paginatedData.length === 0 && (
               <TableRow>
                 <TableCell
-                  colSpan={columns.length + 2}
+                  colSpan={columns.length + 1}
                   className="text-center py-10 text-gray-500"
                 >
                   No hay registros
@@ -219,14 +156,7 @@ const DataTable = ({ data = [], columns = [], actions, pageSize = 10 }) => {
 
             {paginatedData.map((row) => (
               <TableRow key={row.id}>
-                <TableCell>
-                  <Checkbox
-                    checked={selectedRows.includes(row.id)}
-                    onCheckedChange={() => toggleRow(row.id)}
-                  />
-                </TableCell>
-
-                {visibleCols.map((col) => (
+                {columns.map((col) => (
                   <TableCell key={col.key}>
                     {col.render ? col.render(row) : (row[col.key] ?? "-")}
                   </TableCell>
@@ -241,19 +171,38 @@ const DataTable = ({ data = [], columns = [], actions, pageSize = 10 }) => {
         </Table>
       </div>
 
-      {/* paginación */}
-      <div className="flex items-center justify-between">
-        <p className="text-sm text-gray-500">
-          Página {page} de {totalPages || 1}
-        </p>
+      {/* footer */}
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        {/* tamaño de página */}
+        <div className="flex items-center gap-2 text-sm">
+          Mostrar
+          <select
+            className="border rounded px-2 py-1"
+            value={pageSize}
+            onChange={(e) => {
+              setPageSize(Number(e.target.value));
+              setPage(1);
+            }}
+          >
+            <option value={10}>10</option>
+            <option value={25}>25</option>
+            <option value={50}>50</option>
+            <option value={100}>100</option>
+          </select>
+          registros
+        </div>
 
-        <div className="flex gap-2">
+        {/* paginación */}
+        <div className="flex items-center gap-2">
+          <p className="text-sm text-gray-500">
+            Página {page} de {totalPages || 1}
+          </p>
+
           <Button
             variant="outline"
             size="icon"
             disabled={page === 1}
             onClick={() => setPage(page - 1)}
-            className="cursor-pointer"
           >
             <ChevronLeft size={16} />
           </Button>
@@ -263,7 +212,6 @@ const DataTable = ({ data = [], columns = [], actions, pageSize = 10 }) => {
             size="icon"
             disabled={page === totalPages}
             onClick={() => setPage(page + 1)}
-            className="cursor-pointer"
           >
             <ChevronRight size={16} />
           </Button>
