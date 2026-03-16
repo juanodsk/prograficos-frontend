@@ -1,24 +1,16 @@
-// src/views/users/Users.jsx
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import userService from "../../services/user.service";
 import ConfirmDialog from "../../components/common/ConfirmDialog";
 import UserForm from "../users/UserForm";
 import UserView from "./UserView";
+import DataTable from "../../components/data-table/DataTable";
 import { useAuthStore } from "../../store/authStore";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+
 import {
   Plus,
-  Search,
   Pencil,
   Trash2,
   Loader2,
@@ -55,6 +47,7 @@ const roleConfig = {
 const RoleBadge = ({ role }) => {
   const config = roleConfig[role] || roleConfig.USER;
   const Icon = config.icon;
+
   return (
     <span
       className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium border ${config.className}`}
@@ -67,23 +60,20 @@ const RoleBadge = ({ role }) => {
 
 const Users = () => {
   const { user: currentUser } = useAuthStore();
+
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState("");
 
-  // Modal de vista de información
   const [viewModal, setViewModal] = useState({
     isOpen: false,
     userId: null,
   });
 
-  // Modal de formulario
   const [formModal, setFormModal] = useState({
     isOpen: false,
-    userId: null, // null = crear, number = editar
+    userId: null,
   });
 
-  // Modal de confirmación de eliminación
   const [confirmDialog, setConfirmDialog] = useState({
     isOpen: false,
     userId: null,
@@ -98,7 +88,9 @@ const Users = () => {
   const fetchUsers = async () => {
     try {
       setLoading(true);
+
       const data = await userService.getUsers();
+
       setUsers(data || []);
     } catch {
       toast.error("Error al cargar los usuarios");
@@ -107,9 +99,12 @@ const Users = () => {
     }
   };
 
-  // ── Form modal ──────────────────────────────────────────
+  // ───────────── MODALES ─────────────
+
   const handleOpenCreate = () => setFormModal({ isOpen: true, userId: null });
+
   const handleOpenEdit = (id) => setFormModal({ isOpen: true, userId: id });
+
   const handleCloseForm = () => setFormModal({ isOpen: false, userId: null });
 
   const handleView = (id) => setViewModal({ isOpen: true, userId: id });
@@ -118,19 +113,18 @@ const Users = () => {
 
   const handleFormSuccess = (savedUser) => {
     if (formModal.userId) {
-      // Edición: actualiza en la lista local
       setUsers((prev) =>
         prev.map((u) =>
           u.id === formModal.userId ? { ...u, ...savedUser } : u,
         ),
       );
     } else {
-      // Creación: recarga la lista completa para tener el id real
       fetchUsers();
     }
   };
 
-  // ── Confirm dialog ──────────────────────────────────────
+  // ───────────── ELIMINAR ─────────────
+
   const handleDeleteClick = (user) => {
     setConfirmDialog({
       isOpen: true,
@@ -142,45 +136,145 @@ const Users = () => {
 
   const handleCloseDialog = () => {
     if (confirmDialog.loading) return;
-    setConfirmDialog((prev) => ({ ...prev, isOpen: false, userId: null }));
+
+    setConfirmDialog({
+      isOpen: false,
+      userId: null,
+      userName: "",
+      loading: false,
+    });
   };
 
   const handleConfirmDelete = async () => {
     setConfirmDialog((prev) => ({ ...prev, loading: true }));
+
     try {
       await userService.deleteUser(confirmDialog.userId);
+
       setUsers((prev) => prev.filter((u) => u.id !== confirmDialog.userId));
+
       toast.success("Usuario eliminado correctamente");
-      setConfirmDialog({
-        isOpen: false,
-        userId: null,
-        userName: "",
-        loading: false,
-      });
+
+      handleCloseDialog();
     } catch (error) {
       toast.error(
         error.response?.data?.message || "No se pudo eliminar el usuario",
       );
-      setConfirmDialog((prev) => ({ ...prev, loading: false }));
+
+      setConfirmDialog((prev) => ({
+        ...prev,
+        loading: false,
+      }));
     }
   };
 
-  const filtered = users.filter((u) =>
-    `${u.name} ${u.surename} ${u.email}`
-      .toLowerCase()
-      .includes(search.toLowerCase()),
-  );
+  // ───────────── COLUMNAS ─────────────
+
+  const columns = [
+    {
+      key: "avatar",
+      label: "Avatar",
+      render: (row) => (
+        <div className="w-8 h-8 rounded-full overflow-hidden">
+          {row?.avatar && (
+            <img
+              src={row.avatar}
+              alt={row.name}
+              className="w-full h-full object-cover"
+            />
+          )}
+        </div>
+      ),
+    },
+    {
+      key: "name",
+      label: "Nombre",
+      render: (row) => (
+        <div>
+          <p className="font-medium text-gray-900">
+            {row.name} {row.surename}
+          </p>
+          <p className="text-xs text-gray-400">ID: {row.id}</p>
+        </div>
+      ),
+    },
+    {
+      key: "email",
+      label: "Email",
+    },
+    {
+      key: "role",
+      label: "Rol",
+      render: (row) => <RoleBadge role={row.role} />,
+    },
+  ];
+
+  // ───────────── ACCIONES ─────────────
+
+  const actions = (row) => {
+    const canEdit = row.role !== "ADMIN" || currentUser?.role === "ADMIN";
+
+    const canDelete = row.role !== "ADMIN" || currentUser?.role === "ADMIN";
+
+    return (
+      <div className="flex items-center justify-end gap-2">
+        <Button
+          size="icon"
+          variant="ghost"
+          onClick={() => handleView(row.id)}
+          className="hover:text-[#13529a] hover:bg-[#13529a]/10 cursor-pointer"
+        >
+          <ScanEye size={16} />
+        </Button>
+
+        <Button
+          size="icon"
+          variant="ghost"
+          disabled={!canEdit}
+          onClick={() => canEdit && handleOpenEdit(row.id)}
+          className={
+            canEdit
+              ? "hover:text-[#13529a] hover:bg-[#13529a]/10 cursor-pointer"
+              : "text-gray-300 cursor-not-allowed opacity-50"
+          }
+        >
+          <Pencil size={16} />
+        </Button>
+
+        {currentUser?.id !== row.id && (
+          <Button
+            size="icon"
+            variant="ghost"
+            disabled={!canDelete}
+            onClick={() => canDelete && handleDeleteClick(row)}
+            className={
+              canDelete
+                ? "hover:text-red-600 hover:bg-red-50 cursor-pointer"
+                : "text-gray-300 cursor-not-allowed opacity-50"
+            }
+          >
+            <Trash2 size={16} />
+          </Button>
+        )}
+      </div>
+    );
+  };
+
+  // ───────────── UI ─────────────
 
   return (
     <div className="space-y-6">
       {/* Header */}
+
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-[#13529a]">Usuarios</h1>
+
           <p className="text-sm text-gray-500">
             {users.length} usuarios registrados
           </p>
         </div>
+
         <Button
           onClick={handleOpenCreate}
           className="bg-[#13529a] hover:bg-[#0f3f7a] text-white cursor-pointer"
@@ -190,153 +284,20 @@ const Users = () => {
         </Button>
       </div>
 
-      {/* Card */}
-      <div className="bg-white rounded-xl border shadow-sm">
-        {/* Search */}
-        <div className="p-4 border-b">
-          <div className="relative max-w-sm">
-            <Search
-              size={16}
-              className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
-            />
-            <Input
-              placeholder="Buscar por nombre o email..."
-              className="pl-9"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
-          </div>
-        </div>
+      {/* Tabla */}
 
-        {/* Table */}
+      <div className="bg-white rounded-xl border shadow-sm p-4">
         {loading ? (
           <div className="flex items-center justify-center py-16">
             <Loader2 size={32} className="animate-spin text-[#13529a]" />
           </div>
-        ) : filtered.length === 0 ? (
-          <div className="text-center py-16 text-gray-500">
-            No se encontraron usuarios
-          </div>
         ) : (
-          <Table>
-            <TableHeader>
-              <TableRow className="bg-[#13529a]/5">
-                <TableHead className="text-[#13529a] font-semibold">
-                  Avatar
-                </TableHead>
-                <TableHead className="text-[#13529a] font-semibold">
-                  Nombre
-                </TableHead>
-                <TableHead className="text-[#13529a] font-semibold">
-                  Email
-                </TableHead>
-                <TableHead className="text-[#13529a] font-semibold">
-                  Rol
-                </TableHead>
-                <TableHead className="text-[#13529a] font-semibold text-right">
-                  Acciones
-                </TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filtered.map((u) => (
-                <TableRow
-                  key={u.id}
-                  className="hover:bg-[#13529a]/5 transition-colors"
-                >
-                  <TableCell>
-                    <div className="w-8 h-8 rounded-full overflow-hidden">
-                      {u?.avatar && (
-                        <img
-                          src={u.avatar}
-                          alt={u.name}
-                          className="w-full h-full object-cover"
-                        />
-                      )}
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <p className="font-medium text-gray-900">
-                      {u.name} {u.surename}
-                    </p>
-                    <p className="text-xs text-gray-400">ID: {u.id}</p>
-                  </TableCell>
-                  <TableCell className="text-gray-600">{u.email}</TableCell>
-                  <TableCell>
-                    <RoleBadge role={u.role} />
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center justify-end gap-2">
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        onClick={() => handleView(u.id)}
-                        className="hover:text-[#13529a] hover:bg-[#13529a]/10 cursor-pointer"
-                        title="Ver información"
-                      >
-                        <ScanEye size={16} />
-                      </Button>
-                      {/* Botón editar */}
-                      {(() => {
-                        const canEdit =
-                          u.role !== "ADMIN" || currentUser?.role === "ADMIN";
-                        return (
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            disabled={!canEdit}
-                            onClick={() => canEdit && handleOpenEdit(u.id)}
-                            title={
-                              !canEdit
-                                ? "No tienes permisos para editar este usuario"
-                                : "Editar usuario"
-                            }
-                            className={
-                              canEdit
-                                ? "hover:text-[#13529a] hover:bg-[#13529a]/10 cursor-pointer"
-                                : "text-gray-300 cursor-not-allowed opacity-50"
-                            }
-                          >
-                            <Pencil size={16} />
-                          </Button>
-                        );
-                      })()}
-                      {/* Botón eliminar — oculto solo para el propio usuario */}
-                      {currentUser?.id !== u.id &&
-                        (() => {
-                          const canDelete =
-                            u.role !== "ADMIN" || currentUser?.role === "ADMIN";
-                          return (
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              disabled={!canDelete}
-                              onClick={() => canDelete && handleDeleteClick(u)}
-                              title={
-                                !canDelete
-                                  ? "No tienes permisos para eliminar este usuario"
-                                  : "Eliminar usuario"
-                              }
-                              className={
-                                canDelete
-                                  ? "hover:text-red-600 hover:bg-red-50 cursor-pointer"
-                                  : "text-gray-300 cursor-not-allowed opacity-50"
-                              }
-                            >
-                              <Trash2 size={16} />
-                            </Button>
-                          );
-                        })()}
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+          <DataTable data={users} columns={columns} actions={actions} />
         )}
       </div>
 
-      {/* Modal formulario crear/editar */}
+      {/* Modal formulario */}
+
       <UserForm
         isOpen={formModal.isOpen}
         onClose={handleCloseForm}
@@ -344,14 +305,16 @@ const Users = () => {
         userId={formModal.userId}
       />
 
-      {/* Modal ver información */}
+      {/* Modal ver */}
+
       <UserView
         isOpen={viewModal.isOpen}
         onClose={handleCloseView}
         userId={viewModal.userId}
       />
 
-      {/* Modal confirmación eliminar */}
+      {/* Confirm dialog */}
+
       <ConfirmDialog
         isOpen={confirmDialog.isOpen}
         onClose={handleCloseDialog}
