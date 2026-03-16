@@ -25,25 +25,36 @@ const DataTable = ({ data = [], columns = [], actions }) => {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
 
-  const [sortKey, setSortKey] = useState(null);
+  // Ordenamiento por defecto: id ascendente
+  const [sortKey, setSortKey] = useState("id");
   const [sortDirection, setSortDirection] = useState("asc");
 
-  // 🔎 búsqueda
+  // 🔎 Búsqueda
   const filteredData = useMemo(() => {
-    if (!search) return data;
+    const arr = Array.isArray(data) ? data : [];
+    if (!search) return arr;
 
-    return data.filter((row) =>
-      Object.values(row).join(" ").toLowerCase().includes(search.toLowerCase()),
+    return arr.filter((row) =>
+      Object.values(row)
+        .map((v) => String(v))
+        .join(" ")
+        .toLowerCase()
+        .includes(search.toLowerCase()),
     );
   }, [data, search]);
 
-  // ↕ ordenamiento
+  // ↕ Ordenamiento
   const sortedData = useMemo(() => {
-    if (!sortKey) return filteredData;
+    const arr = [...filteredData];
 
-    return [...filteredData].sort((a, b) => {
+    if (!sortKey) return arr;
+
+    return arr.sort((a, b) => {
       const A = a[sortKey];
       const B = b[sortKey];
+
+      if (A === undefined || A === null) return 1;
+      if (B === undefined || B === null) return -1;
 
       if (A < B) return sortDirection === "asc" ? -1 : 1;
       if (A > B) return sortDirection === "asc" ? 1 : -1;
@@ -52,7 +63,7 @@ const DataTable = ({ data = [], columns = [], actions }) => {
     });
   }, [filteredData, sortKey, sortDirection]);
 
-  // 📄 paginación
+  // 📄 Paginación
   const totalPages = Math.ceil(sortedData.length / pageSize);
 
   const paginatedData = sortedData.slice(
@@ -69,11 +80,14 @@ const DataTable = ({ data = [], columns = [], actions }) => {
     }
   };
 
-  // exportar CSV
+  // Exportar CSV
   const exportCSV = () => {
+    const arr = Array.isArray(data) ? data : [];
     const headers = columns.map((c) => c.label).join(",");
 
-    const rows = data.map((row) => columns.map((c) => row[c.key]).join(","));
+    const rows = arr.map((row) =>
+      columns.map((c) => row[c.key] ?? "").join(","),
+    );
 
     const csv = [headers, ...rows].join("\n");
 
@@ -88,9 +102,9 @@ const DataTable = ({ data = [], columns = [], actions }) => {
 
   return (
     <div className="space-y-4">
-      {/* toolbar */}
+      {/* Toolbar */}
       <div className="flex items-center justify-between flex-wrap gap-3">
-        {/* buscador */}
+        {/* Buscador */}
         <div className="relative max-w-sm">
           <Search
             size={16}
@@ -118,7 +132,7 @@ const DataTable = ({ data = [], columns = [], actions }) => {
         </Button>
       </div>
 
-      {/* tabla */}
+      {/* Tabla */}
       <div className="border rounded-md">
         <Table>
           <TableHeader>
@@ -171,9 +185,9 @@ const DataTable = ({ data = [], columns = [], actions }) => {
         </Table>
       </div>
 
-      {/* footer */}
+      {/* Footer */}
       <div className="flex items-center justify-between flex-wrap gap-3">
-        {/* tamaño de página */}
+        {/* Tamaño de página */}
         <div className="flex items-center gap-2 text-sm">
           Mostrar
           <select
@@ -192,7 +206,7 @@ const DataTable = ({ data = [], columns = [], actions }) => {
           registros
         </div>
 
-        {/* paginación */}
+        {/* Paginación */}
         <div className="flex items-center gap-2">
           <p className="text-sm text-gray-500">
             Página {page} de {totalPages || 1}
