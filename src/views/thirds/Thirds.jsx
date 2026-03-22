@@ -109,15 +109,13 @@ const Thirds = () => {
 
       await thirdService.remove(confirmDialog.thirdId);
 
-      toast.success("Tercero eliminado");
+      toast.success(response?.message);
 
       setThirds((prev) => prev.filter((t) => t.id !== confirmDialog.thirdId));
 
       handleCloseDialog();
     } catch (error) {
-      toast.error(
-        error?.response?.data?.message || "Error al eliminar el tercero",
-      );
+      toast.error(response?.message || "Error al eliminar el tercero");
 
       setConfirmDialog((prev) => ({
         ...prev,
