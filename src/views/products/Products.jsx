@@ -1,12 +1,15 @@
 import { useState, useEffect } from "react";
-import { toast } from "sonner";
 import productsService from "../../services/products.service";
-import ConfirmDialog from "../../components/common/ConfirmDialog";
-import ProductForm from "../products/ProductForm";
-import ProductView from "./ProductView";
-import DataTable from "../../components/data-table/DataTable";
 import { useAuthStore } from "../../store/authStore";
 
+//VIEWS
+import ProductForm from "../products/ProductForm";
+import ProductView from "./ProductView";
+
+//COMPONENTS
+import DataTable from "../../components/data-table/DataTable";
+import ConfirmDialog from "../../components/common/ConfirmDialog";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Plus, Pencil, Trash2, Loader2, ScanEye } from "lucide-react";
 
