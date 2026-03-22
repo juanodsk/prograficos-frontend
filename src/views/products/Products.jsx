@@ -152,8 +152,8 @@ const Products = () => {
 
   // ───────────── ACCIONES ─────────────
   const actions = (row) => {
-    const canEdit = currentUser?.role === "ADMIN";
-    const canDelete = currentUser?.role === "ADMIN";
+    const canEdit = ["ADMIN", "SUPERVISOR"].includes(currentUser?.role);
+    const canDelete = ["ADMIN", "SUPERVISOR"].includes(currentUser?.role);
 
     return (
       <div className="flex items-center justify-end gap-2">

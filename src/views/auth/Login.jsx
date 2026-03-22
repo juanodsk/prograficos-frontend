@@ -21,49 +21,37 @@ const Login = () => {
 
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-
-  const [form, setForm] = useState({
-    email: "",
-    password: "",
-  });
-
+  const [form, setForm] = useState({ email: "", password: "" });
   const [errors, setErrors] = useState({});
+  const [serverError, setServerError] = useState("");
 
   const validate = () => {
     const newErrors = {};
-
     if (!form.email) newErrors.email = "El email es requerido";
     else if (!/\S+@\S+\.\S+/.test(form.email))
       newErrors.email = "Email inválido";
-
     if (!form.password) newErrors.password = "La contraseña es requerida";
     else if (form.password.length < 6)
       newErrors.password = "Mínimo 6 caracteres";
-
     setErrors(newErrors);
-
     return Object.keys(newErrors).length === 0;
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-
     if (!validate()) return;
-
     try {
       setLoading(true);
-
+      setServerError("");
       const response = await authService.login(form);
       const usuario = response.data.user;
-
       setUser(usuario);
-
       toast.success(`Bienvenido ${usuario.name}!`);
-
       navigate("/dashboard");
     } catch (err) {
-      const message = err.response?.data?.message;
-      toast.error(message || "Error del servidor");
+      const message = err.response?.data?.message || "Error del servidor";
+      setServerError(message);
+      toast.error(message);
     } finally {
       setLoading(false);
     }
@@ -76,7 +64,6 @@ const Login = () => {
           <CardTitle className="text-3xl font-bold text-[#13529a]">
             Prográficos
           </CardTitle>
-
           <CardDescription className="text-gray-500">
             Ingresa tus credenciales para continuar
           </CardDescription>
@@ -84,42 +71,43 @@ const Login = () => {
 
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-5">
-            {/* Email */}
-
+            {/* EMAIL */}
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
-
               <Input
                 id="email"
                 type="email"
                 placeholder="correo@ejemplo.com"
                 value={form.email}
-                onChange={(e) => setForm({ ...form, email: e.target.value })}
+                onChange={(e) => {
+                  setForm({ ...form, email: e.target.value });
+                  setServerError("");
+                  if (errors.email)
+                    setErrors((prev) => ({ ...prev, email: "" }));
+                }}
                 className="focus-visible:ring-[#13529a]"
               />
-
               {errors.email && (
                 <p className="text-xs text-red-500">{errors.email}</p>
               )}
             </div>
 
-            {/* Password */}
-
+            {/* PASSWORD */}
             <div className="space-y-2">
               <Label htmlFor="password">Contraseña</Label>
-
               <div className="relative">
                 <Input
                   id="password"
                   type={showPassword ? "text" : "password"}
                   placeholder="••••••••"
                   value={form.password}
-                  onChange={(e) =>
-                    setForm({ ...form, password: e.target.value })
-                  }
+                  onChange={(e) => {
+                    setForm({ ...form, password: e.target.value });
+                    if (errors.password)
+                      setErrors((prev) => ({ ...prev, password: "" }));
+                  }}
                   className="focus-visible:ring-[#13529a]"
                 />
-
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
@@ -128,14 +116,12 @@ const Login = () => {
                   {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                 </button>
               </div>
-
               {errors.password && (
                 <p className="text-xs text-red-500">{errors.password}</p>
               )}
             </div>
 
-            {/* Button */}
-
+            {/* BOTÓN */}
             <Button
               type="submit"
               className="w-full bg-[#13529a] hover:bg-[#0f3f77] text-white font-semibold cursor-pointer"

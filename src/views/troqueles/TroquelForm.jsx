@@ -1,9 +1,6 @@
-// src/components/common/TroquelFormModal.jsx
-"use client";
-
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { toast } from "sonner";
-import troquelesService from "../../services/troqueles.service"; // tu servicio API
+import troquelesService from "../../services/troqueles.service";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -14,8 +11,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { X, Loader2, Save } from "lucide-react";
+import { X, Loader2, Save, ChevronDown } from "lucide-react";
+import { format } from "date-fns";
 import { Calendar } from "@/components/ui/calendar";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { es } from "date-fns/locale";
 
 export default function TroquelFormModal({
   isOpen,
@@ -24,15 +28,16 @@ export default function TroquelFormModal({
   troquelId,
 }) {
   const isEditing = !!troquelId;
+  const fileInputRef = useRef(null);
 
   const [loading, setLoading] = useState(false);
   const [fetching, setFetching] = useState(false);
+  const [calendarOpen, setCalendarOpen] = useState(false);
   const [errors, setErrors] = useState({});
   const [form, setForm] = useState({
     elaboration_date: new Date(),
     size: "SMALL",
-    fileBase64: "",
-    file: "",
+    file_name: "",
     is_active: true,
   });
 
@@ -45,24 +50,27 @@ export default function TroquelFormModal({
     setForm({
       elaboration_date: new Date(),
       size: "SMALL",
-      fileBase64: "",
-      file: "",
+      file_name: "",
       is_active: true,
     });
     setErrors({});
+    setCalendarOpen(false);
+    if (fileInputRef.current) fileInputRef.current.value = "";
   };
+
+  // troquelesService.getById ya retorna `data` (el body del response)
+  // por lo que data.data.data es incorrecto
 
   const fetchTroquel = async () => {
     try {
       setFetching(true);
-      const data = await troquelesService.getById(troquelId);
-      const t = data.data.troquel;
+      const res = await troquelesService.getById(troquelId);
+      const t = res.data; // ← un solo .data, no .data.data
 
       setForm({
         elaboration_date: new Date(t.elaboration_date),
         size: t.size || "SMALL",
-        fileBase64: t.file_base64 || "",
-        file: t.file || "",
+        file_name: t.file_name || "",
         is_active: t.is_active ?? true,
       });
     } catch {
@@ -72,14 +80,19 @@ export default function TroquelFormModal({
       setFetching(false);
     }
   };
-
   const validate = () => {
     const newErrors = {};
-    if (!form.elaboration_date) newErrors.elaboration_date = "Fecha requerida";
+    if (!form.elaboration_date)
+      newErrors.elaboration_date = "La fecha es requerida";
     if (!form.size) newErrors.size = "Selecciona un tamaño";
-    if (!form.fileBase64) newErrors.file = "Selecciona un archivo";
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
+  };
+
+  const handleFileChange = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setForm((prev) => ({ ...prev, file_name: file.name }));
   };
 
   const handleSubmit = async (e) => {
@@ -89,45 +102,34 @@ export default function TroquelFormModal({
     try {
       setLoading(true);
 
-      const payload = {
-        elaboration_date: form.elaboration_date.toISOString(),
-        size: form.size,
-        fileBase64: form.fileBase64,
-        file: form.file,
-        is_active: form.is_active,
-      };
+      const formData = new FormData();
+      formData.append("elaboration_date", form.elaboration_date.toISOString());
+      formData.append("size", form.size);
+      formData.append("is_active", form.is_active);
+      if (fileInputRef.current?.files?.[0]) {
+        formData.append("file", fileInputRef.current.files[0]);
+      }
 
       let result;
       if (isEditing) {
-        result = await troquelesService.update(troquelId, payload);
+        result = await troquelesService.update(troquelId, formData, {
+          headers: { "Content-Type": "multipart/form-data" },
+        });
         toast.success("Troquel actualizado");
       } else {
-        result = await troquelesService.create(payload);
+        result = await troquelesService.create(formData, {
+          headers: { "Content-Type": "multipart/form-data" },
+        });
         toast.success("Troquel creado");
       }
 
-      onSuccess(result?.data?.troquel || payload);
+      onSuccess(result.data);
       onClose();
     } catch (err) {
       toast.error(err?.response?.data?.message || "Error al guardar");
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleFileChange = (e) => {
-    const file = e.target.files && e.target.files[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = () => {
-      setForm((prev) => ({
-        ...prev,
-        fileBase64: reader.result.split(",")[1],
-        file: file,
-      }));
-    };
-    reader.readAsDataURL(file);
   };
 
   const handleClose = () => {
@@ -151,13 +153,20 @@ export default function TroquelFormModal({
 
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b">
-          <h2 className="text-base font-bold text-[#13529a]">
-            {isEditing ? "Editar Troquel" : "Nuevo Troquel"}
-          </h2>
+          <div>
+            <h2 className="text-base font-bold text-[#13529a]">
+              {isEditing ? "Editar Troquel" : "Nuevo Troquel"}
+            </h2>
+            <p className="text-xs text-gray-400">
+              {isEditing
+                ? "Modifica los datos del troquel"
+                : "Completa los datos para crear un troquel"}
+            </p>
+          </div>
           <button
             onClick={handleClose}
             disabled={loading}
-            className="text-gray-400 hover:text-gray-600 transition-colors disabled:opacity-50"
+            className="text-gray-400 hover:text-gray-600 transition-colors disabled:opacity-50 cursor-pointer"
           >
             <X size={20} />
           </button>
@@ -171,18 +180,39 @@ export default function TroquelFormModal({
             </div>
           ) : (
             <form onSubmit={handleSubmit} className="space-y-4">
-              {/* Calendar */}
+              {/* Fecha */}
               <div className="space-y-1">
-                <Label>Fecha de Elaboración</Label>
-                <Calendar
-                  mode="single"
-                  selected={form.elaboration_date}
-                  onSelect={(date) =>
-                    setForm((prev) => ({ ...prev, elaboration_date: date }))
-                  }
-                  className="rounded-lg border"
-                  captionLayout="dropdown"
-                />
+                <Label className="text-xs">Fecha de Elaboración</Label>
+                <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
+                  <PopoverTrigger>
+                    <div
+                      className="flex h-8 w-full cursor-pointer items-center justify-between rounded-md border border-input bg-background px-3 text-sm text-foreground shadow-sm hover:bg-accent hover:text-accent-foreground"
+                      onClick={() => setCalendarOpen((prev) => !prev)}
+                    >
+                      <span>
+                        {form.elaboration_date
+                          ? format(form.elaboration_date, "PPP", { locale: es })
+                          : "Selecciona fecha"}
+                      </span>
+                      <ChevronDown className="h-4 w-4 opacity-50" />
+                    </div>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={form.elaboration_date}
+                      onSelect={(date) => {
+                        setForm((prev) => ({
+                          ...prev,
+                          elaboration_date: date,
+                        }));
+                        setCalendarOpen(false);
+                      }}
+                      defaultMonth={form.elaboration_date}
+                      locale={es}
+                    />
+                  </PopoverContent>
+                </Popover>
                 {errors.elaboration_date && (
                   <p className="text-xs text-red-500">
                     {errors.elaboration_date}
@@ -192,59 +222,67 @@ export default function TroquelFormModal({
 
               {/* Tamaño */}
               <div className="space-y-1">
-                <Label>Tamaño</Label>
+                <Label className="text-xs">Tamaño</Label>
                 <Select
                   value={form.size}
                   onValueChange={(value) =>
                     setForm((prev) => ({ ...prev, size: value }))
                   }
                 >
-                  <SelectTrigger className="w-full">
+                  <SelectTrigger className="h-8 text-sm w-full">
                     <SelectValue placeholder="Selecciona tamaño" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="SMALL">SMALL</SelectItem>
-                    <SelectItem value="MEDIUM">MEDIUM</SelectItem>
-                    <SelectItem value="LARGE">LARGE</SelectItem>
+                    <SelectItem value="SMALL">Small</SelectItem>
+                    <SelectItem value="MEDIUM">Medium</SelectItem>
+                    <SelectItem value="LARGE">Large</SelectItem>
                   </SelectContent>
                 </Select>
+                {errors.size && (
+                  <p className="text-xs text-red-500">{errors.size}</p>
+                )}
               </div>
 
               {/* Archivo */}
               <div className="space-y-1">
-                <Label>Archivo de Troquel</Label>
-                <Input type="file" onChange={handleFileChange} />
-                {form.fileName && (
-                  <p className="text-sm text-gray-600">
-                    Archivo seleccionado: {form.file}
-                  </p>
-                )}
-                {errors.file && (
-                  <p className="text-xs text-red-500">{errors.file}</p>
+                <Label className="text-xs">Archivo de Troquel</Label>
+                <Input
+                  type="file"
+                  ref={fileInputRef}
+                  onChange={handleFileChange}
+                  className="h-8 text-sm"
+                />
+                {form.file_name && (
+                  <p className="text-xs text-gray-500 mt-1">{form.file_name}</p>
                 )}
               </div>
 
-              {/* Toggle is_active */}
+              {/* Estado */}
               <div className="space-y-1">
-                <Label>Estado</Label>
-                <button
-                  type="button"
-                  onClick={() =>
-                    setForm((prev) => ({ ...prev, is_active: !prev.is_active }))
-                  }
-                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-200 focus:outline-none ${
-                    form.is_active ? "bg-[#13529a]" : "bg-gray-300"
-                  }`}
-                >
-                  <span
-                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform duration-200 ${
-                      form.is_active ? "translate-x-6" : "translate-x-1"
+                <Label className="text-xs">Estado</Label>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setForm((prev) => ({
+                        ...prev,
+                        is_active: !prev.is_active,
+                      }))
+                    }
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-200 focus:outline-none cursor-pointer ${
+                      form.is_active ? "bg-[#13529a]" : "bg-gray-300"
                     }`}
-                  />
-                </button>
-                <span className="ml-2 text-sm text-gray-700">
-                  {form.is_active ? "Activo" : "Inactivo"}
-                </span>
+                  >
+                    <span
+                      className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform duration-200 ${
+                        form.is_active ? "translate-x-6" : "translate-x-1"
+                      }`}
+                    />
+                  </button>
+                  <span className="text-sm text-gray-700">
+                    {form.is_active ? "Activo" : "Inactivo"}
+                  </span>
+                </div>
               </div>
 
               {/* Botones */}

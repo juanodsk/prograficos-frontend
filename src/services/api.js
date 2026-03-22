@@ -6,28 +6,23 @@ const api = axios.create({
   withCredentials: true,
 });
 
-// Interceptor request - se ejecuta antes de cada petición
 api.interceptors.request.use(
-  (config) => {
-    return config;
-  },
+  (config) => config,
   (error) => Promise.reject(error),
 );
 
-// Interceptor response - se ejecuta después de cada respuesta
 api.interceptors.response.use(
   (response) => response,
   (error) => {
     const status = error.response?.status;
+    const url = error.config?.url;
 
-    if (status === 401) {
-      // Token expirado o no autorizado - cerrar sesión
+    if (status === 401 && !url.includes("/auth/login")) {
       useAuthStore.getState().logout();
       window.location.href = "/login";
     }
 
-    if (status === 403) {
-      // Sin permisos
+    if (status === 403 && !url.includes("/auth/login")) {
       window.location.href = "/unauthorized";
     }
 
