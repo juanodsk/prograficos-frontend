@@ -8,6 +8,8 @@ import Orders from "../views/orders/Orders";
 import Thirds from "../views/thirds/Thirds";
 import Products from "../views/products/Products";
 import Troqueles from "../views/troqueles/Troqueles";
+import Measures from "../views/measures/Measures";
+import Formats from "../views/formats/Formats";
 
 import Unauthorized from "../views/Unauthorized";
 
@@ -61,6 +63,14 @@ const router = createBrowserRouter([
       {
         path: "/admin/troqueles",
         element: <Troqueles />,
+      },
+      {
+        path: "/admin/medidas",
+        element: <Measures />,
+      },
+      {
+        path: "/admin/formatos",
+        element: <Formats />,
       },
     ],
   },

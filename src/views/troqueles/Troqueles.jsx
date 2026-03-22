@@ -8,7 +8,7 @@ import DataTable from "../../components/data-table/DataTable";
 import { useAuthStore } from "../../store/authStore";
 
 import { Button } from "@/components/ui/button";
-import { Plus, Pencil, Trash2, Loader2, ScanEye } from "lucide-react";
+import { Plus, Pencil, Trash2, Loader2, ScanEye, Download } from "lucide-react";
 
 const Troqueles = () => {
   const { user: currentUser } = useAuthStore();
@@ -20,12 +20,10 @@ const Troqueles = () => {
     isOpen: false,
     troquelId: null,
   });
-
   const [formModal, setFormModal] = useState({
     isOpen: false,
     troquelId: null,
   });
-
   const [confirmDialog, setConfirmDialog] = useState({
     isOpen: false,
     troquelId: null,
@@ -41,10 +39,8 @@ const Troqueles = () => {
   const fetchTroqueles = async () => {
     try {
       setLoading(true);
-
       const response = await troquelesService.getAll();
       const troquelesArray = response?.data || [];
-
       setTroqueles(troquelesArray);
     } catch {
       toast.error("Error al cargar los troqueles");
@@ -56,22 +52,18 @@ const Troqueles = () => {
   // ───────────── MODALES ─────────────
   const handleOpenCreate = () =>
     setFormModal({ isOpen: true, troquelId: null });
-
   const handleOpenEdit = (id) => setFormModal({ isOpen: true, troquelId: id });
-
   const handleCloseForm = () =>
     setFormModal({ isOpen: false, troquelId: null });
-
   const handleView = (id) => setViewModal({ isOpen: true, troquelId: id });
-
   const handleCloseView = () =>
     setViewModal({ isOpen: false, troquelId: null });
 
-  const handleFormSuccess = (savedProduct) => {
+  const handleFormSuccess = (savedTroquel) => {
     if (formModal.troquelId) {
       setTroqueles((prev) =>
         prev.map((t) =>
-          t.id === formModal.troquelId ? { ...t, ...savedProduct } : t,
+          t.id === formModal.troquelId ? { ...t, ...savedTroquel } : t,
         ),
       );
     } else {
@@ -84,7 +76,7 @@ const Troqueles = () => {
     setConfirmDialog({
       isOpen: true,
       troquelId: troquel.id,
-      troquelName: troquel.name,
+      troquelName: troquel.name || troquel.file_name,
       loading: false,
     });
   };
@@ -101,45 +93,63 @@ const Troqueles = () => {
 
   const handleConfirmDelete = async () => {
     setConfirmDialog((prev) => ({ ...prev, loading: true }));
-
     try {
       await troquelesService.delete(confirmDialog.troquelId);
-
       setTroqueles((prev) =>
         prev.filter((t) => t.id !== confirmDialog.troquelId),
       );
-
       toast.success("Troquel eliminado correctamente");
       handleCloseDialog();
     } catch (error) {
       toast.error(
         error.response?.data?.message || "No se pudo eliminar el troquel",
       );
+      setConfirmDialog((prev) => ({ ...prev, loading: false }));
+    }
+  };
 
-      setConfirmDialog((prev) => ({
-        ...prev,
-        loading: false,
-      }));
+  // ───────────── DESCARGAR ARCHIVO ─────────────
+  const handleDownload = async (troquel) => {
+    if (!troquel.file) return;
+    try {
+      const link = document.createElement("a");
+      link.href = `data:application/octet-stream;base64,${troquel.file}`;
+      link.download = troquel.file_name || "archivo.troquel";
+      link.click();
+    } catch {
+      toast.error("Error al descargar el archivo");
     }
   };
 
   // ───────────── COLUMNAS ─────────────
   const columns = [
+    { key: "id", label: "ID" },
+    { key: "code", label: "Código" },
+    { key: "size", label: "Tamaño" },
     {
-      key: "id",
-      label: "ID",
-    },
-    {
-      key: "code",
-      label: "Código",
-    },
-    {
-      key: "size",
-      label: "Tamaño",
+      key: "elaboration_date",
+      label: "Fecha de Elaboración",
+      render: (row) =>
+        row.elaboration_date
+          ? new Date(row.elaboration_date).toLocaleDateString()
+          : "N/A",
     },
     {
       key: "file",
       label: "Archivo",
+      render: (row) =>
+        row.file ? (
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => handleDownload(row)}
+            className="cursor-pointer"
+          >
+            <Download size={14} className="mr-1 " /> {row.file_name}
+          </Button>
+        ) : (
+          <span className="text-gray-400">Sin archivo</span>
+        ),
     },
   ];
 
@@ -150,17 +160,6 @@ const Troqueles = () => {
 
     return (
       <div className="flex items-center justify-end gap-2">
-        {/* Ver */}
-        <Button
-          size="icon"
-          variant="ghost"
-          onClick={() => handleView(row.id)}
-          className="hover:text-[#13529a] hover:bg-[#13529a]/10 cursor-pointer"
-        >
-          <ScanEye size={16} />
-        </Button>
-
-        {/* Editar */}
         <Button
           size="icon"
           variant="ghost"
@@ -174,8 +173,6 @@ const Troqueles = () => {
         >
           <Pencil size={16} />
         </Button>
-
-        {/* Eliminar */}
         <Button
           size="icon"
           variant="ghost"
@@ -193,7 +190,6 @@ const Troqueles = () => {
     );
   };
 
-  // ───────────── UI ─────────────
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -209,8 +205,7 @@ const Troqueles = () => {
           onClick={handleOpenCreate}
           className="bg-[#13529a] hover:bg-[#0f3f7a] text-white cursor-pointer"
         >
-          <Plus size={16} className="mr-2" />
-          Nuevo Troquel
+          <Plus size={16} className="mr-2" /> Nuevo Troquel
         </Button>
       </div>
 
@@ -233,13 +228,6 @@ const Troqueles = () => {
         troquelId={formModal.troquelId}
       />
 
-      {/* Modal ver */}
-      <TroquelView
-        isOpen={viewModal.isOpen}
-        onClose={handleCloseView}
-        troquelId={viewModal.troquelId}
-      />
-
       {/* Confirm dialog */}
       <ConfirmDialog
         isOpen={confirmDialog.isOpen}
@@ -247,7 +235,7 @@ const Troqueles = () => {
         onConfirm={handleConfirmDelete}
         loading={confirmDialog.loading}
         title="¿Eliminar troquel?"
-        description={`Estás a punto de eliminar a "${confirmDialog.troquelName}". Esta acción es permanente y no se puede deshacer.`}
+        description={`Estás a punto de eliminar "${confirmDialog.troquelName}". Esta acción es permanente y no se puede deshacer.`}
         confirmText="Sí, eliminar"
         cancelText="Cancelar"
         variant="danger"

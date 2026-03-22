@@ -65,7 +65,7 @@ const menuItems = [
       },
       {
         label: "Medidas",
-        path: "/admin/medidad",
+        path: "/admin/medidas",
         icon: Ruler,
         roles: ["ADMIN", "SUPERVISOR"],
       },
