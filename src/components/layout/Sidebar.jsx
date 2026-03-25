@@ -19,6 +19,7 @@ import {
   Building2,
   PanelLeftClose,
   PanelLeftOpen,
+  UserStar,
 } from "lucide-react";
 
 const menuItems = [
@@ -58,6 +59,12 @@ const menuItems = [
         roles: ["ADMIN", "SUPERVISOR"],
       },
       {
+        label: "Productos Clientes",
+        path: "/admin/productos_clientes",
+        icon: UserStar,
+        roles: ["ADMIN", "SUPERVISOR"],
+      },
+      {
         label: "Troqueles",
         path: "/admin/troqueles",
         icon: Scissors,
@@ -77,7 +84,7 @@ const menuItems = [
       },
       {
         label: "Tipos de Papel",
-        path: "/admin/tipos_de_papel",
+        path: "/admin/tipos_papel",
         icon: Layers,
         roles: ["ADMIN", "SUPERVISOR"],
       },
