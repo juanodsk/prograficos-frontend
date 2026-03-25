@@ -10,6 +10,8 @@ import Products from "../views/products/Products";
 import Troqueles from "../views/troqueles/Troqueles";
 import Measures from "../views/measures/Measures";
 import Formats from "../views/formats/Formats";
+import PaperTypes from "../views/paper_types/PaperTypes";
+import ProductCustomers from "../views/product_customers/ProductCustomers";
 
 import Unauthorized from "../views/Unauthorized";
 
@@ -71,6 +73,14 @@ const router = createBrowserRouter([
       {
         path: "/admin/formatos",
         element: <Formats />,
+      },
+      {
+        path: "/admin/tipos_papel",
+        element: <PaperTypes />,
+      },
+      {
+        path: "/admin/productos_clientes",
+        element: <ProductCustomers />,
       },
     ],
   },
