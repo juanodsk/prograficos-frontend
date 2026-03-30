@@ -287,7 +287,7 @@ const Sidebar = ({ mobileOpen = false, onCloseMobile }) => {
   return (
     <>
       <aside
-        className={`hidden h-screen border-r bg-white transition-all duration-300 ease-in-out lg:flex lg:flex-col ${
+        className={`hidden h-screen shrink-0 border-r bg-white transition-all duration-300 ease-in-out lg:sticky lg:top-0 lg:flex lg:flex-col ${
           collapsed ? "lg:w-16" : "lg:w-64"
         }`}
       >
