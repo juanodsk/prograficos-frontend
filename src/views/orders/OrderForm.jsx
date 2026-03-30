@@ -351,11 +351,10 @@ const OrderForm = () => {
                   <div className="space-y-2">
                     <Label>Fecha estimada de entrega</Label>
                     <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
-                      <PopoverTrigger asChild>
-                        <button
-                          type="button"
-                          disabled={isOrderLocked}
+                      <PopoverTrigger disabled={isOrderLocked}>
+                        <div
                           className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 text-sm text-left text-foreground shadow-sm transition-colors hover:bg-accent hover:text-accent-foreground disabled:cursor-not-allowed disabled:opacity-60"
+                          onClick={() => setCalendarOpen((prev) => !prev)}
                         >
                           <span>
                             {selectedDeliveryDate
@@ -363,7 +362,7 @@ const OrderForm = () => {
                               : "Selecciona fecha"}
                           </span>
                           <ChevronDown className="h-4 w-4 opacity-50" />
-                        </button>
+                        </div>
                       </PopoverTrigger>
                       <PopoverContent className="w-auto p-0" align="start">
                         <Calendar

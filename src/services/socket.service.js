@@ -2,8 +2,33 @@ import { io } from "socket.io-client";
 
 let socketInstance = null;
 
-const socketUrl = import.meta.env.VITE_SOCKET_URL || "http://localhost:5001";
-const socketPath = import.meta.env.VITE_SOCKET_PATH || "/socket.io";
+const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:5001";
+
+const resolveSocketConfig = () => {
+  const explicitUrl = import.meta.env.VITE_SOCKET_URL;
+  const explicitPath = import.meta.env.VITE_SOCKET_PATH;
+
+  try {
+    const parsedApiUrl = new URL(apiUrl);
+    const basePath =
+      parsedApiUrl.pathname && parsedApiUrl.pathname !== "/"
+        ? parsedApiUrl.pathname.replace(/\/$/, "")
+        : "";
+
+    return {
+      url:
+        explicitUrl || `${parsedApiUrl.protocol}//${parsedApiUrl.host}`,
+      path: explicitPath || `${basePath}/socket.io`,
+    };
+  } catch {
+    return {
+      url: explicitUrl || "http://localhost:5001",
+      path: explicitPath || "/socket.io",
+    };
+  }
+};
+
+const { url: socketUrl, path: socketPath } = resolveSocketConfig();
 
 const getSocket = () => {
   if (!socketInstance) {
