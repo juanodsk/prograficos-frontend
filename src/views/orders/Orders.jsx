@@ -1,17 +1,37 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
+import { useAuthStore } from "../../store/authStore";
+import ConfirmDialog from "../../components/common/ConfirmDialog";
 import ordersService from "@/services/orders.service";
+import { connectSocket } from "@/services/socket.service";
 import StatusBadge from "@/components/common/StatusBadge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { CheckCircle, Eye, Loader2, Pencil, Plus, Search } from "lucide-react";
+import {
+  CheckCircle,
+  Eye,
+  Loader2,
+  Pencil,
+  Plus,
+  Search,
+  Trash2,
+} from "lucide-react";
 
 const Orders = () => {
   const navigate = useNavigate();
+  const { user: currentUser } = useAuthStore();
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [confirmDialog, setConfirmDialog] = useState({
+    isOpen: false,
+    orderId: null,
+    orderName: "",
+    loading: false,
+  });
+
+  const canDeleteOrder = ["ADMIN", "SUPERVISOR"].includes(currentUser?.role);
 
   const fetchOrders = async () => {
     try {
@@ -27,6 +47,19 @@ const Orders = () => {
 
   useEffect(() => {
     fetchOrders();
+  }, []);
+
+  useEffect(() => {
+    const socket = connectSocket();
+    const handleProductionChange = () => {
+      fetchOrders();
+    };
+
+    socket.on("production:changed", handleProductionChange);
+
+    return () => {
+      socket.off("production:changed", handleProductionChange);
+    };
   }, []);
 
   const filtered = useMemo(() => {
@@ -47,16 +80,59 @@ const Orders = () => {
   const summary = useMemo(
     () => ({
       total: orders.length,
-      pending: orders.filter((order) => order.order_status === "PENDIENTE").length,
-      progress: orders.filter((order) => order.order_status === "EN_PROCESO").length,
-      finished: orders.filter((order) => order.order_status === "TERMINADO").length,
+      pending: orders.filter((order) => order.order_status === "PENDIENTE")
+        .length,
+      progress: orders.filter((order) => order.order_status === "EN_PROCESO")
+        .length,
+      finished: orders.filter((order) => order.order_status === "TERMINADO")
+        .length,
     }),
     [orders],
   );
 
+  const handleDeleteClick = (order) => {
+    setConfirmDialog({
+      isOpen: true,
+      orderId: order.id,
+      orderName:
+        order.product_customer?.name ||
+        order.product_customer?.product?.name ||
+        `Orden #${order.id}`,
+      loading: false,
+    });
+  };
+
+  const handleCloseDialog = () => {
+    if (confirmDialog.loading) return;
+    setConfirmDialog({
+      isOpen: false,
+      orderId: null,
+      orderName: "",
+      loading: false,
+    });
+  };
+
+  const handleConfirmDelete = async () => {
+    setConfirmDialog((prev) => ({ ...prev, loading: true }));
+
+    try {
+      const response = await ordersService.delete(confirmDialog.orderId);
+      setOrders((prev) =>
+        prev.filter((order) => order.id !== confirmDialog.orderId),
+      );
+      toast.success(response?.message || "Orden desactivada exitosamente");
+      handleCloseDialog();
+    } catch (error) {
+      toast.error(
+        error?.response?.data?.message || "No se pudo eliminar la orden",
+      );
+      setConfirmDialog((prev) => ({ ...prev, loading: false }));
+    }
+  };
+
   const handleFinish = async (id) => {
     toast.custom((toastId) => (
-      <div className="w-[360px] rounded-2xl border border-slate-200 bg-white p-4 shadow-xl">
+      <div className="w-[calc(100vw-2rem)] max-w-sm rounded-2xl border border-slate-200 bg-white p-4 shadow-xl">
         <div className="flex items-start gap-3">
           <div className="mt-0.5 rounded-full bg-emerald-100 p-2 text-emerald-700">
             <CheckCircle size={18} />
@@ -66,7 +142,8 @@ const Orders = () => {
               Marcar orden como terminada
             </p>
             <p className="text-sm text-slate-500">
-              La orden pasar&aacute; a estado <span className="font-semibold text-slate-700">TERMINADO</span>.
+              La orden pasar&aacute; a estado{" "}
+              <span className="font-semibold text-slate-700">TERMINADO</span>.
             </p>
           </div>
         </div>
@@ -92,7 +169,9 @@ const Orders = () => {
                 toast.success("Orden marcada como terminada");
                 fetchOrders();
               } catch (error) {
-                toast.error(error.response?.data?.message || "Error al actualizar");
+                toast.error(
+                  error.response?.data?.message || "Error al actualizar",
+                );
               }
             }}
             className="bg-emerald-600 text-white hover:bg-emerald-700 cursor-pointer"
@@ -105,10 +184,26 @@ const Orders = () => {
   };
 
   const statCards = [
-    { label: "Total", value: summary.total, tone: "text-slate-800 bg-slate-100" },
-    { label: "Pendientes", value: summary.pending, tone: "text-amber-700 bg-amber-100" },
-    { label: "En proceso", value: summary.progress, tone: "text-blue-700 bg-blue-100" },
-    { label: "Terminadas", value: summary.finished, tone: "text-emerald-700 bg-emerald-100" },
+    {
+      label: "Total",
+      value: summary.total,
+      tone: "text-slate-800 bg-slate-100",
+    },
+    {
+      label: "Pendientes",
+      value: summary.pending,
+      tone: "text-amber-700 bg-amber-100",
+    },
+    {
+      label: "En proceso",
+      value: summary.progress,
+      tone: "text-blue-700 bg-blue-100",
+    },
+    {
+      label: "Terminadas",
+      value: summary.finished,
+      tone: "text-emerald-700 bg-emerald-100",
+    },
   ];
 
   return (
@@ -121,8 +216,8 @@ const Orders = () => {
             </p>
             <h1 className="text-3xl font-bold">Órdenes de Producción</h1>
             <p className="max-w-2xl text-sm text-blue-100">
-              Consulta el estado de cada orden, revisa su flujo de procesos y entra
-              al detalle operativo sin depender de la hoja física.
+              Consulta el estado de cada orden, revisa su flujo de procesos y
+              entra al detalle operativo sin depender de la hoja física.
             </p>
           </div>
 
@@ -138,11 +233,16 @@ const Orders = () => {
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         {statCards.map((card) => (
-          <div key={card.label} className="rounded-2xl border bg-white p-4 shadow-sm">
+          <div
+            key={card.label}
+            className="rounded-2xl border bg-white p-4 shadow-sm"
+          >
             <p className="text-sm text-gray-500">{card.label}</p>
             <div className="mt-3 flex items-center justify-between">
               <p className="text-3xl font-bold text-slate-900">{card.value}</p>
-              <span className={`rounded-full px-3 py-1 text-xs font-semibold ${card.tone}`}>
+              <span
+                className={`rounded-full px-3 py-1 text-xs font-semibold ${card.tone}`}
+              >
                 {card.label}
               </span>
             </div>
@@ -212,9 +312,9 @@ const Orders = () => {
                       Entrega estimada
                     </p>
                     <p className="mt-1 font-semibold text-slate-900">
-                      {new Date(order.date_delivery_estimated).toLocaleDateString(
-                        "es-CO",
-                      )}
+                      {new Date(
+                        order.date_delivery_estimated,
+                      ).toLocaleDateString("es-CO")}
                     </p>
                   </div>
                   <div className="rounded-xl bg-white p-3">
@@ -264,12 +364,35 @@ const Orders = () => {
                       Terminar
                     </Button>
                   )}
+                  {canDeleteOrder && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => handleDeleteClick(order)}
+                      className="border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700 cursor-pointer"
+                    >
+                      <Trash2 size={16} className="mr-2" />
+                      Eliminar
+                    </Button>
+                  )}
                 </div>
               </article>
             ))}
           </div>
         )}
       </div>
+
+      <ConfirmDialog
+        isOpen={confirmDialog.isOpen}
+        onClose={handleCloseDialog}
+        onConfirm={handleConfirmDelete}
+        loading={confirmDialog.loading}
+        title="¿Eliminar orden?"
+        description={`Estás a punto de eliminar la orden "${confirmDialog.orderName}". Esta acción no se puede deshacer.`}
+        confirmText="Sí, eliminar"
+        cancelText="Cancelar"
+        variant="danger"
+      />
     </div>
   );
 };

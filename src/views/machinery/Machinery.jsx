@@ -1,133 +1,121 @@
+import { useEffect, useState } from "react";
+import { toast } from "sonner";
 import { useAuthStore } from "../../store/authStore";
-import { useState, useEffect } from "react";
-import processesService from "@/services/processes.service";
-
-//VIEWS
-import ProcessesForm from "./ProcessesForm";
-// import MeasuresView from "./MeasuresView";
-
-//COMPONENTS
+import machineryService from "@/services/machinery.service";
+import MachineryForm from "./MachineryForm";
 import DataTable from "../../components/data-table/DataTable";
 import ConfirmDialog from "../../components/common/ConfirmDialog";
-import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { Plus, Pencil, Trash2, Loader2 } from "lucide-react";
+import { Factory, Loader2, Pencil, Plus, Trash2 } from "lucide-react";
 
-const Processes = () => {
+const Machinery = () => {
   const { user: currentUser } = useAuthStore();
-  const [processes, setProcesses] = useState([]);
+  const [machinery, setMachinery] = useState([]);
   const [loading, setLoading] = useState(true);
-
   const [formModal, setFormModal] = useState({
     isOpen: false,
-    processId: null,
+    machineryId: null,
   });
   const [confirmDialog, setConfirmDialog] = useState({
     isOpen: false,
-    processId: null,
-    processName: "",
+    machineryId: null,
+    machineryName: "",
     loading: false,
   });
 
   useEffect(() => {
-    fetchProcesses();
+    fetchMachinery();
   }, []);
 
-  // ───────────── CARGAR PROCESOS ─────────────
-  const fetchProcesses = async () => {
+  const fetchMachinery = async () => {
     try {
       setLoading(true);
-      const [processesRes] = await Promise.all([processesService.getAll()]);
-      setProcesses(processesRes?.data || []);
+      const response = await machineryService.getAll();
+      setMachinery(response?.data || []);
     } catch {
-      toast.error("Error al cargar los procesos");
+      toast.error("Error al cargar las maquinarias");
     } finally {
       setLoading(false);
     }
   };
 
-  // ───────────── MODALES ─────────────
   const handleOpenCreate = () =>
-    setFormModal({ isOpen: true, processId: null });
-  const handleOpenEdit = (id) => setFormModal({ isOpen: true, processId: id });
+    setFormModal({ isOpen: true, machineryId: null });
+
+  const handleOpenEdit = (id) =>
+    setFormModal({ isOpen: true, machineryId: id });
+
   const handleCloseForm = () =>
-    setFormModal({ isOpen: false, processId: null });
+    setFormModal({ isOpen: false, machineryId: null });
 
   const handleFormSuccess = () => {
-    fetchProcesses();
+    fetchMachinery();
   };
 
-  // ───────────── ELIMINAR ─────────────
-  const handleDeleteClick = (process) => {
+  const handleDeleteClick = (machine) => {
     setConfirmDialog({
       isOpen: true,
-      processId: process.id,
-      processName: process.name,
+      machineryId: machine.id,
+      machineryName: machine.name,
       loading: false,
     });
   };
 
   const handleCloseDialog = () => {
     if (confirmDialog.loading) return;
+
     setConfirmDialog({
       isOpen: false,
-      processId: null,
-      processName: "",
+      machineryId: null,
+      machineryName: "",
       loading: false,
     });
   };
 
   const handleConfirmDelete = async () => {
     setConfirmDialog((prev) => ({ ...prev, loading: true }));
+
     try {
-      const response = await processesService.delete(confirmDialog.processId);
-      await fetchProcesses();
-      toast.success(response?.message || "Proceso desactivado exitosamente");
+      const response = await machineryService.delete(confirmDialog.machineryId);
+      await fetchMachinery();
+      toast.success(response?.message || "Maquinaria desactivada exitosamente");
       handleCloseDialog();
     } catch (error) {
       toast.error(
-        error?.response?.data?.message || "No se pudo desactivar el proceso",
+        error?.response?.data?.message || "No se pudo desactivar la maquinaria",
       );
       setConfirmDialog((prev) => ({ ...prev, loading: false }));
     }
   };
 
-  // ───────────── COLUMNAS ─────────────
   const columns = [
     { key: "id", label: "ID" },
     { key: "name", label: "Nombre" },
-    { key: "category", label: "Categoria" },
-    { key: "order", label: "Orden" },
-    {
-      key: "field_definitions",
-      label: "Campos",
-      render: (row) => row.field_definitions?.length || 0,
-    },
+    { key: "reference", label: "Código" },
+    { key: "type", label: "Tipo" },
     {
       key: "is_active",
       label: "Estado",
       render: (row) => (
         <span
-          className={`px-2 py-1 rounded-full text-xs font-semibold ${
+          className={`rounded-full px-2 py-1 text-xs font-semibold ${
             row.is_active
               ? "bg-green-100 text-green-800"
               : "bg-red-100 text-red-800"
           }`}
         >
-          {row.is_active ? "Activo" : "Inactivo"}
+          {row.is_active ? "Activa" : "Inactiva"}
         </span>
       ),
     },
   ];
 
-  // ───────────── ACCIONES ─────────────
   const actions = (row) => {
     const canEdit = ["ADMIN", "SUPERVISOR"].includes(currentUser?.role);
     const canDelete = ["ADMIN", "SUPERVISOR"].includes(currentUser?.role);
 
     return (
       <div className="flex items-center justify-end gap-2">
-        {/* Editar */}
         <Button
           size="icon"
           variant="ghost"
@@ -135,14 +123,13 @@ const Processes = () => {
           onClick={() => canEdit && handleOpenEdit(row.id)}
           className={
             canEdit
-              ? "hover:text-[#13529a] hover:bg-[#13529a]/10 cursor-pointer"
-              : "text-gray-300 cursor-not-allowed opacity-50"
+              ? "cursor-pointer hover:bg-[#13529a]/10 hover:text-[#13529a]"
+              : "cursor-not-allowed text-gray-300 opacity-50"
           }
         >
           <Pencil size={16} />
         </Button>
 
-        {/* Eliminar */}
         <Button
           size="icon"
           variant="ghost"
@@ -150,8 +137,8 @@ const Processes = () => {
           onClick={() => canDelete && handleDeleteClick(row)}
           className={
             canDelete
-              ? "hover:text-red-600 hover:bg-red-50 cursor-pointer"
-              : "text-gray-300 cursor-not-allowed opacity-50"
+              ? "cursor-pointer hover:bg-red-50 hover:text-red-600"
+              : "cursor-not-allowed text-gray-300 opacity-50"
           }
         >
           <Trash2 size={16} />
@@ -162,40 +149,52 @@ const Processes = () => {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-[#13529a]">Procesos</h1>
+          <h1 className="text-2xl font-bold text-[#13529a]">Maquinarias</h1>
           <p className="text-sm text-gray-500">
-            {processes.length} Procesos registrados
+            {machinery.length} máquinas registradas
           </p>
         </div>
 
         <Button
           onClick={handleOpenCreate}
-          className="bg-[#13529a] hover:bg-[#0f3f7a] text-white cursor-pointer"
+          className="cursor-pointer bg-[#13529a] text-white hover:bg-[#0f3f7a]"
         >
           <Plus size={16} className="mr-2" />
-          Nuevo Proceso
+          Nueva Maquinaria
         </Button>
       </div>
 
-      {/* Tabla */}
-      <div className="bg-white rounded-xl border shadow-sm p-4">
+      <div className="rounded-xl border bg-white p-4 shadow-sm">
         {loading ? (
           <div className="flex items-center justify-center py-16">
             <Loader2 size={32} className="animate-spin text-[#13529a]" />
           </div>
+        ) : machinery.length === 0 ? (
+          <div className="flex flex-col items-center justify-center gap-3 py-16 text-center">
+            <div className="rounded-2xl bg-slate-100 p-4 text-slate-500">
+              <Factory size={28} />
+            </div>
+            <div>
+              <p className="text-base font-semibold text-slate-800">
+                No hay maquinarias registradas
+              </p>
+              <p className="text-sm text-gray-500">
+                Crea la primera máquina para empezar a usarla en producción.
+              </p>
+            </div>
+          </div>
         ) : (
-          <DataTable data={processes} columns={columns} actions={actions} />
+          <DataTable data={machinery} columns={columns} actions={actions} />
         )}
       </div>
 
-      <ProcessesForm
+      <MachineryForm
         isOpen={formModal.isOpen}
         onClose={handleCloseForm}
         onSuccess={handleFormSuccess}
-        processId={formModal.processId}
+        machineryId={formModal.machineryId}
       />
 
       <ConfirmDialog
@@ -203,8 +202,8 @@ const Processes = () => {
         onClose={handleCloseDialog}
         onConfirm={handleConfirmDelete}
         loading={confirmDialog.loading}
-        title="¿Eliminar proceso?"
-        description={`Estás a punto de eliminar el proceso "${confirmDialog.processName}". Esta acción es permanente y no se puede deshacer.`}
+        title="¿Eliminar maquinaria?"
+        description={`Estás a punto de eliminar la máquina "${confirmDialog.machineryName}". Esta acción es permanente y no se puede deshacer.`}
         confirmText="Sí, eliminar"
         cancelText="Cancelar"
         variant="danger"
@@ -213,4 +212,4 @@ const Processes = () => {
   );
 };
 
-export default Processes;
+export default Machinery;

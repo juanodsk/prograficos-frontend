@@ -94,15 +94,13 @@ const Troqueles = () => {
   const handleConfirmDelete = async () => {
     setConfirmDialog((prev) => ({ ...prev, loading: true }));
     try {
-      await troquelesService.delete(confirmDialog.troquelId);
-      setTroqueles((prev) =>
-        prev.filter((t) => t.id !== confirmDialog.troquelId),
-      );
-      toast.success("Troquel eliminado correctamente");
+      const response = await troquelesService.delete(confirmDialog.troquelId);
+      await fetchTroqueles();
+      toast.success(response?.message || "Troquel desactivado correctamente");
       handleCloseDialog();
     } catch (error) {
       toast.error(
-        error.response?.data?.message || "No se pudo eliminar el troquel",
+        error.response?.data?.message || "No se pudo desactivar el troquel",
       );
       setConfirmDialog((prev) => ({ ...prev, loading: false }));
     }
@@ -150,6 +148,21 @@ const Troqueles = () => {
         ) : (
           <span className="text-gray-400">Sin archivo</span>
         ),
+    },
+    {
+      key: "is_active",
+      label: "Estado",
+      render: (row) => (
+        <span
+          className={`rounded-full px-2 py-1 text-xs font-semibold ${
+            row.is_active
+              ? "bg-green-100 text-green-800"
+              : "bg-red-100 text-red-800"
+          }`}
+        >
+          {row.is_active ? "Activo" : "Inactivo"}
+        </span>
+      ),
     },
   ];
 

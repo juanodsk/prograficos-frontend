@@ -2,9 +2,11 @@ import { Navigate, Outlet } from "react-router-dom";
 import { useAuthStore } from "../../store/authStore";
 import Sidebar from "./Sidebar";
 import Navbar from "./Navbar";
+import { useState } from "react";
 
-const ProtectedRoute = ({ roles }) => {
+const ProtectedRoute = ({ roles, withoutShell = false }) => {
   const { isAuthenticated, user } = useAuthStore();
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
 
   // Si no está autenticado, redirigir al login
   if (!isAuthenticated) {
@@ -16,12 +18,19 @@ const ProtectedRoute = ({ roles }) => {
     return <Navigate to="/unauthorized" />;
   }
 
+  if (withoutShell) {
+    return <Outlet />;
+  }
+
   return (
-    <div className="flex h-screen bg-gray-100">
-      <Sidebar />
+    <div className="flex min-h-screen bg-gray-100">
+      <Sidebar
+        mobileOpen={mobileSidebarOpen}
+        onCloseMobile={() => setMobileSidebarOpen(false)}
+      />
       <div className="flex flex-col flex-1 overflow-hidden">
-        <Navbar />
-        <main className="flex-1 overflow-y-auto p-6">
+        <Navbar onOpenSidebar={() => setMobileSidebarOpen(true)} />
+        <main className="flex-1 overflow-y-auto p-3 sm:p-4 lg:p-6">
           <Outlet /> {/* ← aquí se renderizan las vistas hijas */}
         </main>
       </div>

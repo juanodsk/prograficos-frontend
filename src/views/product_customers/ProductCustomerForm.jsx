@@ -34,6 +34,7 @@ export default function ProductCustomerForm({
     name: "",
     product_id: "",
     third_id: "",
+    is_active: true,
   });
 
   useEffect(() => {
@@ -42,7 +43,7 @@ export default function ProductCustomerForm({
   }, [isOpen, productCustomerId]);
 
   const resetForm = () => {
-    setForm({ name: "", product_id: "", third_id: "" });
+    setForm({ name: "", product_id: "", third_id: "", is_active: true });
     setErrors({});
   };
 
@@ -50,8 +51,8 @@ export default function ProductCustomerForm({
     try {
       setFetching(true);
       const [productsRes, thirdsRes, productCustomerRes] = await Promise.all([
-        productsService.getAll(),
-        thirdsService.getAll(),
+        productsService.getAll({ onlyActive: true }),
+        thirdsService.getAll({ onlyActive: true }),
         isEditing
           ? productCustomerService.getById(productCustomerId)
           : Promise.resolve(null),
@@ -69,6 +70,7 @@ export default function ProductCustomerForm({
           name: pc.name || "",
           product_id: pc.product_id ? String(pc.product_id) : "",
           third_id: pc.third_id ? String(pc.third_id) : "",
+          is_active: pc.is_active ?? true,
         });
       }
     } catch {
@@ -97,6 +99,7 @@ export default function ProductCustomerForm({
         name: form.name,
         product_id: parseInt(form.product_id),
         third_id: parseInt(form.third_id),
+        is_active: form.is_active,
       };
       let result;
       if (isEditing) {
@@ -261,6 +264,33 @@ export default function ProductCustomerForm({
                 {errors.third_id && (
                   <p className="text-xs text-red-500">{errors.third_id}</p>
                 )}
+              </div>
+
+              <div className="space-y-1">
+                <Label className="text-xs">Estado</Label>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setForm((prev) => ({
+                        ...prev,
+                        is_active: !prev.is_active,
+                      }))
+                    }
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-200 focus:outline-none cursor-pointer ${
+                      form.is_active ? "bg-[#13529a]" : "bg-gray-300"
+                    }`}
+                  >
+                    <span
+                      className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform duration-200 ${
+                        form.is_active ? "translate-x-6" : "translate-x-1"
+                      }`}
+                    />
+                  </button>
+                  <span className="text-sm text-gray-700">
+                    {form.is_active ? "Activo" : "Inactivo"}
+                  </span>
+                </div>
               </div>
 
               {/* Botones */}

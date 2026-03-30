@@ -5,6 +5,7 @@ import ordersService from "@/services/orders.service";
 import orderProcessesService from "@/services/order_processes.service";
 import machineryService from "@/services/machinery.service";
 import measuresService from "@/services/measures.service";
+import { connectSocket } from "@/services/socket.service";
 import StatusBadge from "@/components/common/StatusBadge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -42,6 +43,16 @@ const formatMachineryLabel = (machinery) => {
   return code ? `${machinery.name} · Código ${code}` : machinery.name;
 };
 
+const formatMeasureLabel = (measure) => {
+  if (!measure) return "Selecciona una medida";
+  const formatName = measure.format?.name || measure.format_name;
+  const size =
+    measure.width && measure.height
+      ? `${measure.width} x ${measure.height}`
+      : measure.name || "Medida sin definir";
+  return formatName ? `${formatName} · ${size}` : size;
+};
+
 const OrderDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -57,7 +68,9 @@ const OrderDetail = () => {
   const [finishPayload, setFinishPayload] = useState({ quantity_delivered: "", quantity_damaged: "", machinery_id: "", measure_cutting_id: "", observations: "", field_values: {} });
   const [submittingAction, setSubmittingAction] = useState("");
 
-  const canOperate = ["ADMIN", "SUPERVISOR", "EMPLOYEE"].includes(user?.role);
+  const canOperate = ["ADMIN", "SUPERVISOR", "EMPLOYEE", "USER"].includes(
+    user?.role,
+  );
 
   const loadData = async (silent = false) => {
     try {
@@ -67,8 +80,8 @@ const OrderDetail = () => {
         orderProcessesService.getByOrder(id),
       ]);
       const [machineryRes, measuresRes] = await Promise.allSettled([
-        machineryService.getAll(),
-        measuresService.getAll(),
+        machineryService.getAll({ onlyActive: true }),
+        measuresService.getAll({ onlyActive: true }),
       ]);
       setOrder(orderRes?.data || null);
       setProcesses(processRes?.data || []);
@@ -89,10 +102,34 @@ const OrderDetail = () => {
     loadData();
   }, [id]);
 
+  useEffect(() => {
+    const socket = connectSocket();
+    const handleProductionChange = (payload) => {
+      if (!payload?.orderId || String(payload.orderId) === String(id)) {
+        loadData(true);
+      }
+    };
+
+    socket.on("production:changed", handleProductionChange);
+
+    return () => {
+      socket.off("production:changed", handleProductionChange);
+    };
+  }, [id]);
+
   const activeProcess = useMemo(
     () => processes.find((p) => p.id === activeProcessId) || processes[0] || null,
     [processes, activeProcessId],
   );
+
+  const orderInputLocked = useMemo(
+    () => processes.some((process) => process.process_state !== "PENDIENTE"),
+    [processes],
+  );
+
+  const processInputLocked = activeProcess
+    ? activeProcess.process_state !== "PENDIENTE"
+    : false;
 
   useEffect(() => {
     if (!activeProcess) return;
@@ -125,7 +162,7 @@ const OrderDetail = () => {
   };
   const measureLabel = (id) => {
     const measure = catalogs.measures.find((m) => String(m.id) === id);
-    return measure ? `${measure.width} x ${measure.height}` : "Selecciona una medida";
+    return formatMeasureLabel(measure);
   };
   const mapFieldValues = (fieldValues) =>
     Object.entries(fieldValues)
@@ -138,17 +175,18 @@ const OrderDetail = () => {
   const toggleExpanded = (processId) =>
     setExpandedProcesses((prev) => ({ ...prev, [processId]: !prev[processId] }));
 
-  const dynamicInput = (field, value, onChange) => {
+  const dynamicInput = (field, value, onChange, disabled = false) => {
     if (field.field_type === "BOOLEAN") {
       const enabled = value === "true";
       return (
         <div className="flex items-center gap-2">
           <button
             type="button"
+            disabled={disabled}
             role="switch"
             aria-checked={enabled}
             onClick={() => onChange(enabled ? "false" : "true")}
-            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-200 focus:outline-none cursor-pointer ${
+            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-200 focus:outline-none disabled:cursor-not-allowed disabled:opacity-60 ${
               enabled ? "bg-[#13529a]" : "bg-gray-300"
             }`}
           >
@@ -165,21 +203,25 @@ const OrderDetail = () => {
     if (field.field_type === "SELECT") {
       const options = Array.isArray(field.options) ? field.options : [];
       return (
-        <Select value={value} onValueChange={onChange}>
+        <Select value={value} disabled={disabled} onValueChange={onChange}>
           <SelectTrigger className="w-full"><SelectValue placeholder={`Selecciona ${field.label.toLowerCase()}`} /></SelectTrigger>
           <SelectContent><SelectGroup><SelectLabel>{field.label}</SelectLabel>{options.map((o) => <SelectItem key={o} value={String(o)}>{o}</SelectItem>)}</SelectGroup></SelectContent>
         </Select>
       );
     }
     if (field.field_type === "TEXTAREA") {
-      return <textarea value={value} onChange={(e) => onChange(e.target.value)} className="min-h-24 w-full rounded-lg border border-input px-3 py-2 text-sm" />;
+      return <textarea disabled={disabled} value={value} onChange={(e) => onChange(e.target.value)} className="min-h-24 w-full rounded-lg border border-input px-3 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-60" />;
     }
     const type = field.field_type === "NUMBER" ? "number" : field.field_type === "DATE" ? "date" : field.field_type === "TIME" ? "time" : "text";
-    return <Input type={type} value={value} onChange={(e) => onChange(e.target.value)} />;
+    return <Input disabled={disabled} type={type} value={value} onChange={(e) => onChange(e.target.value)} />;
   };
 
   const submitStart = async () => {
     if (!activeProcess) return;
+    if (activeProcess.process_state !== "PENDIENTE") {
+      toast.error("Los datos de entrada ya quedaron bloqueados para este proceso");
+      return;
+    }
     try {
       setSubmittingAction("start");
       await orderProcessesService.start(activeProcess.id, {
@@ -199,16 +241,26 @@ const OrderDetail = () => {
 
   const submitFinish = async () => {
     if (!activeProcess) return;
+    const canSendInputData = activeProcess.process_state === "PENDIENTE";
     try {
       setSubmittingAction("finish");
-      await orderProcessesService.finish(activeProcess.id, {
+      const payload = {
         quantity_delivered: Number(finishPayload.quantity_delivered || 0),
         quantity_damaged: Number(finishPayload.quantity_damaged || 0),
-        machinery_id: finishPayload.machinery_id ? Number(finishPayload.machinery_id) : undefined,
-        measure_cutting_id: finishPayload.measure_cutting_id ? Number(finishPayload.measure_cutting_id) : undefined,
-        observations: finishPayload.observations || undefined,
-        field_values: mapFieldValues(finishPayload.field_values),
-      });
+      };
+
+      if (canSendInputData) {
+        payload.machinery_id = finishPayload.machinery_id
+          ? Number(finishPayload.machinery_id)
+          : undefined;
+        payload.measure_cutting_id = finishPayload.measure_cutting_id
+          ? Number(finishPayload.measure_cutting_id)
+          : undefined;
+        payload.observations = finishPayload.observations || undefined;
+        payload.field_values = mapFieldValues(finishPayload.field_values);
+      }
+
+      await orderProcessesService.finish(activeProcess.id, payload);
       toast.success("Proceso finalizado exitosamente");
       await loadData(true);
     } catch (error) {
@@ -234,7 +286,7 @@ const OrderDetail = () => {
         <div className="flex flex-wrap gap-3">
           <Button variant="outline" onClick={() => navigate("/ordenes")} className="cursor-pointer"><ArrowLeft size={16} className="mr-2" />Volver</Button>
           <Button variant="outline" onClick={() => loadData(true)} className="cursor-pointer"><RefreshCw size={16} className={refreshing ? "mr-2 animate-spin" : "mr-2"} />Recargar</Button>
-          <Button onClick={() => navigate(`/ordenes/${order.id}/editar`)} className="bg-[#13529a] text-white hover:bg-[#0f3f7a] cursor-pointer">Editar orden</Button>
+          <Button disabled={orderInputLocked} onClick={() => navigate(`/ordenes/${order.id}/editar`)} className="bg-[#13529a] text-white hover:bg-[#0f3f7a] cursor-pointer">Editar orden</Button>
         </div>
       </div>
 
@@ -291,8 +343,8 @@ const OrderDetail = () => {
             <p className="mt-1 font-semibold text-slate-900">{order.amount_sheets}</p>
           </div>
           <div className="rounded-2xl bg-white p-4 shadow-sm">
-            <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Tamano impresion</p>
-            <p className="mt-1 font-semibold text-slate-900">{order.measure ? `${order.measure.width} x ${order.measure.height}` : "-"}</p>
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Formato y tamano impresion</p>
+            <p className="mt-1 font-semibold text-slate-900">{order.measure ? formatMeasureLabel(order.measure) : "-"}</p>
           </div>
         </div>
 
@@ -405,24 +457,29 @@ const OrderDetail = () => {
                       <div className="grid border-t border-slate-200 lg:grid-cols-2">
                         <div className="border-r border-slate-200 p-5 space-y-4">
                           <h3 className="text-sm font-bold uppercase tracking-wide text-[#13529a]">Iniciar proceso</h3>
-                      <div className="space-y-2"><Label>Maquinaria</Label><Select value={startPayload.machinery_id} onValueChange={(value) => setStartPayload((p) => ({ ...p, machinery_id: value }))}><SelectTrigger className="w-full"><SelectValue placeholder="Selecciona una maquinaria">{startPayload.machinery_id ? machineLabel(startPayload.machinery_id) : null}</SelectValue></SelectTrigger><SelectContent><SelectGroup><SelectLabel>Maquinaria disponible</SelectLabel>{catalogs.machinery.map((m) => <SelectItem key={m.id} value={String(m.id)}>{formatMachineryLabel(m)}</SelectItem>)}</SelectGroup></SelectContent></Select></div>
-                      <div className="space-y-2"><Label>Medida de corte</Label><Select value={startPayload.measure_cutting_id} onValueChange={(value) => setStartPayload((p) => ({ ...p, measure_cutting_id: value }))}><SelectTrigger className="w-full"><SelectValue>{measureLabel(startPayload.measure_cutting_id)}</SelectValue></SelectTrigger><SelectContent><SelectGroup><SelectLabel>Medidas disponibles</SelectLabel>{catalogs.measures.map((m) => <SelectItem key={m.id} value={String(m.id)}>{m.width} x {m.height}</SelectItem>)}</SelectGroup></SelectContent></Select></div>
-                      {defs.map((field) => <div key={field.id} className="space-y-2"><Label>{field.label}{field.is_required ? " *" : ""}</Label>{dynamicInput(field, startPayload.field_values[field.id] || "", (value) => setStartPayload((p) => ({ ...p, field_values: { ...p.field_values, [field.id]: value } })))}</div>)}
-                      <div className="space-y-2"><Label>Observaciones</Label><Input value={startPayload.observations} onChange={(e) => setStartPayload((p) => ({ ...p, observations: e.target.value }))} /></div>
-                      <Button onClick={submitStart} disabled={!canOperate || activeProcess?.process_state === "TERMINADO" || submittingAction === "start"} className="w-full bg-blue-600 text-white hover:bg-blue-700 cursor-pointer">{submittingAction === "start" ? <><Loader2 size={16} className="mr-2 animate-spin" />Iniciando...</> : <><PlayCircle size={16} className="mr-2" />Iniciar proceso</>}</Button>
+                          {processInputLocked && (
+                            <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+                              Los datos de entrada quedaron bloqueados desde que este proceso fue iniciado.
+                            </div>
+                          )}
+                          <div className="space-y-2"><Label>Maquinaria</Label><Select value={startPayload.machinery_id} disabled={processInputLocked} onValueChange={(value) => setStartPayload((p) => ({ ...p, machinery_id: value }))}><SelectTrigger className="w-full"><SelectValue placeholder="Selecciona una maquinaria">{startPayload.machinery_id ? machineLabel(startPayload.machinery_id) : null}</SelectValue></SelectTrigger><SelectContent><SelectGroup><SelectLabel>Maquinaria disponible</SelectLabel>{catalogs.machinery.map((m) => <SelectItem key={m.id} value={String(m.id)}>{formatMachineryLabel(m)}</SelectItem>)}</SelectGroup></SelectContent></Select></div>
+                          <div className="space-y-2"><Label>Medida de corte</Label><Select value={startPayload.measure_cutting_id} disabled={processInputLocked} onValueChange={(value) => setStartPayload((p) => ({ ...p, measure_cutting_id: value }))}><SelectTrigger className="w-full"><SelectValue>{measureLabel(startPayload.measure_cutting_id)}</SelectValue></SelectTrigger><SelectContent><SelectGroup><SelectLabel>Medidas disponibles</SelectLabel>{catalogs.measures.map((m) => <SelectItem key={m.id} value={String(m.id)}>{formatMeasureLabel(m)}</SelectItem>)}</SelectGroup></SelectContent></Select></div>
+                          {defs.map((field) => <div key={field.id} className="space-y-2"><Label>{field.label}{field.is_required ? " *" : ""}</Label>{dynamicInput(field, startPayload.field_values[field.id] || "", (value) => setStartPayload((p) => ({ ...p, field_values: { ...p.field_values, [field.id]: value } })), processInputLocked)}</div>)}
+                          <div className="space-y-2"><Label>Observaciones</Label><Input disabled={processInputLocked} value={startPayload.observations} onChange={(e) => setStartPayload((p) => ({ ...p, observations: e.target.value }))} /></div>
+                          <Button onClick={submitStart} disabled={!canOperate || activeProcess?.process_state !== "PENDIENTE" || submittingAction === "start"} className="w-full bg-blue-600 text-white hover:bg-blue-700 cursor-pointer">{submittingAction === "start" ? <><Loader2 size={16} className="mr-2 animate-spin" />Iniciando...</> : <><PlayCircle size={16} className="mr-2" />Iniciar proceso</>}</Button>
                         </div>
 
                         <div className="p-5 space-y-4">
                           <h3 className="text-sm font-bold uppercase tracking-wide text-[#13529a]">Finalizar proceso</h3>
-                      <div className="grid gap-4 sm:grid-cols-2">
-                        <div className="space-y-2"><Label>Cantidad entregada</Label><Input type="number" min="0" value={finishPayload.quantity_delivered} onChange={(e) => setFinishPayload((p) => ({ ...p, quantity_delivered: e.target.value }))} /></div>
-                        <div className="space-y-2"><Label>Cantidad danada</Label><Input type="number" min="0" value={finishPayload.quantity_damaged} onChange={(e) => setFinishPayload((p) => ({ ...p, quantity_damaged: e.target.value }))} /></div>
-                        <div className="space-y-2"><Label>Maquinaria</Label><Select value={finishPayload.machinery_id} onValueChange={(value) => setFinishPayload((p) => ({ ...p, machinery_id: value }))}><SelectTrigger className="w-full"><SelectValue placeholder="Selecciona una maquinaria">{finishPayload.machinery_id ? machineLabel(finishPayload.machinery_id) : null}</SelectValue></SelectTrigger><SelectContent><SelectGroup><SelectLabel>Maquinaria disponible</SelectLabel>{catalogs.machinery.map((m) => <SelectItem key={m.id} value={String(m.id)}>{formatMachineryLabel(m)}</SelectItem>)}</SelectGroup></SelectContent></Select></div>
-                        <div className="space-y-2"><Label>Medida de corte</Label><Select value={finishPayload.measure_cutting_id} onValueChange={(value) => setFinishPayload((p) => ({ ...p, measure_cutting_id: value }))}><SelectTrigger className="w-full"><SelectValue>{measureLabel(finishPayload.measure_cutting_id)}</SelectValue></SelectTrigger><SelectContent><SelectGroup><SelectLabel>Medidas disponibles</SelectLabel>{catalogs.measures.map((m) => <SelectItem key={m.id} value={String(m.id)}>{m.width} x {m.height}</SelectItem>)}</SelectGroup></SelectContent></Select></div>
-                        {defs.map((field) => <div key={field.id} className={`space-y-2 ${field.field_type === "TEXTAREA" ? "sm:col-span-2" : ""}`}><Label>{field.label}{field.is_required ? " *" : ""}</Label>{dynamicInput(field, finishPayload.field_values[field.id] || "", (value) => setFinishPayload((p) => ({ ...p, field_values: { ...p.field_values, [field.id]: value } })))}</div>)}
-                        <div className="space-y-2 sm:col-span-2"><Label>Observaciones finales</Label><Input value={finishPayload.observations} onChange={(e) => setFinishPayload((p) => ({ ...p, observations: e.target.value }))} /></div>
-                        <div className="sm:col-span-2"><Button onClick={submitFinish} disabled={!canOperate || activeProcess?.process_state === "TERMINADO" || submittingAction === "finish"} className="w-full bg-green-600 text-white hover:bg-green-700 cursor-pointer">{submittingAction === "finish" ? <><Loader2 size={16} className="mr-2 animate-spin" />Finalizando...</> : <><CheckCircle2 size={16} className="mr-2" />Finalizar proceso</>}</Button></div>
-                      </div>
+                          <div className="grid gap-4 sm:grid-cols-2">
+                            <div className="space-y-2"><Label>Cantidad entregada</Label><Input type="number" min="0" value={finishPayload.quantity_delivered} onChange={(e) => setFinishPayload((p) => ({ ...p, quantity_delivered: e.target.value }))} /></div>
+                            <div className="space-y-2"><Label>Cantidad danada</Label><Input type="number" min="0" value={finishPayload.quantity_damaged} onChange={(e) => setFinishPayload((p) => ({ ...p, quantity_damaged: e.target.value }))} /></div>
+                            <div className="space-y-2"><Label>Maquinaria</Label><Select value={finishPayload.machinery_id} disabled={processInputLocked} onValueChange={(value) => setFinishPayload((p) => ({ ...p, machinery_id: value }))}><SelectTrigger className="w-full"><SelectValue placeholder="Selecciona una maquinaria">{finishPayload.machinery_id ? machineLabel(finishPayload.machinery_id) : null}</SelectValue></SelectTrigger><SelectContent><SelectGroup><SelectLabel>Maquinaria disponible</SelectLabel>{catalogs.machinery.map((m) => <SelectItem key={m.id} value={String(m.id)}>{formatMachineryLabel(m)}</SelectItem>)}</SelectGroup></SelectContent></Select></div>
+                            <div className="space-y-2"><Label>Medida de corte</Label><Select value={finishPayload.measure_cutting_id} disabled={processInputLocked} onValueChange={(value) => setFinishPayload((p) => ({ ...p, measure_cutting_id: value }))}><SelectTrigger className="w-full"><SelectValue>{measureLabel(finishPayload.measure_cutting_id)}</SelectValue></SelectTrigger><SelectContent><SelectGroup><SelectLabel>Medidas disponibles</SelectLabel>{catalogs.measures.map((m) => <SelectItem key={m.id} value={String(m.id)}>{formatMeasureLabel(m)}</SelectItem>)}</SelectGroup></SelectContent></Select></div>
+                            {defs.map((field) => <div key={field.id} className={`space-y-2 ${field.field_type === "TEXTAREA" ? "sm:col-span-2" : ""}`}><Label>{field.label}{field.is_required ? " *" : ""}</Label>{dynamicInput(field, finishPayload.field_values[field.id] || "", (value) => setFinishPayload((p) => ({ ...p, field_values: { ...p.field_values, [field.id]: value } })), processInputLocked)}</div>)}
+                            <div className="space-y-2 sm:col-span-2"><Label>Observaciones finales</Label><Input disabled={processInputLocked} value={finishPayload.observations} onChange={(e) => setFinishPayload((p) => ({ ...p, observations: e.target.value }))} /></div>
+                            <div className="sm:col-span-2"><Button onClick={submitFinish} disabled={!canOperate || activeProcess?.process_state === "TERMINADO" || submittingAction === "finish"} className="w-full bg-green-600 text-white hover:bg-green-700 cursor-pointer">{submittingAction === "finish" ? <><Loader2 size={16} className="mr-2 animate-spin" />Finalizando...</> : <><CheckCircle2 size={16} className="mr-2" />Finalizar proceso</>}</Button></div>
+                          </div>
                         </div>
                       </div>
                     )}

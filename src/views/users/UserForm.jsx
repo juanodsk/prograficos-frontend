@@ -45,6 +45,7 @@ export default function UserForm({ isOpen, onClose, onSuccess, userId }) {
     password: "",
     role: "USER",
     avatar: "",
+    is_active: true,
   });
 
   // Cargar datos cuando es edición
@@ -65,6 +66,7 @@ export default function UserForm({ isOpen, onClose, onSuccess, userId }) {
       password: "",
       role: "USER",
       avatar: "",
+      is_active: true,
     });
     setErrors({});
   };
@@ -81,6 +83,7 @@ export default function UserForm({ isOpen, onClose, onSuccess, userId }) {
         password: "",
         role: u.role || "USER",
         avatar: u.avatar || "",
+        is_active: u.is_active ?? true,
       });
     } catch {
       toast.error("Error al cargar el usuario");
@@ -209,7 +212,7 @@ export default function UserForm({ isOpen, onClose, onSuccess, userId }) {
           ) : (
             <form onSubmit={handleSubmit} className="space-y-4">
               {/* Nombre y Apellido */}
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div className="space-y-1">
                   <Label className="text-xs">Nombre</Label>
                   <Input
@@ -239,7 +242,7 @@ export default function UserForm({ isOpen, onClose, onSuccess, userId }) {
               </div>
 
               {/* Email y Password */}
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div className="space-y-1">
                   <Label className="text-xs">Email</Label>
                   <Input
@@ -275,7 +278,7 @@ export default function UserForm({ isOpen, onClose, onSuccess, userId }) {
               </div>
 
               {/* Rol y Avatar */}
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div className="space-y-1">
                   <Label className="text-xs">Rol</Label>
                   <Select
@@ -311,6 +314,33 @@ export default function UserForm({ isOpen, onClose, onSuccess, userId }) {
                     onChange={handleChange}
                     className="h-8 text-sm"
                   />
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <Label className="text-xs">Estado</Label>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setForm((prev) => ({
+                        ...prev,
+                        is_active: !prev.is_active,
+                      }))
+                    }
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-200 focus:outline-none cursor-pointer ${
+                      form.is_active ? "bg-[#13529a]" : "bg-gray-300"
+                    }`}
+                  >
+                    <span
+                      className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform duration-200 ${
+                        form.is_active ? "translate-x-6" : "translate-x-1"
+                      }`}
+                    />
+                  </button>
+                  <span className="text-sm text-gray-700">
+                    {form.is_active ? "Activo" : "Inactivo"}
+                  </span>
                 </div>
               </div>
 

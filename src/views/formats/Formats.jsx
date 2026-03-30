@@ -87,11 +87,13 @@ const Formats = () => {
     setConfirmDialog((prev) => ({ ...prev, loading: true }));
     try {
       const response = await formatsService.delete(confirmDialog.formatId);
-      setFormats((prev) => prev.filter((f) => f.id !== confirmDialog.formatId));
-      toast.success(response?.message);
+      await fetchFormats();
+      toast.success(response?.message || "Formato desactivado exitosamente");
       handleCloseDialog();
     } catch (error) {
-      toast.error(response?.message);
+      toast.error(
+        error?.response?.data?.message || "No se pudo desactivar el formato",
+      );
       setConfirmDialog((prev) => ({ ...prev, loading: false }));
     }
   };

@@ -93,16 +93,15 @@ const PaperTypes = () => {
       const response = await paperTypesService.delete(
         confirmDialog.paperTypeId,
       );
-      setPaperTypes((prev) =>
-        prev.filter((pt) => pt.id !== confirmDialog.paperTypeId),
-      );
+      await fetchPaperTypes();
       toast.success(
-        response?.message || "Tipo de papel eliminado exitosamente",
+        response?.message || "Tipo de papel desactivado exitosamente",
       );
       handleCloseDialog();
     } catch (error) {
       toast.error(
-        error?.response?.message || "No se pudo eliminar el tipo de papel",
+        error?.response?.data?.message ||
+          "No se pudo desactivar el tipo de papel",
       );
       setConfirmDialog((prev) => ({ ...prev, loading: false }));
     }

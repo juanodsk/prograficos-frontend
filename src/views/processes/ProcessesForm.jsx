@@ -36,13 +36,18 @@ const fieldTypes = [
   "SELECT",
 ];
 
-const createEmptyField = (index = 0) => ({
-  key: "",
-  label: "",
-  field_type: "TEXT",
-  is_required: false,
-  sort_order: index + 1,
-  options: "",
+const createFieldUiId = () =>
+  globalThis.crypto?.randomUUID?.() ||
+  `field-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+
+const createFieldDraft = (index = 0, field = {}) => ({
+  uiId: field.id ? `field-${field.id}` : createFieldUiId(),
+  key: field.key || "",
+  label: field.label || "",
+  field_type: field.field_type || "TEXT",
+  is_required: Boolean(field.is_required),
+  sort_order: field.sort_order ?? index + 1,
+  options: Array.isArray(field.options) ? field.options.join(", ") : field.options || "",
 });
 
 const ProcessesForm = ({ isOpen, onClose, onSuccess, processId }) => {
@@ -55,7 +60,8 @@ const ProcessesForm = ({ isOpen, onClose, onSuccess, processId }) => {
     name: "",
     order: "",
     category: "OTRO",
-    field_definitions: [createEmptyField(0)],
+    is_active: true,
+    field_definitions: [createFieldDraft(0)],
   });
 
   useEffect(() => {
@@ -64,7 +70,8 @@ const ProcessesForm = ({ isOpen, onClose, onSuccess, processId }) => {
         name: "",
         order: "",
         category: "OTRO",
-        field_definitions: [createEmptyField(0)],
+        is_active: true,
+        field_definitions: [createFieldDraft(0)],
       });
       setErrors({});
       return;
@@ -85,19 +92,13 @@ const ProcessesForm = ({ isOpen, onClose, onSuccess, processId }) => {
         name: process?.name || "",
         order: process?.order ? String(process.order) : "",
         category: process?.category || "OTRO",
+        is_active: process?.is_active ?? true,
         field_definitions:
           process?.field_definitions?.length > 0
-            ? process.field_definitions.map((field, index) => ({
-                key: field.key || "",
-                label: field.label || "",
-                field_type: field.field_type || "TEXT",
-                is_required: Boolean(field.is_required),
-                sort_order: field.sort_order ?? index + 1,
-                options: Array.isArray(field.options)
-                  ? field.options.join(", ")
-                  : "",
-              }))
-            : [createEmptyField(0)],
+            ? process.field_definitions.map((field, index) =>
+                createFieldDraft(index, field),
+              )
+            : [createFieldDraft(0)],
       });
     } catch (error) {
       toast.error("No se pudo cargar el proceso");
@@ -121,7 +122,7 @@ const ProcessesForm = ({ isOpen, onClose, onSuccess, processId }) => {
       ...prev,
       field_definitions: [
         ...prev.field_definitions,
-        createEmptyField(prev.field_definitions.length),
+        createFieldDraft(prev.field_definitions.length),
       ],
     }));
   };
@@ -137,7 +138,7 @@ const ProcessesForm = ({ isOpen, onClose, onSuccess, processId }) => {
 
       return {
         ...prev,
-        field_definitions: nextFields.length ? nextFields : [createEmptyField(0)],
+        field_definitions: nextFields.length ? nextFields : [createFieldDraft(0)],
       };
     });
   };
@@ -187,6 +188,7 @@ const ProcessesForm = ({ isOpen, onClose, onSuccess, processId }) => {
       name: form.name.trim(),
       order: Number(form.order),
       category: form.category,
+      is_active: form.is_active,
       field_definitions: normalizeFieldDefinitions(),
     };
 
@@ -302,6 +304,33 @@ const ProcessesForm = ({ isOpen, onClose, onSuccess, processId }) => {
                 </div>
               </div>
 
+              <div className="space-y-2">
+                <Label>Estado</Label>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setForm((prev) => ({
+                        ...prev,
+                        is_active: !prev.is_active,
+                      }))
+                    }
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-200 focus:outline-none cursor-pointer ${
+                      form.is_active ? "bg-[#13529a]" : "bg-gray-300"
+                    }`}
+                  >
+                    <span
+                      className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform duration-200 ${
+                        form.is_active ? "translate-x-6" : "translate-x-1"
+                      }`}
+                    />
+                  </button>
+                  <span className="text-sm text-gray-700">
+                    {form.is_active ? "Activo" : "Inactivo"}
+                  </span>
+                </div>
+              </div>
+
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <div>
@@ -329,7 +358,7 @@ const ProcessesForm = ({ isOpen, onClose, onSuccess, processId }) => {
                 <div className="space-y-4">
                   {form.field_definitions.map((field, index) => (
                     <div
-                      key={`${field.key}-${index}`}
+                      key={field.uiId}
                       className="rounded-xl border border-gray-200 p-4"
                     >
                       <div className="mb-3 flex items-center justify-between">

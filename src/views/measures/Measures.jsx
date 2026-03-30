@@ -96,13 +96,13 @@ const Measures = () => {
     setConfirmDialog((prev) => ({ ...prev, loading: true }));
     try {
       const response = await measuresService.delete(confirmDialog.measureId);
-      setMeasures((prev) =>
-        prev.filter((m) => m.id !== confirmDialog.measureId),
-      );
-      toast.success(response?.message || "Medida eliminada exitosameeeente");
+      await fetchMeasures();
+      toast.success(response?.message || "Medida desactivada exitosamente");
       handleCloseDialog();
     } catch (error) {
-      toast.error(error?.response?.message || "No se pudo eliminar la medida");
+      toast.error(
+        error?.response?.data?.message || "No se pudo desactivar la medida",
+      );
       setConfirmDialog((prev) => ({ ...prev, loading: false }));
     }
   };

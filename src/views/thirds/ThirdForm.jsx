@@ -30,6 +30,7 @@ export default function ThirdForm({ isOpen, onClose, onSuccess, thirdId }) {
     address: "",
     type_person: "",
     company_name: "",
+    is_active: true,
   });
 
   useEffect(() => {
@@ -44,6 +45,7 @@ export default function ThirdForm({ isOpen, onClose, onSuccess, thirdId }) {
       address: "",
       type_person: "",
       company_name: "",
+      is_active: true,
     });
     setErrors({});
   };
@@ -61,6 +63,7 @@ export default function ThirdForm({ isOpen, onClose, onSuccess, thirdId }) {
         address: t?.address || "",
         type_person: t?.type_person || "",
         company_name: t?.company_name || "",
+        is_active: t?.is_active ?? true,
       });
     } catch {
       toast.error("Error al cargar el tercero");
@@ -102,7 +105,7 @@ export default function ThirdForm({ isOpen, onClose, onSuccess, thirdId }) {
         address: form.address,
         type_person: form.type_person,
         company_name: form.company_name || null,
-        is_active: true,
+        is_active: form.is_active,
       };
 
       let result;
@@ -267,6 +270,33 @@ export default function ThirdForm({ isOpen, onClose, onSuccess, thirdId }) {
                   placeholder="Nombre empresa"
                   className="h-8 text-sm"
                 />
+              </div>
+
+              <div className="space-y-1">
+                <Label className="text-xs">Estado</Label>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setForm((prev) => ({
+                        ...prev,
+                        is_active: !prev.is_active,
+                      }))
+                    }
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-200 focus:outline-none cursor-pointer ${
+                      form.is_active ? "bg-[#13529a]" : "bg-gray-300"
+                    }`}
+                  >
+                    <span
+                      className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform duration-200 ${
+                        form.is_active ? "translate-x-6" : "translate-x-1"
+                      }`}
+                    />
+                  </button>
+                  <span className="text-sm text-gray-700">
+                    {form.is_active ? "Activo" : "Inactivo"}
+                  </span>
+                </div>
               </div>
 
               {/* Botones */}

@@ -1,8 +1,10 @@
 import api from "./api";
 
 const thirdsService = {
-  getAll: async () => {
-    const { data } = await api.get("/thirds");
+  getAll: async (options = {}) => {
+    const { data } = await api.get("/thirds", {
+      params: options.onlyActive ? { onlyActive: true } : undefined,
+    });
     return data;
   },
   getById: async (id) => {
