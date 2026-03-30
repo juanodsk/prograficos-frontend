@@ -9,12 +9,12 @@ const paperTypesService = {
     const { data } = await api.get(`/paper_types/${id}`);
     return data;
   },
-  create: async (productData) => {
-    const { data } = await api.post("/paper_types", productData);
+  create: async (paperTypeData) => {
+    const { data } = await api.post("/paper_types", paperTypeData);
     return data;
   },
-  update: async (id, productData) => {
-    const { data } = await api.put(`/paper_types/${id}`, productData);
+  update: async (id, paperTypeData) => {
+    const { data } = await api.put(`/paper_types/${id}`, paperTypeData);
     return data;
   },
   delete: async (id) => {
