@@ -14,11 +14,18 @@ const resolveSocketConfig = () => {
       parsedApiUrl.pathname && parsedApiUrl.pathname !== "/"
         ? parsedApiUrl.pathname.replace(/\/$/, "")
         : "";
+    const derivedPath = `${basePath}/socket.io`;
+    const normalizedExplicitPath = explicitPath?.trim();
+    const socketPath =
+      !normalizedExplicitPath ||
+      (basePath && normalizedExplicitPath === "/socket.io")
+        ? derivedPath
+        : normalizedExplicitPath;
 
     return {
       url:
         explicitUrl || `${parsedApiUrl.protocol}//${parsedApiUrl.host}`,
-      path: explicitPath || `${basePath}/socket.io`,
+      path: socketPath,
     };
   } catch {
     return {
