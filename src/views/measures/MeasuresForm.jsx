@@ -49,7 +49,7 @@ export default function MeasuresForm({
     try {
       setFetching(true);
       const [formatsRes, measureRes] = await Promise.all([
-        formatsService.getAll(),
+        formatsService.getAll({ onlyActive: true }),
         isEditing ? measuresService.getById(measureId) : Promise.resolve(null),
       ]);
 
@@ -168,7 +168,7 @@ export default function MeasuresForm({
           ) : (
             <form onSubmit={handleSubmit} className="space-y-4">
               {/* Ancho y Alto */}
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div className="space-y-1">
                   <Label className="text-xs">Ancho</Label>
                   <Input

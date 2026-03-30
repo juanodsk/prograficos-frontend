@@ -160,7 +160,7 @@ export default function ProductForm({ isOpen, onClose, onSuccess, productId }) {
           ) : (
             <form onSubmit={handleSubmit} className="space-y-4">
               {/* Nombre y Apellido */}
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div className="space-y-1">
                   <Label className="text-xs">Nombre</Label>
                   <Input

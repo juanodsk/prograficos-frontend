@@ -149,11 +149,9 @@ const Users = () => {
     setConfirmDialog((prev) => ({ ...prev, loading: true }));
 
     try {
-      await userService.deleteUser(confirmDialog.userId);
-
-      setUsers((prev) => prev.filter((u) => u.id !== confirmDialog.userId));
-
-      toast.success("Usuario eliminado correctamente");
+      const response = await userService.deleteUser(confirmDialog.userId);
+      await fetchUsers();
+      toast.success(response?.message || "Usuario desactivado correctamente");
 
       handleCloseDialog();
     } catch (error) {
@@ -206,6 +204,21 @@ const Users = () => {
       key: "role",
       label: "Rol",
       render: (row) => <RoleBadge role={row.role} />,
+    },
+    {
+      key: "is_active",
+      label: "Estado",
+      render: (row) => (
+        <span
+          className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ${
+            row.is_active
+              ? "bg-green-100 text-green-700"
+              : "bg-red-100 text-red-700"
+          }`}
+        >
+          {row.is_active ? "Activo" : "Inactivo"}
+        </span>
+      ),
     },
   ];
 

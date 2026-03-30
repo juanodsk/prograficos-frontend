@@ -1,8 +1,10 @@
 import api from "./api";
 
 const measuresService = {
-  getAll: async () => {
-    const { data } = await api.get("/measures");
+  getAll: async (options = {}) => {
+    const { data } = await api.get("/measures", {
+      params: options.onlyActive ? { onlyActive: true } : undefined,
+    });
     return data;
   },
   getById: async (id) => {

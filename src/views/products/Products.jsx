@@ -106,17 +106,13 @@ const Products = () => {
     setConfirmDialog((prev) => ({ ...prev, loading: true }));
 
     try {
-      await productsService.delete(confirmDialog.productId);
-
-      setProducts((prev) =>
-        prev.filter((p) => p.id !== confirmDialog.productId),
-      );
-
-      toast.success("Producto eliminado correctamente");
+      const response = await productsService.delete(confirmDialog.productId);
+      await fetchProducts();
+      toast.success(response?.message || "Producto desactivado correctamente");
       handleCloseDialog();
     } catch (error) {
       toast.error(
-        error.response?.data?.message || "No se pudo eliminar el producto",
+        error.response?.data?.message || "No se pudo desactivar el producto",
       );
 
       setConfirmDialog((prev) => ({

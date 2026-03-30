@@ -1,8 +1,10 @@
 import api from "./api";
 
 const productsService = {
-  getAll: async () => {
-    const { data } = await api.get("/products");
+  getAll: async (options = {}) => {
+    const { data } = await api.get("/products", {
+      params: options.onlyActive ? { onlyActive: true } : undefined,
+    });
     return data;
   },
   getById: async (id) => {

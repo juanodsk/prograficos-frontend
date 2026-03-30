@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
+import { format } from "date-fns";
+import { es } from "date-fns/locale";
 import ordersService from "@/services/orders.service";
 import measuresService from "@/services/measures.service";
 import paperTypesService from "@/services/paper_types.service";
@@ -8,8 +10,14 @@ import troquelesService from "@/services/troqueles.service";
 import productCustomerService from "@/services/product_customer.service";
 import processesService from "@/services/processes.service";
 import { Button } from "@/components/ui/button";
+import { Calendar } from "@/components/ui/calendar";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import {
   Select,
   SelectContent,
@@ -20,15 +28,18 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
-import { ArrowLeft, Loader2, Save } from "lucide-react";
+import { ArrowLeft, ChevronDown, Loader2, Save } from "lucide-react";
 
 const formatMeasureLabel = (measure) => {
   if (!measure) return "Medida sin definir";
+  const formatName = measure.format?.name || measure.format_name;
   const size =
     measure.width && measure.height
       ? `${measure.width} x ${measure.height}`
       : null;
-  return size || measure.name || "Medida sin definir";
+  if (formatName && size) return `${formatName} · ${size}`;
+  if (formatName && measure.name) return `${formatName} · ${measure.name}`;
+  return formatName || size || measure.name || "Medida sin definir";
 };
 
 const formatPaperTypeLabel = (paperType) => {
@@ -59,6 +70,12 @@ const formatProductCustomerLabel = (productCustomer) => {
   return "Producto del cliente sin definir";
 };
 
+const toDateInputValue = (value) => {
+  if (!value) return "";
+  if (typeof value === "string") return value.slice(0, 10);
+  return format(value, "yyyy-MM-dd");
+};
+
 const OrderForm = () => {
   const navigate = useNavigate();
   const { id } = useParams();
@@ -66,7 +83,9 @@ const OrderForm = () => {
 
   const [loading, setLoading] = useState(false);
   const [fetching, setFetching] = useState(true);
+  const [calendarOpen, setCalendarOpen] = useState(false);
   const [errors, setErrors] = useState({});
+  const [isOrderLocked, setIsOrderLocked] = useState(false);
   const [catalogs, setCatalogs] = useState({
     measures: [],
     paperTypes: [],
@@ -100,11 +119,11 @@ const OrderForm = () => {
         processesRes,
         orderRes,
       ] = await Promise.all([
-        measuresService.getAll(),
-        paperTypesService.getAll(),
-        troquelesService.getAll(),
-        productCustomerService.getAll(),
-        processesService.getAll(),
+        measuresService.getAll({ onlyActive: true }),
+        paperTypesService.getAll({ onlyActive: true }),
+        troquelesService.getAll({ onlyActive: true }),
+        productCustomerService.getAll({ onlyActive: true }),
+        processesService.getAll({ onlyActive: true }),
         isEditing ? ordersService.getById(id) : Promise.resolve(null),
       ]);
 
@@ -118,10 +137,13 @@ const OrderForm = () => {
 
       if (orderRes?.data) {
         const order = orderRes.data;
+        setIsOrderLocked(
+          (order.detail_production_orders || []).some(
+            (detail) => detail.process_state !== "PENDIENTE",
+          ),
+        );
         setForm({
-          date_delivery_estimated: order.date_delivery_estimated
-            ? new Date(order.date_delivery_estimated).toISOString().split("T")[0]
-            : "",
+          date_delivery_estimated: toDateInputValue(order.date_delivery_estimated),
           amount_sheets: order.amount_sheets ? String(order.amount_sheets) : "",
           total_estimated: order.total_estimated ? String(order.total_estimated) : "",
           measure_id: order.measure_id ? String(order.measure_id) : "",
@@ -133,6 +155,8 @@ const OrderForm = () => {
           processes:
             order.detail_production_orders?.map((detail) => String(detail.process_id)) || [],
         });
+      } else {
+        setIsOrderLocked(false);
       }
     } catch {
       toast.error("Error al cargar la información de la orden");
@@ -162,7 +186,7 @@ const OrderForm = () => {
     if (!form.date_delivery_estimated) nextErrors.date_delivery_estimated = "La fecha estimada es obligatoria";
     if (!form.amount_sheets || Number(form.amount_sheets) <= 0) nextErrors.amount_sheets = "La cantidad de hojas debe ser mayor a 0";
     if (!form.total_estimated || Number(form.total_estimated) <= 0) nextErrors.total_estimated = "El total estimado debe ser mayor a 0";
-    if (!form.measure_id) nextErrors.measure_id = "Selecciona una medida";
+    if (!form.measure_id) nextErrors.measure_id = "Selecciona un formato y medida";
     if (!form.paper_type_id) nextErrors.paper_type_id = "Selecciona un tipo de papel";
     if (!form.troquel_id) nextErrors.troquel_id = "Selecciona un troquel";
     if (!form.product_customer_id) nextErrors.product_customer_id = "Selecciona un producto del cliente";
@@ -212,8 +236,36 @@ const OrderForm = () => {
     [catalogs.productCustomers, form.product_customer_id],
   );
 
+  const selectedDeliveryDate = useMemo(
+    () =>
+      form.date_delivery_estimated
+        ? new Date(`${form.date_delivery_estimated}T00:00:00`)
+        : undefined,
+    [form.date_delivery_estimated],
+  );
+
+  const sortedMeasures = useMemo(
+    () =>
+      [...catalogs.measures].sort((a, b) => {
+        const formatA = a.format?.name || a.format_name || "";
+        const formatB = b.format?.name || b.format_name || "";
+        if (formatA !== formatB) {
+          return formatA.localeCompare(formatB, "es", { sensitivity: "base" });
+        }
+        if (Number(a.width) !== Number(b.width)) {
+          return Number(a.width) - Number(b.width);
+        }
+        return Number(a.height) - Number(b.height);
+      }),
+    [catalogs.measures],
+  );
+
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (isOrderLocked) {
+      toast.error("La orden ya tiene procesos iniciados y no se puede editar");
+      return;
+    }
     if (!validate()) return;
 
     const payload = {
@@ -281,6 +333,12 @@ const OrderForm = () => {
             </div>
           ) : (
             <form onSubmit={handleSubmit} className="space-y-8 p-6">
+              {isEditing && isOrderLocked && (
+                <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+                  Esta orden ya inició producción. Los datos de entrada quedaron bloqueados y no se pueden modificar.
+                </div>
+              )}
+
               <section className="space-y-4">
                 <div>
                   <h2 className="text-lg font-semibold text-slate-900">Datos generales</h2>
@@ -292,11 +350,37 @@ const OrderForm = () => {
                 <div className="grid gap-5 md:grid-cols-2">
                   <div className="space-y-2">
                     <Label>Fecha estimada de entrega</Label>
-                    <Input
-                      type="date"
-                      value={form.date_delivery_estimated}
-                      onChange={(e) => setField("date_delivery_estimated", e.target.value)}
-                    />
+                    <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
+                      <PopoverTrigger asChild>
+                        <button
+                          type="button"
+                          disabled={isOrderLocked}
+                          className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 text-sm text-left text-foreground shadow-sm transition-colors hover:bg-accent hover:text-accent-foreground disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                          <span>
+                            {selectedDeliveryDate
+                              ? format(selectedDeliveryDate, "PPP", { locale: es })
+                              : "Selecciona fecha"}
+                          </span>
+                          <ChevronDown className="h-4 w-4 opacity-50" />
+                        </button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                          mode="single"
+                          selected={selectedDeliveryDate}
+                          onSelect={(date) => {
+                            setField(
+                              "date_delivery_estimated",
+                              date ? format(date, "yyyy-MM-dd") : "",
+                            );
+                            setCalendarOpen(false);
+                          }}
+                          defaultMonth={selectedDeliveryDate}
+                          locale={es}
+                        />
+                      </PopoverContent>
+                    </Popover>
                     {errors.date_delivery_estimated && (
                       <p className="text-xs text-red-500">{errors.date_delivery_estimated}</p>
                     )}
@@ -308,6 +392,7 @@ const OrderForm = () => {
                       type="number"
                       min="1"
                       value={form.amount_sheets}
+                      disabled={isOrderLocked}
                       onChange={(e) => setField("amount_sheets", e.target.value)}
                     />
                     {errors.amount_sheets && (
@@ -321,6 +406,7 @@ const OrderForm = () => {
                       type="number"
                       min="1"
                       value={form.total_estimated}
+                      disabled={isOrderLocked}
                       onChange={(e) => setField("total_estimated", e.target.value)}
                     />
                     {errors.total_estimated && (
@@ -329,17 +415,21 @@ const OrderForm = () => {
                   </div>
 
                   <div className="space-y-2">
-                    <Label>Medida</Label>
-                    <Select value={form.measure_id} onValueChange={(value) => setField("measure_id", value)}>
+                    <Label>Formato y medida</Label>
+                    <Select
+                      value={form.measure_id}
+                      disabled={isOrderLocked}
+                      onValueChange={(value) => setField("measure_id", value)}
+                    >
                       <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Selecciona una medida">
+                        <SelectValue placeholder="Selecciona formato y medida">
                           {selectedMeasure ? formatMeasureLabel(selectedMeasure) : null}
                         </SelectValue>
                       </SelectTrigger>
                       <SelectContent>
                         <SelectGroup>
-                          <SelectLabel>Medidas</SelectLabel>
-                          {catalogs.measures.map((measure) => (
+                          <SelectLabel>Formatos y medidas</SelectLabel>
+                          {sortedMeasures.map((measure) => (
                             <SelectItem key={measure.id} value={String(measure.id)}>
                               {formatMeasureLabel(measure)}
                             </SelectItem>
@@ -352,7 +442,11 @@ const OrderForm = () => {
 
                   <div className="space-y-2">
                     <Label>Tipo de papel</Label>
-                    <Select value={form.paper_type_id} onValueChange={(value) => setField("paper_type_id", value)}>
+                    <Select
+                      value={form.paper_type_id}
+                      disabled={isOrderLocked}
+                      onValueChange={(value) => setField("paper_type_id", value)}
+                    >
                       <SelectTrigger className="w-full">
                         <SelectValue placeholder="Selecciona un tipo de papel">
                           {selectedPaperType
@@ -376,7 +470,11 @@ const OrderForm = () => {
 
                   <div className="space-y-2">
                     <Label>Troquel</Label>
-                    <Select value={form.troquel_id} onValueChange={(value) => setField("troquel_id", value)}>
+                    <Select
+                      value={form.troquel_id}
+                      disabled={isOrderLocked}
+                      onValueChange={(value) => setField("troquel_id", value)}
+                    >
                       <SelectTrigger className="w-full">
                         <SelectValue placeholder="Selecciona un troquel">
                           {selectedTroquel ? formatTroquelLabel(selectedTroquel) : null}
@@ -400,6 +498,7 @@ const OrderForm = () => {
                     <Label>Producto del cliente</Label>
                     <Select
                       value={form.product_customer_id}
+                      disabled={isOrderLocked}
                       onValueChange={(value) => setField("product_customer_id", value)}
                     >
                       <SelectTrigger className="w-full">
@@ -449,6 +548,7 @@ const OrderForm = () => {
                       >
                         <Checkbox
                           checked={checked}
+                          disabled={isOrderLocked}
                           onCheckedChange={(value) =>
                             toggleProcess(String(process.id), Boolean(value))
                           }
@@ -487,7 +587,7 @@ const OrderForm = () => {
                 </Button>
                 <Button
                   type="submit"
-                  disabled={loading}
+                  disabled={loading || isOrderLocked}
                   className="bg-[#13529a] text-white hover:bg-[#0f3f7a] cursor-pointer"
                 >
                   {loading ? (

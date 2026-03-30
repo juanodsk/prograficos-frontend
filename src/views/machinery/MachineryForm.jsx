@@ -1,26 +1,26 @@
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import paperTypesService from "../../services/paper_types.service";
+import machineryService from "@/services/machinery.service";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { X, Loader2, Save } from "lucide-react";
+import { Loader2, Save, X } from "lucide-react";
 
-export default function PaperTypesForm({
+export default function MachineryForm({
   isOpen,
   onClose,
   onSuccess,
-  paperTypeId,
+  machineryId,
 }) {
-  const isEditing = !!paperTypeId;
+  const isEditing = !!machineryId;
 
   const [loading, setLoading] = useState(false);
   const [fetching, setFetching] = useState(false);
   const [errors, setErrors] = useState({});
   const [form, setForm] = useState({
     name: "",
-    description: "",
-    grammage: "",
+    reference: "",
+    type: "",
     is_active: true,
   });
 
@@ -30,29 +30,35 @@ export default function PaperTypesForm({
       return;
     }
 
-    if (paperTypeId) {
-      fetchPaperType();
+    if (machineryId) {
+      fetchMachinery();
     }
-  }, [isOpen, paperTypeId]);
+  }, [isOpen, machineryId]);
 
   const resetForm = () => {
-    setForm({ name: "", description: "", grammage: "", is_active: true });
+    setForm({
+      name: "",
+      reference: "",
+      type: "",
+      is_active: true,
+    });
     setErrors({});
   };
 
-  const fetchPaperType = async () => {
+  const fetchMachinery = async () => {
     try {
       setFetching(true);
-      const res = await paperTypesService.getById(paperTypeId);
-      const p = res.data;
+      const response = await machineryService.getById(machineryId);
+      const machinery = response?.data || response;
+
       setForm({
-        name: p.name || "",
-        description: p.description || "",
-        grammage: p.grammage || "",
-        is_active: p.is_active ?? true,
+        name: machinery.name || "",
+        reference: machinery.reference || "",
+        type: machinery.type || "",
+        is_active: machinery.is_active ?? true,
       });
     } catch {
-      toast.error("Error al cargar el tipo de papel");
+      toast.error("Error al cargar la maquinaria");
       onClose();
     } finally {
       setFetching(false);
@@ -61,45 +67,57 @@ export default function PaperTypesForm({
 
   const validate = () => {
     const newErrors = {};
+
     if (!form.name.trim()) newErrors.name = "El nombre es requerido";
-    if (!form.description.trim())
-      newErrors.description = "La descripción es requerida";
+    if (!form.reference.trim()) newErrors.reference = "El código es requerido";
+    if (!form.type.trim()) newErrors.type = "El tipo es requerido";
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
+  };
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+
+    setForm((prev) => ({ ...prev, [name]: value }));
+
+    if (errors[name]) {
+      setErrors((prev) => ({ ...prev, [name]: "" }));
+    }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!validate()) return;
+
     try {
       setLoading(true);
+
       const payload = {
-        name: form.name,
-        description: form.description,
-        grammage: form.grammage ? parseFloat(form.grammage) : undefined,
+        name: form.name.trim(),
+        reference: form.reference.trim(),
+        type: form.type.trim(),
         is_active: form.is_active,
       };
+
       let result;
       if (isEditing) {
-        result = await paperTypesService.update(paperTypeId, payload);
-        toast.success(result?.data?.message || "Tipo de papel actualizado");
+        result = await machineryService.update(machineryId, payload);
+        toast.success(result?.message || "Maquinaria actualizada");
       } else {
-        result = await paperTypesService.create(payload);
-        toast.success(result?.data?.message || "Tipo de papel creado");
+        result = await machineryService.create(payload);
+        toast.success(result?.message || "Maquinaria creada");
       }
-      onSuccess(result?.data?.paper_type || result?.data || payload);
+
+      onSuccess(result?.data || payload);
       onClose();
     } catch (error) {
-      toast.error(error?.response?.data?.message || "Error al guardar");
+      toast.error(
+        error?.response?.data?.message || "No se pudo guardar la maquinaria",
+      );
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setForm((prev) => ({ ...prev, [name]: value }));
-    if (errors[name]) setErrors((prev) => ({ ...prev, [name]: "" }));
   };
 
   const handleClose = () => {
@@ -111,6 +129,7 @@ export default function PaperTypesForm({
     const handleKey = (e) => {
       if (e.key === "Escape" && isOpen) handleClose();
     };
+
     window.addEventListener("keydown", handleKey);
     return () => window.removeEventListener("keydown", handleKey);
   }, [isOpen, loading]);
@@ -119,38 +138,36 @@ export default function PaperTypesForm({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      {/* Backdrop */}
       <div
-        className="absolute inset-0 bg-black/50 backdrop-blur-sm cursor-pointer"
+        className="absolute inset-0 cursor-pointer bg-black/50 backdrop-blur-sm"
         onClick={handleClose}
       />
 
-      {/* Panel */}
-      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg mx-auto overflow-hidden animate-in">
+      <div className="relative mx-auto w-full max-w-lg overflow-hidden rounded-2xl bg-white shadow-2xl animate-in">
         <div className="h-1.5 w-full bg-[#13529a]" />
 
-        {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b">
+        <div className="flex items-center justify-between border-b px-6 py-4">
           <div>
             <h2 className="text-base font-bold text-[#13529a]">
-              {isEditing ? "Editar Tipo de Papel" : "Nuevo Tipo de Papel"}
+              {isEditing ? "Editar Maquinaria" : "Nueva Maquinaria"}
             </h2>
             <p className="text-xs text-gray-400">
               {isEditing
-                ? "Modifica los datos del tipo de papel"
-                : "Completa los datos para crear un tipo de papel"}
+                ? "Actualiza los datos de la máquina"
+                : "Completa los datos para registrar una máquina"}
             </p>
           </div>
+
           <button
+            type="button"
             onClick={handleClose}
             disabled={loading}
-            className="text-gray-400 hover:text-gray-600 transition-colors disabled:opacity-50 cursor-pointer"
+            className="cursor-pointer text-gray-400 transition-colors hover:text-gray-600 disabled:opacity-50"
           >
             <X size={20} />
           </button>
         </div>
 
-        {/* Body */}
         <div className="px-6 py-5">
           {fetching ? (
             <div className="flex items-center justify-center py-10">
@@ -158,13 +175,12 @@ export default function PaperTypesForm({
             </div>
           ) : (
             <form onSubmit={handleSubmit} className="space-y-4">
-              {/* Nombre y Descripción */}
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div className="space-y-1">
                   <Label className="text-xs">Nombre</Label>
                   <Input
                     name="name"
-                    placeholder="Ej: Cartulina"
+                    placeholder="Ej: Heidelberg CD 74"
                     value={form.name}
                     onChange={handleChange}
                     className="h-8 text-sm"
@@ -173,40 +189,42 @@ export default function PaperTypesForm({
                     <p className="text-xs text-red-500">{errors.name}</p>
                   )}
                 </div>
+
                 <div className="space-y-1">
-                  <Label className="text-xs">Descripción</Label>
+                  <Label className="text-xs">Código / Referencia</Label>
                   <Input
-                    name="description"
-                    placeholder="Ej: Papel satinado brillante"
-                    value={form.description}
+                    name="reference"
+                    placeholder="Ej: HCD-74"
+                    value={form.reference}
                     onChange={handleChange}
                     className="h-8 text-sm"
                   />
-                  {errors.description && (
-                    <p className="text-xs text-red-500">{errors.description}</p>
+                  {errors.reference && (
+                    <p className="text-xs text-red-500">
+                      {errors.reference}
+                    </p>
                   )}
                 </div>
               </div>
 
-              {/* Gramaje y Estado */}
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div className="space-y-1">
-                  <Label className="text-xs">Gramaje (opcional)</Label>
+                  <Label className="text-xs">Tipo</Label>
                   <Input
-                    name="grammage"
-                    placeholder="Ej: 300g/m²"
-                    value={form.grammage}
+                    name="type"
+                    placeholder="Ej: Impresión"
+                    value={form.type}
                     onChange={handleChange}
                     className="h-8 text-sm"
-                    type="number"
                   />
-                  {errors.grammage && (
-                    <p className="text-xs text-red-500">{errors.grammage}</p>
+                  {errors.type && (
+                    <p className="text-xs text-red-500">{errors.type}</p>
                   )}
                 </div>
+
                 <div className="space-y-1">
                   <Label className="text-xs">Estado</Label>
-                  <div className="flex items-center gap-2 h-8">
+                  <div className="flex h-8 items-center gap-2">
                     <button
                       type="button"
                       onClick={() =>
@@ -215,7 +233,7 @@ export default function PaperTypesForm({
                           is_active: !prev.is_active,
                         }))
                       }
-                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-200 focus:outline-none cursor-pointer ${
+                      className={`relative inline-flex h-6 w-11 cursor-pointer items-center rounded-full transition-colors duration-200 focus:outline-none ${
                         form.is_active ? "bg-[#13529a]" : "bg-gray-300"
                       }`}
                     >
@@ -226,27 +244,27 @@ export default function PaperTypesForm({
                       />
                     </button>
                     <span className="text-sm text-gray-700">
-                      {form.is_active ? "Activo" : "Inactivo"}
+                      {form.is_active ? "Activa" : "Inactiva"}
                     </span>
                   </div>
                 </div>
               </div>
 
-              {/* Botones */}
               <div className="flex gap-3 pt-2">
                 <Button
                   type="button"
                   variant="outline"
                   onClick={handleClose}
                   disabled={loading}
-                  className="flex-1 h-8 text-sm cursor-pointer"
+                  className="h-8 flex-1 cursor-pointer text-sm"
                 >
                   Cancelar
                 </Button>
+
                 <Button
                   type="submit"
                   disabled={loading}
-                  className="flex-1 h-8 text-sm bg-[#13529a] hover:bg-[#0f3f7a] text-white cursor-pointer"
+                  className="h-8 flex-1 cursor-pointer bg-[#13529a] text-sm text-white hover:bg-[#0f3f7a]"
                 >
                   {loading ? (
                     <>
@@ -256,7 +274,7 @@ export default function PaperTypesForm({
                   ) : (
                     <>
                       <Save size={14} className="mr-2" />
-                      {isEditing ? "Actualizar" : "Crear Tipo de Papel"}
+                      {isEditing ? "Actualizar" : "Crear Maquinaria"}
                     </>
                   )}
                 </Button>

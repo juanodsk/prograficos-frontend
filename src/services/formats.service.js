@@ -1,8 +1,10 @@
 import api from "./api";
 
 const formatsService = {
-  getAll: async () => {
-    const { data } = await api.get("/formats");
+  getAll: async (options = {}) => {
+    const { data } = await api.get("/formats", {
+      params: options.onlyActive ? { onlyActive: true } : undefined,
+    });
     return data;
   },
   getById: async (id) => {

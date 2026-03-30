@@ -1,8 +1,10 @@
 import api from "./api";
 
 const processesService = {
-  getAll: async () => {
-    const { data } = await api.get("/processes");
+  getAll: async (options = {}) => {
+    const { data } = await api.get("/processes", {
+      params: options.onlyActive ? { onlyActive: true } : undefined,
+    });
     return data;
   },
   getById: async (id) => {

@@ -107,15 +107,17 @@ const Thirds = () => {
         loading: true,
       }));
 
-      await thirdService.remove(confirmDialog.thirdId);
+      const response = await thirdService.delete(confirmDialog.thirdId);
 
-      toast.success(response?.message);
+      toast.success(response?.message || "Tercero desactivado exitosamente");
 
-      setThirds((prev) => prev.filter((t) => t.id !== confirmDialog.thirdId));
+      await fetchThirds();
 
       handleCloseDialog();
     } catch (error) {
-      toast.error(response?.message || "Error al eliminar el tercero");
+      toast.error(
+        error?.response?.data?.message || "Error al desactivar el tercero",
+      );
 
       setConfirmDialog((prev) => ({
         ...prev,
@@ -151,6 +153,21 @@ const Thirds = () => {
       key: "company_name",
       label: "Empresa",
       render: (row) => row.company_name || "-",
+    },
+    {
+      key: "is_active",
+      label: "Estado",
+      render: (row) => (
+        <span
+          className={`rounded-full px-2 py-1 text-xs font-semibold ${
+            row.is_active
+              ? "bg-green-100 text-green-800"
+              : "bg-red-100 text-red-800"
+          }`}
+        >
+          {row.is_active ? "Activo" : "Inactivo"}
+        </span>
+      ),
     },
   ];
 
