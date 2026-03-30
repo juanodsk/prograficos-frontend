@@ -1,0 +1,26 @@
+import api from "./api";
+
+const machineryService = {
+  getAll: async () => {
+    const { data } = await api.get("/machinery");
+    return data;
+  },
+  getById: async (id) => {
+    const { data } = await api.get(`/machinery/${id}`);
+    return data;
+  },
+  create: async (machineryData) => {
+    const { data } = await api.post("/machinery", machineryData);
+    return data;
+  },
+  update: async (id, machineryData) => {
+    const { data } = await api.put(`/machinery/${id}`, machineryData);
+    return data;
+  },
+  delete: async (id) => {
+    const { data } = await api.delete(`/machinery/${id}`);
+    return data;
+  },
+};
+
+export default machineryService;

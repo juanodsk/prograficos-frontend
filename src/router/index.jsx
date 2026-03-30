@@ -5,6 +5,8 @@ import Login from "../views/auth/Login";
 import Dashboard from "../views/dashboard/Dashboard";
 import Users from "../views/users/Users";
 import Orders from "../views/orders/Orders";
+import OrderForm from "../views/orders/OrderForm";
+import OrderDetail from "../views/orders/OrderDetail";
 import Thirds from "../views/thirds/Thirds";
 import Products from "../views/products/Products";
 import Troqueles from "../views/troqueles/Troqueles";
@@ -12,6 +14,7 @@ import Measures from "../views/measures/Measures";
 import Formats from "../views/formats/Formats";
 import PaperTypes from "../views/paper_types/PaperTypes";
 import ProductCustomers from "../views/product_customers/ProductCustomers";
+import Processes from "../views/processes/Processes";
 
 import Unauthorized from "../views/Unauthorized";
 
@@ -82,13 +85,22 @@ const router = createBrowserRouter([
         path: "/admin/productos_clientes",
         element: <ProductCustomers />,
       },
+      {
+        path: "/admin/procesos",
+        element: <Processes />,
+      },
     ],
   },
   // Rutas para ADMIN, SUPERVISOR y EMPLOYEE
   {
     path: "/",
     element: <ProtectedRoute roles={["ADMIN", "SUPERVISOR", "EMPLOYEE"]} />,
-    children: [{ path: "ordenes", element: <Orders /> }],
+    children: [
+      { path: "ordenes", element: <Orders /> },
+      { path: "ordenes/crear", element: <OrderForm /> },
+      { path: "ordenes/:id", element: <OrderDetail /> },
+      { path: "ordenes/:id/editar", element: <OrderForm /> },
+    ],
   },
   {
     path: "/unauthorized",
