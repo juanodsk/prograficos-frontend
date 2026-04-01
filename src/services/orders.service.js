@@ -9,6 +9,10 @@ const ordersService = {
     const { data } = await api.get(`/order/${id}`);
     return data;
   },
+  getAudit: async () => {
+    const { data } = await api.get("/order/audit");
+    return data;
+  },
   create: async (orderData) => {
     const { data } = await api.post("/order", orderData);
     return data;

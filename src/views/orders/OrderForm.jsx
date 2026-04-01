@@ -143,9 +143,13 @@ const OrderForm = () => {
           ),
         );
         setForm({
-          date_delivery_estimated: toDateInputValue(order.date_delivery_estimated),
+          date_delivery_estimated: toDateInputValue(
+            order.date_delivery_estimated,
+          ),
           amount_sheets: order.amount_sheets ? String(order.amount_sheets) : "",
-          total_estimated: order.total_estimated ? String(order.total_estimated) : "",
+          total_estimated: order.total_estimated
+            ? String(order.total_estimated)
+            : "",
           measure_id: order.measure_id ? String(order.measure_id) : "",
           paper_type_id: order.paper_type_id ? String(order.paper_type_id) : "",
           troquel_id: order.troquel_id ? String(order.troquel_id) : "",
@@ -153,7 +157,9 @@ const OrderForm = () => {
             ? String(order.product_customer_id)
             : "",
           processes:
-            order.detail_production_orders?.map((detail) => String(detail.process_id)) || [],
+            order.detail_production_orders?.map((detail) =>
+              String(detail.process_id),
+            ) || [],
         });
       } else {
         setIsOrderLocked(false);
@@ -183,14 +189,20 @@ const OrderForm = () => {
 
   const validate = () => {
     const nextErrors = {};
-    if (!form.date_delivery_estimated) nextErrors.date_delivery_estimated = "La fecha estimada es obligatoria";
-    if (!form.amount_sheets || Number(form.amount_sheets) <= 0) nextErrors.amount_sheets = "La cantidad de hojas debe ser mayor a 0";
-    if (!form.total_estimated || Number(form.total_estimated) <= 0) nextErrors.total_estimated = "El total estimado debe ser mayor a 0";
-    if (!form.measure_id) nextErrors.measure_id = "Selecciona un formato y medida";
-    if (!form.paper_type_id) nextErrors.paper_type_id = "Selecciona un tipo de papel";
+    // if (!form.date_delivery_estimated) nextErrors.date_delivery_estimated = "La fecha estimada es obligatoria";
+    if (!form.amount_sheets || Number(form.amount_sheets) <= 0)
+      nextErrors.amount_sheets = "La cantidad de hojas debe ser mayor a 0";
+    if (!form.total_estimated || Number(form.total_estimated) <= 0)
+      nextErrors.total_estimated = "El total estimado debe ser mayor a 0";
+    if (!form.measure_id)
+      nextErrors.measure_id = "Selecciona un formato y medida";
+    if (!form.paper_type_id)
+      nextErrors.paper_type_id = "Selecciona un tipo de papel";
     if (!form.troquel_id) nextErrors.troquel_id = "Selecciona un troquel";
-    if (!form.product_customer_id) nextErrors.product_customer_id = "Selecciona un producto del cliente";
-    if (!form.processes.length) nextErrors.processes = "Selecciona al menos un proceso";
+    if (!form.product_customer_id)
+      nextErrors.product_customer_id = "Selecciona un producto del cliente";
+    if (!form.processes.length)
+      nextErrors.processes = "Selecciona al menos un proceso";
     setErrors(nextErrors);
     return Object.keys(nextErrors).length === 0;
   };
@@ -291,7 +303,9 @@ const OrderForm = () => {
         navigate(`/ordenes/${result?.data?.id || ""}`);
       }
     } catch (error) {
-      toast.error(error?.response?.data?.message || "No se pudo guardar la orden");
+      toast.error(
+        error?.response?.data?.message || "No se pudo guardar la orden",
+      );
     } finally {
       setLoading(false);
     }
@@ -335,20 +349,23 @@ const OrderForm = () => {
             <form onSubmit={handleSubmit} className="space-y-8 p-6">
               {isEditing && isOrderLocked && (
                 <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-                  Esta orden ya inició producción. Los datos de entrada quedaron bloqueados y no se pueden modificar.
+                  Esta orden ya inició producción. Los datos de entrada quedaron
+                  bloqueados y no se pueden modificar.
                 </div>
               )}
 
               <section className="space-y-4">
                 <div>
-                  <h2 className="text-lg font-semibold text-slate-900">Datos generales</h2>
+                  <h2 className="text-lg font-semibold text-slate-900">
+                    Datos generales
+                  </h2>
                   <p className="text-sm text-slate-500">
                     Información principal de la orden.
                   </p>
                 </div>
 
                 <div className="grid gap-5 md:grid-cols-2">
-                  <div className="space-y-2">
+                  {/* <div className="space-y-2">
                     <Label>Fecha estimada de entrega</Label>
                     <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
                       <PopoverTrigger disabled={isOrderLocked}>
@@ -358,7 +375,9 @@ const OrderForm = () => {
                         >
                           <span>
                             {selectedDeliveryDate
-                              ? format(selectedDeliveryDate, "PPP", { locale: es })
+                              ? format(selectedDeliveryDate, "PPP", {
+                                  locale: es,
+                                })
                               : "Selecciona fecha"}
                           </span>
                           <ChevronDown className="h-4 w-4 opacity-50" />
@@ -381,35 +400,47 @@ const OrderForm = () => {
                       </PopoverContent>
                     </Popover>
                     {errors.date_delivery_estimated && (
-                      <p className="text-xs text-red-500">{errors.date_delivery_estimated}</p>
+                      <p className="text-xs text-red-500">
+                        {errors.date_delivery_estimated}
+                      </p>
                     )}
-                  </div>
+                  </div> */}
 
                   <div className="space-y-2">
                     <Label>Cantidad de hojas</Label>
                     <Input
                       type="number"
                       min="1"
+                      placeholder="Ej: 500"
                       value={form.amount_sheets}
                       disabled={isOrderLocked}
-                      onChange={(e) => setField("amount_sheets", e.target.value)}
+                      onChange={(e) =>
+                        setField("amount_sheets", e.target.value)
+                      }
                     />
                     {errors.amount_sheets && (
-                      <p className="text-xs text-red-500">{errors.amount_sheets}</p>
+                      <p className="text-xs text-red-500">
+                        {errors.amount_sheets}
+                      </p>
                     )}
                   </div>
 
                   <div className="space-y-2">
-                    <Label>Total estimado</Label>
+                    <Label>Total de entrega estimado</Label>
                     <Input
                       type="number"
                       min="1"
+                      placeholder="Ej: 1000"
                       value={form.total_estimated}
                       disabled={isOrderLocked}
-                      onChange={(e) => setField("total_estimated", e.target.value)}
+                      onChange={(e) =>
+                        setField("total_estimated", e.target.value)
+                      }
                     />
                     {errors.total_estimated && (
-                      <p className="text-xs text-red-500">{errors.total_estimated}</p>
+                      <p className="text-xs text-red-500">
+                        {errors.total_estimated}
+                      </p>
                     )}
                   </div>
 
@@ -422,21 +453,30 @@ const OrderForm = () => {
                     >
                       <SelectTrigger className="w-full">
                         <SelectValue placeholder="Selecciona formato y medida">
-                          {selectedMeasure ? formatMeasureLabel(selectedMeasure) : null}
+                          {selectedMeasure
+                            ? formatMeasureLabel(selectedMeasure)
+                            : null}
                         </SelectValue>
                       </SelectTrigger>
                       <SelectContent>
                         <SelectGroup>
                           <SelectLabel>Formatos y medidas</SelectLabel>
                           {sortedMeasures.map((measure) => (
-                            <SelectItem key={measure.id} value={String(measure.id)}>
+                            <SelectItem
+                              key={measure.id}
+                              value={String(measure.id)}
+                            >
                               {formatMeasureLabel(measure)}
                             </SelectItem>
                           ))}
                         </SelectGroup>
                       </SelectContent>
                     </Select>
-                    {errors.measure_id && <p className="text-xs text-red-500">{errors.measure_id}</p>}
+                    {errors.measure_id && (
+                      <p className="text-xs text-red-500">
+                        {errors.measure_id}
+                      </p>
+                    )}
                   </div>
 
                   <div className="space-y-2">
@@ -444,7 +484,9 @@ const OrderForm = () => {
                     <Select
                       value={form.paper_type_id}
                       disabled={isOrderLocked}
-                      onValueChange={(value) => setField("paper_type_id", value)}
+                      onValueChange={(value) =>
+                        setField("paper_type_id", value)
+                      }
                     >
                       <SelectTrigger className="w-full">
                         <SelectValue placeholder="Selecciona un tipo de papel">
@@ -457,14 +499,21 @@ const OrderForm = () => {
                         <SelectGroup>
                           <SelectLabel>Tipos de papel</SelectLabel>
                           {catalogs.paperTypes.map((paperType) => (
-                            <SelectItem key={paperType.id} value={String(paperType.id)}>
+                            <SelectItem
+                              key={paperType.id}
+                              value={String(paperType.id)}
+                            >
                               {formatPaperTypeLabel(paperType)}
                             </SelectItem>
                           ))}
                         </SelectGroup>
                       </SelectContent>
                     </Select>
-                    {errors.paper_type_id && <p className="text-xs text-red-500">{errors.paper_type_id}</p>}
+                    {errors.paper_type_id && (
+                      <p className="text-xs text-red-500">
+                        {errors.paper_type_id}
+                      </p>
+                    )}
                   </div>
 
                   <div className="space-y-2">
@@ -476,21 +525,30 @@ const OrderForm = () => {
                     >
                       <SelectTrigger className="w-full">
                         <SelectValue placeholder="Selecciona un troquel">
-                          {selectedTroquel ? formatTroquelLabel(selectedTroquel) : null}
+                          {selectedTroquel
+                            ? formatTroquelLabel(selectedTroquel)
+                            : null}
                         </SelectValue>
                       </SelectTrigger>
                       <SelectContent>
                         <SelectGroup>
                           <SelectLabel>Troqueles</SelectLabel>
                           {catalogs.troqueles.map((troquel) => (
-                            <SelectItem key={troquel.id} value={String(troquel.id)}>
+                            <SelectItem
+                              key={troquel.id}
+                              value={String(troquel.id)}
+                            >
                               {formatTroquelLabel(troquel)}
                             </SelectItem>
                           ))}
                         </SelectGroup>
                       </SelectContent>
                     </Select>
-                    {errors.troquel_id && <p className="text-xs text-red-500">{errors.troquel_id}</p>}
+                    {errors.troquel_id && (
+                      <p className="text-xs text-red-500">
+                        {errors.troquel_id}
+                      </p>
+                    )}
                   </div>
 
                   <div className="space-y-2 md:col-span-2">
@@ -498,12 +556,16 @@ const OrderForm = () => {
                     <Select
                       value={form.product_customer_id}
                       disabled={isOrderLocked}
-                      onValueChange={(value) => setField("product_customer_id", value)}
+                      onValueChange={(value) =>
+                        setField("product_customer_id", value)
+                      }
                     >
                       <SelectTrigger className="w-full">
                         <SelectValue placeholder="Selecciona un producto del cliente">
                           {selectedProductCustomer
-                            ? formatProductCustomerLabel(selectedProductCustomer)
+                            ? formatProductCustomerLabel(
+                                selectedProductCustomer,
+                              )
                             : null}
                         </SelectValue>
                       </SelectTrigger>
@@ -511,7 +573,10 @@ const OrderForm = () => {
                         <SelectGroup>
                           <SelectLabel>Productos del cliente</SelectLabel>
                           {catalogs.productCustomers.map((productCustomer) => (
-                            <SelectItem key={productCustomer.id} value={String(productCustomer.id)}>
+                            <SelectItem
+                              key={productCustomer.id}
+                              value={String(productCustomer.id)}
+                            >
                               {formatProductCustomerLabel(productCustomer)}
                             </SelectItem>
                           ))}
@@ -519,7 +584,9 @@ const OrderForm = () => {
                       </SelectContent>
                     </Select>
                     {errors.product_customer_id && (
-                      <p className="text-xs text-red-500">{errors.product_customer_id}</p>
+                      <p className="text-xs text-red-500">
+                        {errors.product_customer_id}
+                      </p>
                     )}
                   </div>
                 </div>
@@ -527,7 +594,9 @@ const OrderForm = () => {
 
               <section className="space-y-4 border-t pt-6">
                 <div>
-                  <h2 className="text-lg font-semibold text-slate-900">Flujo de procesos</h2>
+                  <h2 className="text-lg font-semibold text-slate-900">
+                    Flujo de procesos
+                  </h2>
                   <p className="text-sm text-slate-500">
                     Selecciona las etapas por las que pasará la orden.
                   </p>
@@ -555,13 +624,17 @@ const OrderForm = () => {
                         />
                         <div className="space-y-1">
                           <div className="flex items-center gap-2">
-                            <p className="font-medium text-gray-900">{process.name}</p>
+                            <p className="font-medium text-gray-900">
+                              {process.name}
+                            </p>
                             <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-600">
                               {process.category}
                             </span>
                           </div>
                           <p className="text-xs text-gray-500">
-                            Paso {process.order} · {process.field_definitions?.length || 0} campos configurables
+                            Paso {process.order} ·{" "}
+                            {process.field_definitions?.length || 0} campos
+                            configurables
                           </p>
                         </div>
                       </label>
@@ -608,7 +681,9 @@ const OrderForm = () => {
 
         <aside className="space-y-4">
           <div className="rounded-2xl border bg-white p-5 shadow-sm">
-            <h2 className="text-lg font-semibold text-slate-900">Resumen del flujo</h2>
+            <h2 className="text-lg font-semibold text-slate-900">
+              Resumen del flujo
+            </h2>
             <p className="mt-1 text-sm text-slate-500">
               Esto ayuda a validar antes de crear la orden.
             </p>
@@ -622,12 +697,16 @@ const OrderForm = () => {
                 selectedProcesses.map((process) => (
                   <div key={process.id} className="rounded-xl bg-slate-50 p-4">
                     <div className="flex items-center justify-between gap-3">
-                      <p className="font-semibold text-slate-900">{process.name}</p>
+                      <p className="font-semibold text-slate-900">
+                        {process.name}
+                      </p>
                       <span className="rounded-full bg-white px-2 py-1 text-xs font-semibold text-slate-600">
                         Paso {process.order}
                       </span>
                     </div>
-                    <p className="mt-1 text-xs text-slate-500">{process.category}</p>
+                    <p className="mt-1 text-xs text-slate-500">
+                      {process.category}
+                    </p>
 
                     <div className="mt-3 flex flex-wrap gap-2">
                       {(process.field_definitions || []).length > 0 ? (
