@@ -28,14 +28,12 @@ export default function ConfirmDialog({
 }) {
   const cancelBtnRef = useRef(null);
 
-  // Focus al cancelar cuando abre (accesibilidad)
   useEffect(() => {
     if (isOpen) {
       setTimeout(() => cancelBtnRef.current?.focus(), 50);
     }
   }, [isOpen]);
 
-  // Cerrar con Escape
   useEffect(() => {
     const handleKey = (e) => {
       if (e.key === "Escape" && isOpen) onClose();

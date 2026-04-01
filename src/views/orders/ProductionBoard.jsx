@@ -48,6 +48,20 @@ const getProgress = (order) => {
   return Math.round((getCompletedSteps(order) / total) * 100);
 };
 
+const getProcessFlowMessage = (order) => {
+  const currentDetail = getCurrentDetail(order);
+
+  if (!currentDetail?.process?.name) {
+    return "Sin procesos configurados";
+  }
+
+  if (currentDetail.process_state === "EN_PROCESO") {
+    return `En proceso: ${currentDetail.process.name}`;
+  }
+
+  return `Esperando a ${currentDetail.process.name}`;
+};
+
 const getDeadlineTone = (dateValue) => {
   if (!dateValue) return "text-slate-300";
 
@@ -199,6 +213,16 @@ const ProductionBoard = () => {
     [boardOrders],
   );
 
+  const visibleOrders = useMemo(
+    () =>
+      [...boardOrders].sort(
+        (a, b) =>
+          new Date(a.date_delivery_estimated) -
+          new Date(b.date_delivery_estimated),
+      ),
+    [boardOrders],
+  );
+
   const stats = useMemo(() => {
     const details = boardOrders.flatMap(
       (order) => order.detail_production_orders || [],
@@ -294,29 +318,29 @@ const ProductionBoard = () => {
                 Órdenes en producción
               </h2>
               <p className="mt-1 text-base text-slate-400">
-                Visual principal de órdenes activas
+                Visual principal de órdenes abiertas y en espera
               </p>
             </div>
 
             <div className="rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-slate-200">
-              {activeOrders.length} activas
+              {visibleOrders.length} abiertas
             </div>
           </div>
 
-          {activeOrders.length === 0 ? (
+          {visibleOrders.length === 0 ? (
             <div className="flex items-center justify-center rounded-[24px] border border-dashed border-slate-800 bg-slate-950/30 px-8 text-center">
               <div>
                 <p className="text-[11px] uppercase tracking-[0.28em] text-slate-500">
                   Sin actividad en curso
                 </p>
                 <p className="mt-4 text-[clamp(2.5rem,2.2vw,4rem)] font-black leading-none text-white">
-                  No hay órdenes en proceso
+                  No hay órdenes abiertas
                 </p>
               </div>
             </div>
           ) : (
             <div className="grid min-h-0 gap-4 overflow-hidden auto-rows-fr">
-              {activeOrders.map((order) => {
+              {visibleOrders.map((order) => {
                 const currentDetail = getCurrentDetail(order);
                 const progress = getProgress(order);
                 const boardStatus = getBoardOrderStatus(order);
@@ -367,6 +391,9 @@ const ProductionBoard = () => {
                       <p className="mt-2 text-[clamp(1.2rem,0.92vw,1.5rem)] font-bold text-white">
                         {currentDetail?.process?.name || "Sin proceso"}
                       </p>
+                      <p className="mt-3 text-[clamp(0.92rem,0.72vw,1rem)] text-amber-200">
+                        {getProcessFlowMessage(order)}
+                      </p>
 
                       <p className="mt-4 text-[11px] uppercase tracking-[0.18em] text-slate-500">
                         Operario
@@ -377,7 +404,9 @@ const ProductionBoard = () => {
                       >
                         {currentDetail?.user
                           ? `${currentDetail.user.name} ${currentDetail.user.surename || ""}`.trim()
-                          : "Sin operario"}
+                          : currentDetail?.process_state === "PENDIENTE"
+                            ? "Pendiente por iniciar"
+                            : "Sin operario"}
                       </p>
                     </div>
 
@@ -389,7 +418,10 @@ const ProductionBoard = () => {
                         className="mt-2 text-[clamp(1.15rem,0.9vw,1.45rem)] font-bold text-white"
                         style={clampTwoLines}
                       >
-                        {currentDetail?.machinery?.name || "Sin maquinaria"}
+                        {currentDetail?.machinery?.name ||
+                          (currentDetail?.process_state === "PENDIENTE"
+                            ? "Pendiente por asignar"
+                            : "Sin maquinaria")}
                       </p>
                       <p className="mt-2 text-[clamp(0.95rem,0.74vw,1.05rem)] text-slate-300">
                         Cod. {currentDetail?.machinery?.reference || "--"}

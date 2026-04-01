@@ -18,12 +18,17 @@ import {
   Trash2,
 } from "lucide-react";
 
+const finishedStatuses = new Set(["TERMINADO", "ENTREGADO"]);
+
+const isFinishedOrder = (order) => finishedStatuses.has(order?.order_status);
+
 const Orders = () => {
   const navigate = useNavigate();
   const { user: currentUser } = useAuthStore();
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [activeTab, setActiveTab] = useState("active");
   const [confirmDialog, setConfirmDialog] = useState({
     isOpen: false,
     orderId: null,
@@ -84,11 +89,21 @@ const Orders = () => {
         .length,
       progress: orders.filter((order) => order.order_status === "EN_PROCESO")
         .length,
-      finished: orders.filter((order) => order.order_status === "TERMINADO")
-        .length,
+      finished: orders.filter(isFinishedOrder).length,
     }),
     [orders],
   );
+
+  const tabSummary = useMemo(
+    () => ({
+      active: filtered.filter((order) => !isFinishedOrder(order)),
+      finished: filtered.filter(isFinishedOrder),
+    }),
+    [filtered],
+  );
+
+  const visibleOrders =
+    activeTab === "finished" ? tabSummary.finished : tabSummary.active;
 
   const handleDeleteClick = (order) => {
     setConfirmDialog({
@@ -206,6 +221,21 @@ const Orders = () => {
     },
   ];
 
+  const tabOptions = [
+    {
+      key: "active",
+      label: "Órdenes activas",
+      count: tabSummary.active.length,
+    },
+    {
+      key: "finished",
+      label: "Órdenes terminadas",
+      count: tabSummary.finished.length,
+    },
+  ];
+  const canCreate = ["ADMIN", "SUPERVISOR"].includes(currentUser?.role);
+  const canEdit = ["ADMIN", "SUPERVISOR"].includes(currentUser?.role);
+
   return (
     <div className="space-y-6">
       <div className="rounded-3xl border border-slate-200 bg-[linear-gradient(135deg,#0f3f7a_0%,#13529a_55%,#2b6cb0_100%)] px-6 py-7 text-white shadow-sm">
@@ -221,13 +251,15 @@ const Orders = () => {
             </p>
           </div>
 
-          <Button
-            onClick={() => navigate("/ordenes/crear")}
-            className="bg-white text-[#13529a] hover:bg-blue-50 cursor-pointer"
-          >
-            <Plus size={16} className="mr-2" />
-            Nueva Orden
-          </Button>
+          {canCreate && (
+            <Button
+              onClick={() => navigate("/ordenes/crear")}
+              className="bg-white text-[#13529a] hover:bg-blue-50 cursor-pointer"
+            >
+              <Plus size={16} className="mr-2" />
+              Nueva Orden
+            </Button>
+          )}
         </div>
       </div>
 
@@ -252,17 +284,36 @@ const Orders = () => {
 
       <div className="rounded-2xl border bg-white shadow-sm">
         <div className="border-b p-4">
-          <div className="relative max-w-md">
-            <Search
-              size={16}
-              className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
-            />
-            <Input
-              placeholder="Buscar por cliente, producto, ID o estado..."
-              className="pl-9"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <div className="inline-flex w-full rounded-2xl bg-slate-100 p-1 lg:w-auto">
+              {tabOptions.map((tab) => (
+                <button
+                  key={tab.key}
+                  type="button"
+                  onClick={() => setActiveTab(tab.key)}
+                  className={`flex-1 rounded-xl px-4 py-2 cursor-pointer text-sm font-semibold transition-colors lg:flex-none ${
+                    activeTab === tab.key
+                      ? "bg-white text-[#13529a] shadow-sm cursor-pointer"
+                      : "text-slate-500 hover:text-slate-700 cursor-pointer"
+                  }`}
+                >
+                  {tab.label} ({tab.count})
+                </button>
+              ))}
+            </div>
+
+            <div className="relative max-w-md">
+              <Search
+                size={16}
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+              />
+              <Input
+                placeholder="Buscar por cliente, producto, ID o estado..."
+                className="pl-9"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+            </div>
           </div>
         </div>
 
@@ -270,13 +321,15 @@ const Orders = () => {
           <div className="flex items-center justify-center py-16">
             <Loader2 size={32} className="animate-spin text-[#13529a]" />
           </div>
-        ) : filtered.length === 0 ? (
+        ) : visibleOrders.length === 0 ? (
           <div className="py-16 text-center text-gray-500">
-            No se encontraron órdenes con ese criterio.
+            {activeTab === "finished"
+              ? "No se encontraron órdenes terminadas con ese criterio."
+              : "No se encontraron órdenes activas con ese criterio."}
           </div>
         ) : (
           <div className="grid gap-4 p-4 lg:grid-cols-2">
-            {filtered.map((order) => (
+            {visibleOrders.map((order) => (
               <article
                 key={order.id}
                 className="rounded-2xl border border-slate-200 bg-slate-50/60 p-5 transition-colors hover:border-[#13529a]/40 hover:bg-white"
@@ -345,16 +398,18 @@ const Orders = () => {
                     <Eye size={16} className="mr-2" />
                     Ver detalle
                   </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => navigate(`/ordenes/${order.id}/editar`)}
-                    className="cursor-pointer"
-                  >
-                    <Pencil size={16} className="mr-2" />
-                    Editar
-                  </Button>
-                  {order.order_status !== "TERMINADO" && (
+                  {canEdit && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => navigate(`/ordenes/${order.id}/editar`)}
+                      className="cursor-pointer"
+                    >
+                      <Pencil size={16} className="mr-2" />
+                      Editar
+                    </Button>
+                  )}
+                  {!isFinishedOrder(order) && (
                     <Button
                       size="sm"
                       onClick={() => handleFinish(order.id)}

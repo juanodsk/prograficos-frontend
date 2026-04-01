@@ -41,6 +41,7 @@ const createFieldUiId = () =>
   `field-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
 
 const createFieldDraft = (index = 0, field = {}) => ({
+  id: field.id ?? null,
   uiId: field.id ? `field-${field.id}` : createFieldUiId(),
   key: field.key || "",
   label: field.label || "",
@@ -50,29 +51,28 @@ const createFieldDraft = (index = 0, field = {}) => ({
   options: Array.isArray(field.options) ? field.options.join(", ") : field.options || "",
 });
 
+const createInitialFormState = () => ({
+  name: "",
+  order: "",
+  category: "OTRO",
+  is_active: true,
+  field_definitions: [],
+});
+
+const hasConfiguredFieldContent = (field) =>
+  Boolean(field.key?.trim() || field.label?.trim() || field.options?.trim());
+
 const ProcessesForm = ({ isOpen, onClose, onSuccess, processId }) => {
   const isEditing = Boolean(processId);
 
   const [loading, setLoading] = useState(false);
   const [fetching, setFetching] = useState(false);
   const [errors, setErrors] = useState({});
-  const [form, setForm] = useState({
-    name: "",
-    order: "",
-    category: "OTRO",
-    is_active: true,
-    field_definitions: [createFieldDraft(0)],
-  });
+  const [form, setForm] = useState(createInitialFormState);
 
   useEffect(() => {
     if (!isOpen) {
-      setForm({
-        name: "",
-        order: "",
-        category: "OTRO",
-        is_active: true,
-        field_definitions: [createFieldDraft(0)],
-      });
+      setForm(createInitialFormState());
       setErrors({});
       return;
     }
@@ -98,7 +98,7 @@ const ProcessesForm = ({ isOpen, onClose, onSuccess, processId }) => {
             ? process.field_definitions.map((field, index) =>
                 createFieldDraft(index, field),
               )
-            : [createFieldDraft(0)],
+            : [],
       });
     } catch (error) {
       toast.error("No se pudo cargar el proceso");
@@ -138,7 +138,7 @@ const ProcessesForm = ({ isOpen, onClose, onSuccess, processId }) => {
 
       return {
         ...prev,
-        field_definitions: nextFields.length ? nextFields : [createFieldDraft(0)],
+        field_definitions: nextFields,
       };
     });
   };
@@ -151,13 +151,22 @@ const ProcessesForm = ({ isOpen, onClose, onSuccess, processId }) => {
       nextErrors.order = "El orden debe ser mayor a 0";
     if (!form.category) nextErrors.category = "La categoria es obligatoria";
 
-    const invalidField = form.field_definitions.find(
+    const configuredFields = form.field_definitions.filter(hasConfiguredFieldContent);
+
+    const invalidField = configuredFields.find(
       (field) => !field.key.trim() || !field.label.trim() || !field.field_type,
+    );
+    const normalizedKeys = configuredFields.map((field) => field.key.trim().toLowerCase());
+    const hasDuplicateKeys = normalizedKeys.some(
+      (key, index) => key && normalizedKeys.indexOf(key) !== index,
     );
 
     if (invalidField) {
       nextErrors.field_definitions =
         "Todos los campos configurables deben tener clave, nombre y tipo";
+    } else if (hasDuplicateKeys) {
+      nextErrors.field_definitions =
+        "No puedes repetir la clave en los campos configurables";
     }
 
     setErrors(nextErrors);
@@ -165,20 +174,23 @@ const ProcessesForm = ({ isOpen, onClose, onSuccess, processId }) => {
   };
 
   const normalizeFieldDefinitions = () =>
-    form.field_definitions.map((field, index) => ({
-      key: field.key.trim(),
-      label: field.label.trim(),
-      field_type: field.field_type,
-      is_required: Boolean(field.is_required),
-      sort_order: index + 1,
-      options:
-        field.field_type === "SELECT" && field.options.trim()
-          ? field.options
-              .split(",")
-              .map((option) => option.trim())
-              .filter(Boolean)
-          : null,
-    }));
+    form.field_definitions
+      .filter(hasConfiguredFieldContent)
+      .map((field, index) => ({
+        id: field.id,
+        key: field.key.trim(),
+        label: field.label.trim(),
+        field_type: field.field_type,
+        is_required: Boolean(field.is_required),
+        sort_order: index + 1,
+        options:
+          field.field_type === "SELECT" && field.options.trim()
+            ? field.options
+                .split(",")
+                .map((option) => option.trim())
+                .filter(Boolean)
+            : null,
+      }));
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -356,6 +368,18 @@ const ProcessesForm = ({ isOpen, onClose, onSuccess, processId }) => {
                 )}
 
                 <div className="space-y-4">
+                  {form.field_definitions.length === 0 && (
+                    <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50 px-4 py-6 text-center">
+                      <p className="text-sm font-medium text-gray-700">
+                        Este proceso no tiene campos adicionales.
+                      </p>
+                      <p className="mt-1 text-xs text-gray-500">
+                        Puedes guardarlo asi o agregar campos configurables cuando lo
+                        necesites.
+                      </p>
+                    </div>
+                  )}
+
                   {form.field_definitions.map((field, index) => (
                     <div
                       key={field.uiId}

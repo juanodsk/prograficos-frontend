@@ -25,11 +25,9 @@ const DataTable = ({ data = [], columns = [], actions }) => {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
 
-  // Ordenamiento por defecto: id ascendente
   const [sortKey, setSortKey] = useState("id");
   const [sortDirection, setSortDirection] = useState("asc");
 
-  // 🔎 Búsqueda
   const filteredData = useMemo(() => {
     const arr = Array.isArray(data) ? data : [];
     if (!search) return arr;
@@ -43,7 +41,6 @@ const DataTable = ({ data = [], columns = [], actions }) => {
     );
   }, [data, search]);
 
-  // ↕ Ordenamiento
   const sortedData = useMemo(() => {
     const arr = [...filteredData];
 
@@ -63,7 +60,6 @@ const DataTable = ({ data = [], columns = [], actions }) => {
     });
   }, [filteredData, sortKey, sortDirection]);
 
-  // 📄 Paginación
   const totalPages = Math.ceil(sortedData.length / pageSize);
 
   const paginatedData = sortedData.slice(
@@ -80,7 +76,6 @@ const DataTable = ({ data = [], columns = [], actions }) => {
     }
   };
 
-  // Exportar CSV
   const exportCSV = () => {
     const arr = Array.isArray(data) ? data : [];
     const headers = columns.map((c) => c.label).join(",");
@@ -102,9 +97,7 @@ const DataTable = ({ data = [], columns = [], actions }) => {
 
   return (
     <div className="space-y-4">
-      {/* Toolbar */}
       <div className="flex items-center justify-between flex-wrap gap-3">
-        {/* Buscador */}
         <div className="relative max-w-sm">
           <Search
             size={16}
@@ -132,7 +125,6 @@ const DataTable = ({ data = [], columns = [], actions }) => {
         </Button>
       </div>
 
-      {/* Tabla */}
       <div className="border rounded-md">
         <Table>
           <TableHeader>
@@ -185,9 +177,7 @@ const DataTable = ({ data = [], columns = [], actions }) => {
         </Table>
       </div>
 
-      {/* Footer */}
       <div className="flex items-center justify-between flex-wrap gap-3">
-        {/* Tamaño de página */}
         <div className="flex items-center gap-2 text-sm">
           Mostrar
           <select
@@ -206,7 +196,6 @@ const DataTable = ({ data = [], columns = [], actions }) => {
           registros
         </div>
 
-        {/* Paginación */}
         <div className="flex items-center gap-2">
           <p className="text-sm text-gray-500">
             Página {page} de {totalPages || 1}

@@ -5,6 +5,7 @@ import Login from "../views/auth/Login";
 import Dashboard from "../views/dashboard/Dashboard";
 import Users from "../views/users/Users";
 import Orders from "../views/orders/Orders";
+import OrdersAudit from "../views/orders/OrdersAudit";
 import OrderForm from "../views/orders/OrderForm";
 import OrderDetail from "../views/orders/OrderDetail";
 import ProductionBoard from "../views/orders/ProductionBoard";
@@ -49,50 +50,50 @@ const router = createBrowserRouter([
     path: "/",
     element: <ProtectedRoute roles={["ADMIN", "SUPERVISOR"]} />,
     children: [
-      { path: "/admin/usuarios", element: <Users /> },
+      { path: "/configuracion/usuarios", element: <Users /> },
       // Redirigen al modal que está en la lista
       {
-        path: "/admin/usuario/create",
-        element: <Navigate to="/admin/usuarios" replace />,
+        path: "/configuracion/usuario/create",
+        element: <Navigate to="/configuracion/usuarios" replace />,
       },
       {
-        path: "/admin/usuario/:id/edit",
-        element: <Navigate to="/admin/usuarios" replace />,
+        path: "/configuracion/usuario/:id/edit",
+        element: <Navigate to="/configuracion/usuarios" replace />,
       },
       {
-        path: "/admin/terceros",
+        path: "/configuracion/terceros",
         element: <Thirds />,
       },
       {
-        path: "/admin/productos",
+        path: "/configuracion/productos",
         element: <Products />,
       },
       {
-        path: "/admin/troqueles",
+        path: "/configuracion/troqueles",
         element: <Troqueles />,
       },
       {
-        path: "/admin/medidas",
+        path: "/configuracion/medidas",
         element: <Measures />,
       },
       {
-        path: "/admin/formatos",
+        path: "/configuracion/formatos",
         element: <Formats />,
       },
       {
-        path: "/admin/maquinarias",
+        path: "/configuracion/maquinarias",
         element: <Machinery />,
       },
       {
-        path: "/admin/tipos_papel",
+        path: "/configuracion/tipos_papel",
         element: <PaperTypes />,
       },
       {
-        path: "/admin/productos_clientes",
+        path: "/configuracion/productos_clientes",
         element: <ProductCustomers />,
       },
       {
-        path: "/admin/procesos",
+        path: "/configuracion/procesos",
         element: <Processes />,
       },
     ],
@@ -100,9 +101,10 @@ const router = createBrowserRouter([
   // Rutas para operación de órdenes
   {
     path: "/",
-    element: <ProtectedRoute roles={["ADMIN", "SUPERVISOR", "EMPLOYEE", "USER"]} />,
+    element: <ProtectedRoute roles={["ADMIN", "SUPERVISOR", "EMPLOYEE"]} />,
     children: [
       { path: "ordenes", element: <Orders /> },
+      { path: "ordenes/auditoria", element: <OrdersAudit /> },
       { path: "ordenes/crear", element: <OrderForm /> },
       { path: "ordenes/:id", element: <OrderDetail /> },
       { path: "ordenes/:id/editar", element: <OrderForm /> },
@@ -112,7 +114,7 @@ const router = createBrowserRouter([
     path: "/",
     element: (
       <ProtectedRoute
-        roles={["ADMIN", "SUPERVISOR", "EMPLOYEE", "USER"]}
+        roles={["ADMIN", "SUPERVISOR", "EMPLOYEE"]}
         withoutShell
       />
     ),

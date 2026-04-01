@@ -8,12 +8,10 @@ const ProtectedRoute = ({ roles, withoutShell = false }) => {
   const { isAuthenticated, user } = useAuthStore();
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
 
-  // Si no está autenticado, redirigir al login
   if (!isAuthenticated) {
     return <Navigate to="/login" />;
   }
 
-  // Si hay roles requeridos y el usuario no los tiene
   if (roles && !roles.includes(user?.role)) {
     return <Navigate to="/unauthorized" />;
   }

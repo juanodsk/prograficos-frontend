@@ -19,9 +19,11 @@ import {
   Building2,
   PanelLeftClose,
   PanelLeftOpen,
+  ScrollText,
   UserStar,
   X,
   Factory,
+  ShieldUser,
 } from "lucide-react";
 
 const menuItems = [
@@ -43,74 +45,102 @@ const menuItems = [
     icon: Factory,
     roles: ["ADMIN", "SUPERVISOR", "EMPLOYEE", "USER"],
   },
+
   {
-    label: "Administración",
+    label: "Configuración",
     icon: Settings,
     roles: ["ADMIN", "SUPERVISOR"],
     children: [
       {
         label: "Usuarios",
-        path: "/admin/usuarios",
+        path: "/configuracion/usuarios",
         icon: UserCog,
         roles: ["ADMIN", "SUPERVISOR"],
       },
       {
         label: "Terceros",
-        path: "/admin/terceros",
+        path: "/configuracion/terceros",
         icon: Building2,
         roles: ["ADMIN", "SUPERVISOR"],
       },
       {
         label: "Productos",
-        path: "/admin/productos",
+        path: "/configuracion/productos",
         icon: Package,
         roles: ["ADMIN", "SUPERVISOR"],
       },
       {
         label: "Productos Clientes",
-        path: "/admin/productos_clientes",
+        path: "/configuracion/productos_clientes",
         icon: UserStar,
         roles: ["ADMIN", "SUPERVISOR"],
       },
       {
         label: "Troqueles",
-        path: "/admin/troqueles",
+        path: "/configuracion/troqueles",
         icon: Scissors,
         roles: ["ADMIN", "SUPERVISOR"],
       },
       {
         label: "Medidas",
-        path: "/admin/medidas",
+        path: "/configuracion/medidas",
         icon: Ruler,
         roles: ["ADMIN", "SUPERVISOR"],
       },
       {
         label: "Formatos",
-        path: "/admin/formatos",
+        path: "/configuracion/formatos",
         icon: FileText,
         roles: ["ADMIN", "SUPERVISOR"],
       },
       {
         label: "Maquinarias",
-        path: "/admin/maquinarias",
+        path: "/configuracion/maquinarias",
         icon: Factory,
         roles: ["ADMIN", "SUPERVISOR"],
       },
       {
         label: "Tipos de Papel",
-        path: "/admin/tipos_papel",
+        path: "/configuracion/tipos_papel",
         icon: Layers,
         roles: ["ADMIN", "SUPERVISOR"],
       },
       {
         label: "Procesos",
-        path: "/admin/procesos",
+        path: "/configuracion/procesos",
         icon: Settings,
         roles: ["ADMIN"],
       },
     ],
   },
+  {
+    label: "Administración",
+    icon: ShieldUser,
+    roles: ["ADMIN", "SUPERVISOR"],
+    children: [
+      {
+        label: "Auditoría",
+        path: "/ordenes/auditoria",
+        icon: ScrollText,
+        roles: ["ADMIN", "SUPERVISOR", "EMPLOYEE", "USER"],
+      },
+    ],
+  },
 ];
+
+const isOrdersPath = (pathname) =>
+  pathname === "/ordenes" ||
+  pathname === "/ordenes/crear" ||
+  /^\/ordenes\/\d+$/.test(pathname) ||
+  /^\/ordenes\/\d+\/editar$/.test(pathname);
+
+const isMenuItemActive = (itemPath, pathname) => {
+  if (itemPath === "/ordenes") {
+    return isOrdersPath(pathname);
+  }
+
+  return pathname === itemPath || pathname.startsWith(`${itemPath}/`);
+};
 
 const Sidebar = ({ mobileOpen = false, onCloseMobile }) => {
   const { user, logout } = useAuthStore();
@@ -174,8 +204,8 @@ const Sidebar = ({ mobileOpen = false, onCloseMobile }) => {
                 title={!isMobile && collapsed ? item.label : ""}
                 className={`w-full cursor-pointer rounded-lg px-3 py-2 text-sm transition-colors ${
                   isActive
-                    ? "bg-[#13529a]/10 font-medium text-[#13529a]"
-                    : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"
+                    ? "bg-[#13529a]/10 font-medium text-[#13529a] cursor-pointer"
+                    : "text-gray-600 hover:bg-gray-100 hover:text-gray-900 cursor-pointer"
                 } ${!isMobile && collapsed ? "flex justify-center" : "flex items-center gap-3"}`}
               >
                 <item.icon size={18} />
@@ -183,7 +213,11 @@ const Sidebar = ({ mobileOpen = false, onCloseMobile }) => {
                 {(isMobile || !collapsed) && (
                   <>
                     <span className="flex-1 text-left">{item.label}</span>
-                    {isOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                    {isOpen ? (
+                      <ChevronDown size={14} />
+                    ) : (
+                      <ChevronRight size={14} />
+                    )}
                   </>
                 )}
               </button>
@@ -196,10 +230,10 @@ const Sidebar = ({ mobileOpen = false, onCloseMobile }) => {
                       to={child.path}
                       onClick={handleNavigate}
                       className={({ isActive: childActive }) =>
-                        `flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors ${
+                        `flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors cursor-pointer ${
                           childActive
-                            ? "bg-[#13529a]/10 font-medium text-[#13529a]"
-                            : "text-gray-500 hover:bg-gray-100 hover:text-gray-900"
+                            ? "bg-[#13529a]/10 font-medium text-[#13529a] cursor-pointer"
+                            : "text-gray-500 hover:bg-gray-100 hover:text-gray-900 cursor-pointer"
                         }`
                       }
                     >
@@ -219,16 +253,18 @@ const Sidebar = ({ mobileOpen = false, onCloseMobile }) => {
             to={item.path}
             onClick={handleNavigate}
             title={!isMobile && collapsed ? item.label : ""}
-            className={({ isActive }) =>
-              `rounded-lg px-3 py-2 text-sm transition-colors ${
-                isActive
-                  ? "bg-[#13529a]/10 font-medium text-[#13529a]"
-                  : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"
+            className={() =>
+              `rounded-lg px-3 py-2 text-sm transition-colors cursor-pointer ${
+                isMenuItemActive(item.path, location.pathname)
+                  ? "bg-[#13529a]/10 font-medium text-[#13529a] cursor-pointer"
+                  : "text-gray-600 hover:bg-gray-100 hover:text-gray-900 cursor-pointer"
               } ${!isMobile && collapsed ? "flex justify-center" : "flex items-center gap-3"}`
             }
           >
             <item.icon size={18} />
-            {(isMobile || !collapsed) && <span className="flex-1">{item.label}</span>}
+            {(isMobile || !collapsed) && (
+              <span className="flex-1">{item.label}</span>
+            )}
           </NavLink>
         );
       })}
@@ -250,7 +286,9 @@ const Sidebar = ({ mobileOpen = false, onCloseMobile }) => {
           </div>
 
           <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-medium text-gray-900">{user?.name}</p>
+            <p className="truncate text-sm font-medium text-gray-900">
+              {user?.name}
+            </p>
             <p className="truncate text-xs text-gray-500">{user?.email}</p>
           </div>
         </div>
