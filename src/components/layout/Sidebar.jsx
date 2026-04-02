@@ -28,12 +28,6 @@ import {
 
 const menuItems = [
   {
-    label: "Dashboard",
-    path: "/dashboard",
-    icon: LayoutDashboard,
-    roles: ["ADMIN", "SUPERVISOR", "EMPLOYEE", "USER"],
-  },
-  {
     label: "Órdenes",
     path: "/ordenes",
     icon: ClipboardList,
@@ -125,6 +119,12 @@ const menuItems = [
         roles: ["ADMIN", "SUPERVISOR", "EMPLOYEE", "USER"],
       },
     ],
+  },
+  {
+    label: "Dashboard",
+    path: "/dashboard",
+    icon: LayoutDashboard,
+    roles: ["ADMIN", "SUPERVISOR", "EMPLOYEE", "USER"],
   },
 ];
 

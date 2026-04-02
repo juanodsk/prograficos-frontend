@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { useAuthStore } from "../../store/authStore";
 import machineryService from "@/services/machinery.service";
+import { getMachineryTypeLabel } from "@/constants/machineryTypes";
 import MachineryForm from "./MachineryForm";
 import DataTable from "../../components/data-table/DataTable";
 import ConfirmDialog from "../../components/common/ConfirmDialog";
@@ -92,7 +93,11 @@ const Machinery = () => {
     { key: "id", label: "ID" },
     { key: "name", label: "Nombre" },
     { key: "reference", label: "Código" },
-    { key: "type", label: "Tipo" },
+    {
+      key: "type",
+      label: "Tipo",
+      render: (row) => getMachineryTypeLabel(row.type),
+    },
     {
       key: "is_active",
       label: "Estado",

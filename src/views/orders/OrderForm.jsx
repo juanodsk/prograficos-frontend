@@ -193,7 +193,8 @@ const OrderForm = () => {
     if (!form.amount_sheets || Number(form.amount_sheets) <= 0)
       nextErrors.amount_sheets = "La cantidad de hojas debe ser mayor a 0";
     if (!form.total_estimated || Number(form.total_estimated) <= 0)
-      nextErrors.total_estimated = "El total estimado debe ser mayor a 0";
+      nextErrors.total_estimated =
+        "Las unidades estimadas deben ser mayores a 0";
     if (!form.measure_id)
       nextErrors.measure_id = "Selecciona un formato y medida";
     if (!form.paper_type_id)
@@ -426,11 +427,11 @@ const OrderForm = () => {
                   </div>
 
                   <div className="space-y-2">
-                    <Label>Total de entrega estimado</Label>
+                    <Label>Unidades estimadas de entrega</Label>
                     <Input
                       type="number"
                       min="1"
-                      placeholder="Ej: 1000"
+                      placeholder="Ej: 1000 unidades"
                       value={form.total_estimated}
                       disabled={isOrderLocked}
                       onChange={(e) =>

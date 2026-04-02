@@ -11,7 +11,7 @@ import DataTable from "../../components/data-table/DataTable";
 import ConfirmDialog from "../../components/common/ConfirmDialog";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { Plus, Pencil, Trash2, Loader2, ScanEye } from "lucide-react";
+import { Plus, Pencil, Trash2, Loader2 } from "lucide-react";
 
 const PaperTypes = () => {
   const { user: currentUser } = useAuthStore();
@@ -112,7 +112,19 @@ const PaperTypes = () => {
     { key: "id", label: "ID" },
     { key: "name", label: "Nombre" },
     { key: "description", label: "Descripción" },
-    { key: "grammage", label: "Gramaje" },
+    {
+      key: "grammage",
+      label: "Gramaje",
+      render: (row) => `${row.grammage} gr`,
+    },
+    {
+      key: "suppliers",
+      label: "Proveedores",
+      render: (row) =>
+        row.suppliers?.length
+          ? `${row.suppliers.length} asociado(s)`
+          : "Sin proveedores",
+    },
 
     {
       key: "is_active",

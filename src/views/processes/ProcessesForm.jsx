@@ -15,6 +15,15 @@ import {
 } from "@/components/ui/select";
 import { Loader2, Plus, Save, Trash2, X } from "lucide-react";
 
+const toSnakeCase = (value = "") =>
+  String(value)
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-zA-Z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "")
+    .replace(/_+/g, "_")
+    .toLowerCase();
+
 const processCategories = [
   "PREPRENSA",
   "CORTE",
@@ -27,14 +36,17 @@ const processCategories = [
 ];
 
 const fieldTypes = [
-  "TEXT",
-  "TEXTAREA",
-  "NUMBER",
-  "BOOLEAN",
-  "DATE",
-  "TIME",
-  "SELECT",
+  { value: "TEXT", label: "Texto corto" },
+  { value: "TEXTAREA", label: "Texto largo" },
+  { value: "NUMBER", label: "Numero" },
+  { value: "BOOLEAN", label: "Si / No" },
+  { value: "DATE", label: "Fecha" },
+  { value: "TIME", label: "Hora" },
+  { value: "SELECT", label: "Lista desplegable" },
 ];
+
+const getFieldTypeLabel = (value) =>
+  fieldTypes.find((type) => type.value === value)?.label || value;
 
 const createFieldUiId = () =>
   globalThis.crypto?.randomUUID?.() ||
@@ -43,12 +55,13 @@ const createFieldUiId = () =>
 const createFieldDraft = (index = 0, field = {}) => ({
   id: field.id ?? null,
   uiId: field.id ? `field-${field.id}` : createFieldUiId(),
-  key: field.key || "",
   label: field.label || "",
   field_type: field.field_type || "TEXT",
   is_required: Boolean(field.is_required),
   sort_order: field.sort_order ?? index + 1,
-  options: Array.isArray(field.options) ? field.options.join(", ") : field.options || "",
+  options: Array.isArray(field.options)
+    ? field.options.join(", ")
+    : field.options || "",
 });
 
 const createInitialFormState = () => ({
@@ -60,7 +73,7 @@ const createInitialFormState = () => ({
 });
 
 const hasConfiguredFieldContent = (field) =>
-  Boolean(field.key?.trim() || field.label?.trim() || field.options?.trim());
+  Boolean(field.label?.trim() || field.options?.trim());
 
 const ProcessesForm = ({ isOpen, onClose, onSuccess, processId }) => {
   const isEditing = Boolean(processId);
@@ -151,22 +164,26 @@ const ProcessesForm = ({ isOpen, onClose, onSuccess, processId }) => {
       nextErrors.order = "El orden debe ser mayor a 0";
     if (!form.category) nextErrors.category = "La categoria es obligatoria";
 
-    const configuredFields = form.field_definitions.filter(hasConfiguredFieldContent);
+    const configuredFields = form.field_definitions.filter(
+      hasConfiguredFieldContent,
+    );
 
     const invalidField = configuredFields.find(
-      (field) => !field.key.trim() || !field.label.trim() || !field.field_type,
+      (field) => !field.label.trim() || !field.field_type,
     );
-    const normalizedKeys = configuredFields.map((field) => field.key.trim().toLowerCase());
+    const normalizedKeys = configuredFields.map((field) =>
+      toSnakeCase(field.label.trim()),
+    );
     const hasDuplicateKeys = normalizedKeys.some(
       (key, index) => key && normalizedKeys.indexOf(key) !== index,
     );
 
     if (invalidField) {
       nextErrors.field_definitions =
-        "Todos los campos configurables deben tener clave, nombre y tipo";
+        "Todos los campos configurables deben tener nombre y tipo";
     } else if (hasDuplicateKeys) {
       nextErrors.field_definitions =
-        "No puedes repetir la clave en los campos configurables";
+        "No puedes repetir campos que generen la misma clave automática";
     }
 
     setErrors(nextErrors);
@@ -178,7 +195,7 @@ const ProcessesForm = ({ isOpen, onClose, onSuccess, processId }) => {
       .filter(hasConfiguredFieldContent)
       .map((field, index) => ({
         id: field.id,
-        key: field.key.trim(),
+        key: toSnakeCase(field.label.trim()),
         label: field.label.trim(),
         field_type: field.field_type,
         is_required: Boolean(field.is_required),
@@ -211,12 +228,16 @@ const ProcessesForm = ({ isOpen, onClose, onSuccess, processId }) => {
         : await processesService.create(payload);
 
       toast.success(
-        isEditing ? "Proceso actualizado exitosamente" : "Proceso creado exitosamente",
+        isEditing
+          ? "Proceso actualizado exitosamente"
+          : "Proceso creado exitosamente",
       );
       onSuccess(response?.data || payload);
       onClose();
     } catch (error) {
-      toast.error(error?.response?.data?.message || "No se pudo guardar el proceso");
+      toast.error(
+        error?.response?.data?.message || "No se pudo guardar el proceso",
+      );
     } finally {
       setLoading(false);
     }
@@ -240,7 +261,8 @@ const ProcessesForm = ({ isOpen, onClose, onSuccess, processId }) => {
               {isEditing ? "Editar proceso" : "Nuevo proceso"}
             </h2>
             <p className="text-sm text-gray-500">
-              Configura la etapa de producción y los campos que deberá diligenciar.
+              Configura la etapa de producción y los campos que deberá
+              diligenciar.
             </p>
           </div>
           <button
@@ -350,7 +372,8 @@ const ProcessesForm = ({ isOpen, onClose, onSuccess, processId }) => {
                       Campos configurables
                     </h3>
                     <p className="text-sm text-gray-500">
-                      Define qué datos deberá diligenciar este proceso en producción.
+                      Define qué datos deberá diligenciar este proceso en
+                      producción.
                     </p>
                   </div>
                   <Button
@@ -364,7 +387,9 @@ const ProcessesForm = ({ isOpen, onClose, onSuccess, processId }) => {
                 </div>
 
                 {errors.field_definitions && (
-                  <p className="text-xs text-red-500">{errors.field_definitions}</p>
+                  <p className="text-xs text-red-500">
+                    {errors.field_definitions}
+                  </p>
                 )}
 
                 <div className="space-y-4">
@@ -374,8 +399,8 @@ const ProcessesForm = ({ isOpen, onClose, onSuccess, processId }) => {
                         Este proceso no tiene campos adicionales.
                       </p>
                       <p className="mt-1 text-xs text-gray-500">
-                        Puedes guardarlo asi o agregar campos configurables cuando lo
-                        necesites.
+                        Puedes guardarlo asi o agregar campos configurables
+                        cuando lo necesites.
                       </p>
                     </div>
                   )}
@@ -401,16 +426,6 @@ const ProcessesForm = ({ isOpen, onClose, onSuccess, processId }) => {
 
                       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
                         <div className="space-y-2">
-                          <Label>Clave</Label>
-                          <Input
-                            value={field.key}
-                            onChange={(e) =>
-                              updateField(index, "key", e.target.value)
-                            }
-                            placeholder="ej: color_1"
-                          />
-                        </div>
-                        <div className="space-y-2">
                           <Label>Etiqueta</Label>
                           <Input
                             value={field.label}
@@ -418,6 +433,14 @@ const ProcessesForm = ({ isOpen, onClose, onSuccess, processId }) => {
                               updateField(index, "label", e.target.value)
                             }
                             placeholder="ej: Color 1"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Clave</Label>
+                          <Input
+                            value={toSnakeCase(field.label)}
+                            readOnly
+                            disabled
                           />
                         </div>
                         <div className="space-y-2">
@@ -429,14 +452,19 @@ const ProcessesForm = ({ isOpen, onClose, onSuccess, processId }) => {
                             }
                           >
                             <SelectTrigger className="w-full">
-                              <SelectValue />
+                              <SelectValue>
+                                {getFieldTypeLabel(field.field_type)}
+                              </SelectValue>
                             </SelectTrigger>
                             <SelectContent>
                               <SelectGroup>
-                                <SelectLabel>Tipos</SelectLabel>
+                                <SelectLabel>Tipos de dato</SelectLabel>
                                 {fieldTypes.map((type) => (
-                                  <SelectItem key={type} value={type}>
-                                    {type}
+                                  <SelectItem
+                                    key={type.value}
+                                    value={type.value}
+                                  >
+                                    {type.label}
                                   </SelectItem>
                                 ))}
                               </SelectGroup>
@@ -457,17 +485,19 @@ const ProcessesForm = ({ isOpen, onClose, onSuccess, processId }) => {
                         <div className="space-y-2">
                           <Label>Obligatorio</Label>
                           <Select
-                            value={field.is_required ? "true" : "false"}
+                            value={field.is_required ? "si" : "no"}
                             onValueChange={(value) =>
-                              updateField(index, "is_required", value === "true")
+                              updateField(index, "is_required", value === "si")
                             }
                           >
                             <SelectTrigger className="w-full">
-                              <SelectValue />
+                              <SelectValue>
+                                {field.is_required ? "Sí" : "No"}
+                              </SelectValue>
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="true">Si</SelectItem>
-                              <SelectItem value="false">No</SelectItem>
+                              <SelectItem value="si">Sí</SelectItem>
+                              <SelectItem value="no">No</SelectItem>
                             </SelectContent>
                           </Select>
                         </div>
