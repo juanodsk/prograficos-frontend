@@ -11,6 +11,15 @@ const machineryService = {
     const { data } = await api.get(`/machinery/${id}`);
     return data;
   },
+  validateReference: async (reference, excludeId) => {
+    const { data } = await api.get("/machinery/validate-reference", {
+      params: {
+        reference,
+        ...(excludeId ? { excludeId } : {}),
+      },
+    });
+    return data;
+  },
   create: async (machineryData) => {
     const { data } = await api.post("/machinery", machineryData);
     return data;

@@ -380,10 +380,10 @@ const Orders = () => {
                   </div>
                   <div className="rounded-xl bg-white p-3">
                     <p className="text-xs uppercase tracking-wide text-slate-400">
-                      Total estimado
+                      Unidades estimadas
                     </p>
                     <p className="mt-1 font-semibold text-slate-900">
-                      ${order.total_estimated?.toLocaleString("es-CO")}
+                      {order.total_estimated?.toLocaleString("es-CO")} unidades
                     </p>
                   </div>
                 </div>

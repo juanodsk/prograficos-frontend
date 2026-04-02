@@ -1,9 +1,22 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import machineryService from "@/services/machinery.service";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectLabel,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  MACHINERY_TYPE_OPTIONS,
+  getMachineryTypeLabel,
+} from "@/constants/machineryTypes";
 import { Loader2, Save, X } from "lucide-react";
 
 export default function MachineryForm({
@@ -13,10 +26,13 @@ export default function MachineryForm({
   machineryId,
 }) {
   const isEditing = !!machineryId;
+  const referenceInputRef = useRef(null);
 
   const [loading, setLoading] = useState(false);
   const [fetching, setFetching] = useState(false);
+  const [checkingReference, setCheckingReference] = useState(false);
   const [errors, setErrors] = useState({});
+  const [referenceWarning, setReferenceWarning] = useState("");
   const [form, setForm] = useState({
     name: "",
     reference: "",
@@ -43,6 +59,8 @@ export default function MachineryForm({
       is_active: true,
     });
     setErrors({});
+    setReferenceWarning("");
+    setCheckingReference(false);
   };
 
   const fetchMachinery = async () => {
@@ -70,10 +88,27 @@ export default function MachineryForm({
 
     if (!form.name.trim()) newErrors.name = "El nombre es requerido";
     if (!form.reference.trim()) newErrors.reference = "El código es requerido";
-    if (!form.type.trim()) newErrors.type = "El tipo es requerido";
+    if (!form.type) newErrors.type = "El tipo es requerido";
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
+  };
+
+  const focusReferenceInput = () => {
+    window.requestAnimationFrame(() => {
+      referenceInputRef.current?.focus();
+      referenceInputRef.current?.select?.();
+    });
+  };
+
+  const handleDuplicateReference = (
+    message = "El código de la máquina ya está siendo utilizado",
+  ) => {
+    setForm((prev) => ({ ...prev, reference: "" }));
+    setErrors((prev) => ({ ...prev, reference: "" }));
+    setReferenceWarning(message);
+    toast.warning(message);
+    focusReferenceInput();
   };
 
   const handleChange = (e) => {
@@ -84,11 +119,57 @@ export default function MachineryForm({
     if (errors[name]) {
       setErrors((prev) => ({ ...prev, [name]: "" }));
     }
+
+    if (name === "reference" && referenceWarning) {
+      setReferenceWarning("");
+    }
+  };
+
+  const validateReferenceOnBlur = async () => {
+    const normalizedReference = form.reference.trim();
+
+    if (!normalizedReference) {
+      return true;
+    }
+
+    try {
+      setCheckingReference(true);
+      const result = await machineryService.validateReference(
+        normalizedReference,
+        machineryId,
+      );
+
+      if (!result?.data?.available) {
+        handleDuplicateReference(result?.message);
+        return false;
+      }
+
+      setReferenceWarning("");
+      return true;
+    } catch (error) {
+      const message = error?.response?.data?.message;
+
+      if (error?.response?.status === 409) {
+        handleDuplicateReference(message);
+        return false;
+      }
+
+      toast.error("No se pudo validar el código de la máquina");
+      return true;
+    } finally {
+      setCheckingReference(false);
+    }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!validate()) return;
+
+    const referenceIsAvailable = await validateReferenceOnBlur();
+
+    if (!referenceIsAvailable) {
+      return;
+    }
 
     try {
       setLoading(true);
@@ -96,7 +177,7 @@ export default function MachineryForm({
       const payload = {
         name: form.name.trim(),
         reference: form.reference.trim(),
-        type: form.type.trim(),
+        type: form.type,
         is_active: form.is_active,
       };
 
@@ -112,9 +193,15 @@ export default function MachineryForm({
       onSuccess(result?.data || payload);
       onClose();
     } catch (error) {
-      toast.error(
-        error?.response?.data?.message || "No se pudo guardar la maquinaria",
-      );
+      const message =
+        error?.response?.data?.message || "No se pudo guardar la maquinaria";
+
+      if (error?.response?.status === 409) {
+        handleDuplicateReference(message);
+        return;
+      }
+
+      toast.error(message);
     } finally {
       setLoading(false);
     }
@@ -193,12 +280,24 @@ export default function MachineryForm({
                 <div className="space-y-1">
                   <Label className="text-xs">Código / Referencia</Label>
                   <Input
+                    ref={referenceInputRef}
                     name="reference"
                     placeholder="Ej: HCD-74"
                     value={form.reference}
                     onChange={handleChange}
+                    onBlur={validateReferenceOnBlur}
                     className="h-8 text-sm"
                   />
+                  {checkingReference && (
+                    <p className="text-xs text-gray-500">
+                      Validando disponibilidad del código...
+                    </p>
+                  )}
+                  {referenceWarning && (
+                    <p className="text-xs text-amber-600">
+                      {referenceWarning}
+                    </p>
+                  )}
                   {errors.reference && (
                     <p className="text-xs text-red-500">
                       {errors.reference}
@@ -209,14 +308,32 @@ export default function MachineryForm({
 
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div className="space-y-1">
-                  <Label className="text-xs">Tipo</Label>
-                  <Input
-                    name="type"
-                    placeholder="Ej: Impresión"
+                  <Label className="text-xs">Tipo de maquinaria</Label>
+                  <Select
                     value={form.type}
-                    onChange={handleChange}
-                    className="h-8 text-sm"
-                  />
+                    onValueChange={(value) => {
+                      setForm((prev) => ({ ...prev, type: value }));
+                      if (errors.type) {
+                        setErrors((prev) => ({ ...prev, type: "" }));
+                      }
+                    }}
+                  >
+                    <SelectTrigger className="h-8 w-full cursor-pointer text-sm">
+                      <SelectValue placeholder="Selecciona un tipo">
+                        {form.type ? getMachineryTypeLabel(form.type) : null}
+                      </SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectGroup>
+                        <SelectLabel>Tipos de maquinaria</SelectLabel>
+                        {MACHINERY_TYPE_OPTIONS.map((option) => (
+                          <SelectItem key={option.value} value={option.value}>
+                            {option.label}
+                          </SelectItem>
+                        ))}
+                      </SelectGroup>
+                    </SelectContent>
+                  </Select>
                   {errors.type && (
                     <p className="text-xs text-red-500">{errors.type}</p>
                   )}

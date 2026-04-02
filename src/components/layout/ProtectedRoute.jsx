@@ -1,12 +1,45 @@
-import { Navigate, Outlet } from "react-router-dom";
+import { Navigate, Outlet, useNavigate } from "react-router-dom";
 import { useAuthStore } from "../../store/authStore";
 import Sidebar from "./Sidebar";
 import Navbar from "./Navbar";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { toast } from "sonner";
+import authService from "../../services/auth.service";
+import inactivityService, {
+  SESSION_INACTIVITY_TIMEOUT_MS,
+} from "../../services/inactivity.service";
 
 const ProtectedRoute = ({ roles, withoutShell = false }) => {
   const { isAuthenticated, user } = useAuthStore();
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+  const logout = useAuthStore((state) => state.logout);
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (!isAuthenticated) {
+      inactivityService.stop();
+      return undefined;
+    }
+
+    inactivityService.start({
+      timeoutMs: SESSION_INACTIVITY_TIMEOUT_MS,
+      onTimeout: async () => {
+        try {
+          await authService.logout();
+        } catch {
+          // Si la sesión ya expiró en backend, igual cerramos en frontend.
+        } finally {
+          logout();
+          toast.warning("Tu sesión se cerró después de 40 minutos de inactividad");
+          navigate("/login", { replace: true });
+        }
+      },
+    });
+
+    return () => {
+      inactivityService.stop();
+    };
+  }, [isAuthenticated, logout, navigate]);
 
   if (!isAuthenticated) {
     return <Navigate to="/login" />;
