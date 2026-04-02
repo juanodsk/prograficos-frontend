@@ -93,7 +93,9 @@ export default function PaperTypesForm({
       setFetching(true);
       const [thirdsRes, paperTypeRes] = await Promise.all([
         thirdsService.getAll({ onlyActive: true }),
-        isEditing ? paperTypesService.getById(paperTypeId) : Promise.resolve(null),
+        isEditing
+          ? paperTypesService.getById(paperTypeId)
+          : Promise.resolve(null),
       ]);
 
       const thirds = thirdsRes?.data?.thirds || thirdsRes?.data || [];
@@ -201,8 +203,7 @@ export default function PaperTypesForm({
 
     const price = Number(form.supplier_price);
     if (!form.supplier_price || Number.isNaN(price) || price <= 0) {
-      nextErrors.supplier_price =
-        "El precio de compra debe ser mayor a 0";
+      nextErrors.supplier_price = "El precio de compra debe ser mayor a 0";
     }
 
     if (Object.keys(nextErrors).length > 0) {
@@ -243,7 +244,9 @@ export default function PaperTypesForm({
   const handleRemoveSupplier = (thirdId) => {
     setForm((prev) => ({
       ...prev,
-      suppliers: prev.suppliers.filter((supplier) => supplier.third_id !== thirdId),
+      suppliers: prev.suppliers.filter(
+        (supplier) => supplier.third_id !== thirdId,
+      ),
     }));
   };
 
@@ -398,7 +401,10 @@ export default function PaperTypesForm({
                         <Select
                           value={form.supplier_id}
                           onValueChange={(value) => {
-                            setForm((prev) => ({ ...prev, supplier_id: value }));
+                            setForm((prev) => ({
+                              ...prev,
+                              supplier_id: value,
+                            }));
                             if (errors.supplier_id) {
                               setErrors((prev) => ({
                                 ...prev,
@@ -437,26 +443,31 @@ export default function PaperTypesForm({
 
                       <div className="space-y-1">
                         <Label className="text-xs">Precio de compra</Label>
-                        <Input
-                          type="number"
-                          min="0.01"
-                          step="0.01"
-                          placeholder="Ej: 1450"
-                          value={form.supplier_price}
-                          onChange={(e) => {
-                            setForm((prev) => ({
-                              ...prev,
-                              supplier_price: e.target.value,
-                            }));
-                            if (errors.supplier_price) {
-                              setErrors((prev) => ({
+                        <div className="flex items-center">
+                          <span className="flex h-9 items-center rounded-l-md border border-r-0 border-slate-200 bg-slate-50 px-3 text-sm text-slate-600">
+                            $
+                          </span>
+                          <Input
+                            type="number"
+                            min="0.01"
+                            step="0.01"
+                            placeholder="Ej: 1450"
+                            value={form.supplier_price}
+                            onChange={(e) => {
+                              setForm((prev) => ({
                                 ...prev,
-                                supplier_price: "",
+                                supplier_price: e.target.value,
                               }));
-                            }
-                          }}
-                          className="h-9 text-sm"
-                        />
+                              if (errors.supplier_price) {
+                                setErrors((prev) => ({
+                                  ...prev,
+                                  supplier_price: "",
+                                }));
+                              }
+                            }}
+                            className="h-9 rounded-l-none text-sm"
+                          />
+                        </div>
                         {errors.supplier_price && (
                           <p className="text-xs text-red-500">
                             {errors.supplier_price}
@@ -540,7 +551,9 @@ export default function PaperTypesForm({
                 )}
 
                 {errors.suppliers && (
-                  <p className="mt-3 text-xs text-red-500">{errors.suppliers}</p>
+                  <p className="mt-3 text-xs text-red-500">
+                    {errors.suppliers}
+                  </p>
                 )}
               </section>
 
@@ -567,7 +580,9 @@ export default function PaperTypesForm({
                   ) : (
                     <>
                       <Save size={14} className="mr-2" />
-                      {isEditing ? "Actualizar Tipo de Papel" : "Crear Tipo de Papel"}
+                      {isEditing
+                        ? "Actualizar Tipo de Papel"
+                        : "Crear Tipo de Papel"}
                     </>
                   )}
                 </Button>
