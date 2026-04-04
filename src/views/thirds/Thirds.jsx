@@ -7,6 +7,11 @@ import DataTable from "../../components/data-table/DataTable";
 
 import ThirdForm from "../thirds/ThirdForm";
 import ThirdView from "./ThirdView";
+import {
+  getDocumentTypeLabel,
+  getPersonTypeLabel,
+  getThirdTypeLabel,
+} from "@/constants/thirds";
 
 import { Button } from "@/components/ui/button";
 import { Loader2, Plus, Pencil, Trash2, ScanEye } from "lucide-react";
@@ -141,13 +146,16 @@ const Thirds = () => {
       key: "email",
       label: "Email",
     },
-    {
-      key: "address",
-      label: "Dirección",
-    },
+
     {
       key: "type_person",
-      label: "Tipo",
+      label: "Tipo de tercero",
+      render: (row) => getThirdTypeLabel(row.type_person),
+    },
+    {
+      key: "person_type",
+      label: "Tipo de persona",
+      render: (row) => getPersonTypeLabel(row.person_type),
     },
     {
       key: "company_name",
