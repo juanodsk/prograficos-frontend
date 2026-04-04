@@ -444,7 +444,7 @@ export default function PaperTypesForm({
                       <div className="space-y-1">
                         <Label className="text-xs">Precio de compra</Label>
                         <div className="flex items-center">
-                          <span className="flex h-9 items-center rounded-l-md border border-r-0 border-slate-200 bg-slate-50 px-3 text-sm text-slate-600">
+                          <span className="flex h-9 min-w-12 items-center justify-center rounded-l-md border border-r-0 border-slate-300 bg-slate-100 px-3 text-sm font-semibold text-slate-700">
                             $
                           </span>
                           <Input
@@ -465,7 +465,7 @@ export default function PaperTypesForm({
                                 }));
                               }
                             }}
-                            className="h-9 rounded-l-none text-sm"
+                            className="h-9 rounded-l-none border-slate-300 text-sm"
                           />
                         </div>
                         {errors.supplier_price && (

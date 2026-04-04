@@ -8,10 +8,14 @@ import {
   IdCard,
   MapPin,
   Building2,
-  Phone,
   X,
 } from "lucide-react";
 import { toast } from "sonner";
+import {
+  getDocumentTypeLabel,
+  getPersonTypeLabel,
+  getThirdTypeLabel,
+} from "@/constants/thirds";
 
 const ThirdView = ({ isOpen, onClose, thirdId }) => {
   const [loading, setLoading] = useState(false);
@@ -55,10 +59,28 @@ const ThirdView = ({ isOpen, onClose, thirdId }) => {
     ? [
         { icon: User, label: "Nombre", value: third.name },
         { icon: Mail, label: "Correo electrónico", value: third.email },
-        { icon: Phone, label: "Teléfono", value: third.phone },
         { icon: MapPin, label: "Dirección", value: third.address },
+        {
+          icon: Shield,
+          label: "Tipo de tercero",
+          value: getThirdTypeLabel(third.type_person),
+        },
+        {
+          icon: Shield,
+          label: "Tipo de persona",
+          value: getPersonTypeLabel(third.person_type),
+        },
+        {
+          icon: IdCard,
+          label: "Tipo de documento",
+          value: getDocumentTypeLabel(third.document_type),
+        },
+        {
+          icon: IdCard,
+          label: "Número de documento",
+          value: third.document_number,
+        },
         { icon: Building2, label: "Empresa", value: third.company_name },
-        { icon: Shield, label: "Tipo de persona", value: third.type_person },
         { icon: IdCard, label: "ID del tercero", value: third.id },
       ].filter((f) => f.value)
     : [];
@@ -106,7 +128,7 @@ const ThirdView = ({ isOpen, onClose, thirdId }) => {
                   {third.name}
                 </h3>
                 <span className="text-xs px-3 py-1 rounded-full bg-[#13529a]/10 text-[#13529a] font-medium">
-                  {third.type_person}
+                  {getThirdTypeLabel(third.type_person)}
                 </span>
               </div>
 

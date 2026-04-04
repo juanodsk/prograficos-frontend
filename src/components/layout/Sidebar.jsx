@@ -3,6 +3,7 @@ import { useAuthStore } from "../../store/authStore";
 import authService from "../../services/auth.service";
 import { toast } from "sonner";
 import { useState } from "react";
+import { resolveAvatarUrl } from "@/lib/avatar";
 import {
   LayoutDashboard,
   Package,
@@ -146,6 +147,7 @@ const Sidebar = ({ mobileOpen = false, onCloseMobile }) => {
   const { user, logout } = useAuthStore();
   const navigate = useNavigate();
   const location = useLocation();
+  const avatarUrl = resolveAvatarUrl(user);
 
   const [collapsed, setCollapsed] = useState(false);
   const [openMenus, setOpenMenus] = useState({ Administración: true });
@@ -276,9 +278,9 @@ const Sidebar = ({ mobileOpen = false, onCloseMobile }) => {
       {(isMobile || !collapsed) && (
         <div className="mb-1 flex items-center gap-3 px-3 py-2">
           <div className="h-8 w-8 overflow-hidden rounded-full bg-[#13529a]/10">
-            {user?.avatar && (
+            {avatarUrl && (
               <img
-                src={user.avatar}
+                src={avatarUrl}
                 alt={user.name}
                 className="h-full w-full object-cover"
               />
@@ -297,9 +299,9 @@ const Sidebar = ({ mobileOpen = false, onCloseMobile }) => {
       {!isMobile && collapsed && (
         <div className="mb-1 flex justify-center">
           <div className="h-8 w-8 overflow-hidden rounded-full bg-[#13529a]/10">
-            {user?.avatar && (
+            {avatarUrl && (
               <img
-                src={user.avatar}
+                src={avatarUrl}
                 alt={user.name}
                 className="h-full w-full object-cover"
               />

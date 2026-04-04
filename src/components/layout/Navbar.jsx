@@ -1,8 +1,10 @@
 import { useAuthStore } from "../../store/authStore";
 import { Bell, Menu } from "lucide-react";
+import { resolveAvatarUrl } from "@/lib/avatar";
 
 const Navbar = ({ onOpenSidebar }) => {
   const { user } = useAuthStore();
+  const avatarUrl = resolveAvatarUrl(user);
 
   return (
     <header className="sticky top-0 z-30 border-b bg-[#13529a]">
@@ -38,9 +40,9 @@ const Navbar = ({ onOpenSidebar }) => {
           </button>
 
           <div className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-full bg-white/10">
-            {user?.avatar && (
+            {avatarUrl && (
               <img
-                src={user.avatar}
+                src={avatarUrl}
                 alt={user.name}
                 className="h-full w-full object-cover"
               />

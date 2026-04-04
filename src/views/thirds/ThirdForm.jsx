@@ -6,6 +6,11 @@ import thirdsService from "../../services/thirds.service";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  DOCUMENT_TYPE_OPTIONS,
+  PERSON_TYPE_OPTIONS,
+  THIRD_TYPE_OPTIONS,
+} from "@/constants/thirds";
 
 import {
   Select,
@@ -29,6 +34,9 @@ export default function ThirdForm({ isOpen, onClose, onSuccess, thirdId }) {
     email: "",
     address: "",
     type_person: "",
+    person_type: "",
+    document_type: "",
+    document_number: "",
     company_name: "",
     is_active: true,
   });
@@ -44,6 +52,9 @@ export default function ThirdForm({ isOpen, onClose, onSuccess, thirdId }) {
       email: "",
       address: "",
       type_person: "",
+      person_type: "",
+      document_type: "",
+      document_number: "",
       company_name: "",
       is_active: true,
     });
@@ -62,6 +73,9 @@ export default function ThirdForm({ isOpen, onClose, onSuccess, thirdId }) {
         email: t?.email || "",
         address: t?.address || "",
         type_person: t?.type_person || "",
+        person_type: t?.person_type || "",
+        document_type: t?.document_type || "",
+        document_number: t?.document_number || "",
         company_name: t?.company_name || "",
         is_active: t?.is_active ?? true,
       });
@@ -84,7 +98,14 @@ export default function ThirdForm({ isOpen, onClose, onSuccess, thirdId }) {
 
     if (!form.address.trim()) newErrors.address = "La dirección es requerida";
 
-    if (!form.type_person) newErrors.type_person = "Selecciona un tipo";
+    if (!form.type_person)
+      newErrors.type_person = "Selecciona el tipo de tercero";
+    if (!form.person_type)
+      newErrors.person_type = "Selecciona el tipo de persona";
+    if (!form.document_type)
+      newErrors.document_type = "Selecciona el tipo de documento";
+    if (!form.document_number.trim())
+      newErrors.document_number = "El número de documento es requerido";
 
     setErrors(newErrors);
 
@@ -104,6 +125,9 @@ export default function ThirdForm({ isOpen, onClose, onSuccess, thirdId }) {
         email: form.email,
         address: form.address,
         type_person: form.type_person,
+        person_type: form.person_type,
+        document_type: form.document_type,
+        document_number: form.document_number,
         company_name: form.company_name || null,
         is_active: form.is_active,
       };
@@ -239,38 +263,133 @@ export default function ThirdForm({ isOpen, onClose, onSuccess, thirdId }) {
                 )}
               </div>
 
-              {/* Tipo */}
-              <div className="space-y-1">
-                <Label className="text-xs">Tipo de tercero</Label>
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <div className="space-y-1">
+                  <Label className="text-xs">Tipo de tercero</Label>
+                  <Select
+                    value={form.type_person}
+                    onValueChange={(value) => {
+                      setForm((prev) => ({ ...prev, type_person: value }));
+                      if (errors.type_person) {
+                        setErrors((prev) => ({ ...prev, type_person: "" }));
+                      }
+                    }}
+                  >
+                    <SelectTrigger className="h-8 text-sm">
+                      <SelectValue placeholder="Selecciona un tipo" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {THIRD_TYPE_OPTIONS.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {errors.type_person && (
+                    <p className="text-xs text-red-500">
+                      {errors.type_person}
+                    </p>
+                  )}
+                </div>
 
-                <Select
-                  value={form.type_person}
-                  onValueChange={(value) =>
-                    setForm((prev) => ({ ...prev, type_person: value }))
-                  }
-                >
-                  <SelectTrigger className="h-8 text-sm">
-                    <SelectValue placeholder="Seleccionar tipo" />
-                  </SelectTrigger>
-
-                  <SelectContent>
-                    <SelectItem value="CLIENTE">Cliente</SelectItem>
-                    <SelectItem value="PROVEEDOR">Proveedor</SelectItem>
-                  </SelectContent>
-                </Select>
+                <div className="space-y-1">
+                  <Label className="text-xs">Tipo de persona</Label>
+                  <Select
+                    value={form.person_type}
+                    onValueChange={(value) => {
+                      setForm((prev) => ({
+                        ...prev,
+                        person_type: value,
+                        company_name:
+                          value === "JURIDICA" ? prev.company_name : "",
+                      }));
+                      if (errors.person_type) {
+                        setErrors((prev) => ({ ...prev, person_type: "" }));
+                      }
+                      if (value !== "JURIDICA" && errors.company_name) {
+                        setErrors((prev) => ({ ...prev, company_name: "" }));
+                      }
+                    }}
+                  >
+                    <SelectTrigger className="h-8 text-sm">
+                      <SelectValue placeholder="Selecciona un tipo" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {PERSON_TYPE_OPTIONS.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {errors.person_type && (
+                    <p className="text-xs text-red-500">
+                      {errors.person_type}
+                    </p>
+                  )}
+                </div>
               </div>
 
-              {/* Empresa */}
-              <div className="space-y-1">
-                <Label className="text-xs">Empresa (opcional)</Label>
-                <Input
-                  name="company_name"
-                  value={form.company_name}
-                  onChange={handleChange}
-                  placeholder="Nombre empresa"
-                  className="h-8 text-sm"
-                />
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <div className="space-y-1">
+                  <Label className="text-xs">Tipo de documento</Label>
+                  <Select
+                    value={form.document_type}
+                    onValueChange={(value) => {
+                      setForm((prev) => ({ ...prev, document_type: value }));
+                      if (errors.document_type) {
+                        setErrors((prev) => ({ ...prev, document_type: "" }));
+                      }
+                    }}
+                  >
+                    <SelectTrigger className="h-8 text-sm">
+                      <SelectValue placeholder="Selecciona un documento" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {DOCUMENT_TYPE_OPTIONS.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {errors.document_type && (
+                    <p className="text-xs text-red-500">
+                      {errors.document_type}
+                    </p>
+                  )}
+                </div>
+
+                <div className="space-y-1">
+                  <Label className="text-xs">Número de documento</Label>
+                  <Input
+                    name="document_number"
+                    value={form.document_number}
+                    onChange={handleChange}
+                    placeholder="Ej: 900123456"
+                    className="h-8 text-sm"
+                  />
+                  {errors.document_number && (
+                    <p className="text-xs text-red-500">
+                      {errors.document_number}
+                    </p>
+                  )}
+                </div>
               </div>
+
+              {form.person_type === "JURIDICA" && (
+                <div className="space-y-1">
+                  <Label className="text-xs">Razón social / Empresa (opcional)</Label>
+                  <Input
+                    name="company_name"
+                    value={form.company_name}
+                    onChange={handleChange}
+                    placeholder="Nombre empresa"
+                    className="h-8 text-sm"
+                  />
+                </div>
+              )}
 
               <div className="space-y-1">
                 <Label className="text-xs">Estado</Label>

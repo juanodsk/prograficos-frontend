@@ -32,7 +32,7 @@ const roles = [
  *  - userId     {number|null}    Si tiene valor → modo edición
  */
 export default function UserForm({ isOpen, onClose, onSuccess, userId }) {
-  const { user: currentUser } = useAuthStore();
+  const { user: currentUser, updateUser: updateAuthUser } = useAuthStore();
   const isEditing = !!userId;
 
   const [loading, setLoading] = useState(false);
@@ -130,7 +130,13 @@ export default function UserForm({ isOpen, onClose, onSuccess, userId }) {
         result = await userService.createUser(payload);
         toast.success("Usuario creado exitosamente");
       }
-      onSuccess(result?.data?.user || payload);
+      const savedUser = result?.data?.user || payload;
+
+      if (isEditing && currentUser?.id === userId) {
+        updateAuthUser(savedUser);
+      }
+
+      onSuccess(savedUser);
       onClose();
     } catch (error) {
       toast.error(error.response?.data?.message || "Error al guardar");
