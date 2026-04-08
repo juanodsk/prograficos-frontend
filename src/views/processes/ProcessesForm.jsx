@@ -260,6 +260,15 @@ const ProcessesForm = ({ isOpen, onClose, onSuccess, processId }) => {
       return false;
     }
 
+    if (!isEditing) {
+      setFieldState(index, {
+        key: normalizedKey,
+        keyStatus: field.isEditingKey ? "valid" : "idle",
+        keyMessage: field.isEditingKey ? "Clave disponible" : "",
+      });
+      return true;
+    }
+
     try {
       setFieldState(index, {
         key: normalizedKey,
@@ -268,6 +277,7 @@ const ProcessesForm = ({ isOpen, onClose, onSuccess, processId }) => {
       });
 
       const result = await processesService.validateFieldKey(
+        processId,
         normalizedKey,
         field.id,
       );
@@ -285,8 +295,8 @@ const ProcessesForm = ({ isOpen, onClose, onSuccess, processId }) => {
 
       setFieldState(index, {
         key: result?.data?.key || normalizedKey,
-        keyStatus: "valid",
-        keyMessage: "Clave disponible",
+        keyStatus: field.isEditingKey ? "valid" : "idle",
+        keyMessage: field.isEditingKey ? "Clave disponible" : "",
       });
 
       return true;
@@ -694,7 +704,7 @@ const ProcessesForm = ({ isOpen, onClose, onSuccess, processId }) => {
                               Validando...
                             </p>
                           )}
-                          {field.keyStatus === "valid" && (
+                          {field.isEditingKey && field.keyStatus === "valid" && (
                             <p className="text-xs text-emerald-600">
                               {field.keyMessage}
                             </p>

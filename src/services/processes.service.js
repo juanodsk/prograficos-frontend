@@ -11,9 +11,10 @@ const processesService = {
     const { data } = await api.get(`/processes/${id}`);
     return data;
   },
-  validateFieldKey: async (key, excludeFieldId) => {
+  validateFieldKey: async (processId, key, excludeFieldId) => {
     const { data } = await api.get("/processes/validate-field-key", {
       params: {
+        processId,
         key,
         ...(excludeFieldId ? { excludeFieldId } : {}),
       },
