@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { useAuthStore } from "../../store/authStore";
 import ConfirmDialog from "../../components/common/ConfirmDialog";
+import ServerPagination from "../../components/common/ServerPagination";
 import ordersService from "@/services/orders.service";
 import { connectSocket } from "@/services/socket.service";
 import StatusBadge from "@/components/common/StatusBadge";
@@ -18,9 +19,31 @@ import {
   Trash2,
 } from "lucide-react";
 
+const defaultMeta = {
+  page: 1,
+  pageSize: 10,
+  total: 0,
+  totalPages: 1,
+};
+
+const defaultSummary = {
+  total: 0,
+  pending: 0,
+  progress: 0,
+  finished: 0,
+};
+
+const defaultTabs = {
+  active: 0,
+  finished: 0,
+};
+
 const finishedStatuses = new Set(["TERMINADO", "ENTREGADO"]);
 
 const isFinishedOrder = (order) => finishedStatuses.has(order?.order_status);
+
+const formatShortDate = (value) =>
+  value ? new Date(value).toLocaleDateString("es-CO") : "Sin fecha";
 
 const Orders = () => {
   const navigate = useNavigate();
@@ -28,7 +51,16 @@ const Orders = () => {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [activeTab, setActiveTab] = useState("active");
+  const [pageByTab, setPageByTab] = useState({
+    active: 1,
+    finished: 1,
+  });
+  const [pageSize, setPageSize] = useState(defaultMeta.pageSize);
+  const [meta, setMeta] = useState(defaultMeta);
+  const [summary, setSummary] = useState(defaultSummary);
+  const [tabCounts, setTabCounts] = useState(defaultTabs);
   const [confirmDialog, setConfirmDialog] = useState({
     isOpen: false,
     orderId: null,
@@ -37,22 +69,56 @@ const Orders = () => {
   });
 
   const canDeleteOrder = ["ADMIN", "SUPERVISOR"].includes(currentUser?.role);
+  const canCreate = ["ADMIN", "SUPERVISOR"].includes(currentUser?.role);
+  const canEdit = ["ADMIN", "SUPERVISOR"].includes(currentUser?.role);
 
-  const fetchOrders = async () => {
-    try {
-      setLoading(true);
-      const data = await ordersService.getAll();
-      setOrders(data.data || []);
-    } catch {
-      toast.error("Error al cargar las órdenes");
-    } finally {
-      setLoading(false);
-    }
-  };
+  const fetchOrders = useCallback(
+    async ({
+      tab = activeTab,
+      page = pageByTab[tab],
+      pageSizeValue = pageSize,
+      searchValue = debouncedSearch,
+    } = {}) => {
+      try {
+        setLoading(true);
+        const response = await ordersService.getAll({
+          statusGroup: tab,
+          page,
+          pageSize: pageSizeValue,
+          search: searchValue || undefined,
+        });
+
+        setOrders(response?.data || []);
+        setMeta(response?.meta || defaultMeta);
+        setSummary(response?.summary || defaultSummary);
+        setTabCounts(response?.tabs || defaultTabs);
+
+        if (response?.meta?.page && response.meta.page !== page) {
+          setPageByTab((prev) => ({
+            ...prev,
+            [tab]: response.meta.page,
+          }));
+        }
+      } catch {
+        toast.error("Error al cargar las órdenes");
+      } finally {
+        setLoading(false);
+      }
+    },
+    [activeTab, debouncedSearch, pageByTab, pageSize],
+  );
+
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      setDebouncedSearch(search.trim());
+    }, 350);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [search]);
 
   useEffect(() => {
     fetchOrders();
-  }, []);
+  }, [fetchOrders]);
 
   useEffect(() => {
     const socket = connectSocket();
@@ -65,45 +131,7 @@ const Orders = () => {
     return () => {
       socket.off("production:changed", handleProductionChange);
     };
-  }, []);
-
-  const filtered = useMemo(() => {
-    const term = search.trim().toLowerCase();
-    if (!term) return orders;
-    return orders.filter((order) => {
-      const client = order.product_customer?.third?.name?.toLowerCase() || "";
-      const product = order.product_customer?.name?.toLowerCase() || "";
-      return (
-        String(order.id).includes(term) ||
-        order.order_status?.toLowerCase().includes(term) ||
-        client.includes(term) ||
-        product.includes(term)
-      );
-    });
-  }, [orders, search]);
-
-  const summary = useMemo(
-    () => ({
-      total: orders.length,
-      pending: orders.filter((order) => order.order_status === "PENDIENTE")
-        .length,
-      progress: orders.filter((order) => order.order_status === "EN_PROCESO")
-        .length,
-      finished: orders.filter(isFinishedOrder).length,
-    }),
-    [orders],
-  );
-
-  const tabSummary = useMemo(
-    () => ({
-      active: filtered.filter((order) => !isFinishedOrder(order)),
-      finished: filtered.filter(isFinishedOrder),
-    }),
-    [filtered],
-  );
-
-  const visibleOrders =
-    activeTab === "finished" ? tabSummary.finished : tabSummary.active;
+  }, [fetchOrders]);
 
   const handleDeleteClick = (order) => {
     setConfirmDialog({
@@ -132,11 +160,9 @@ const Orders = () => {
 
     try {
       const response = await ordersService.delete(confirmDialog.orderId);
-      setOrders((prev) =>
-        prev.filter((order) => order.id !== confirmDialog.orderId),
-      );
       toast.success(response?.message || "Orden desactivada exitosamente");
       handleCloseDialog();
+      await fetchOrders();
     } catch (error) {
       toast.error(
         error?.response?.data?.message || "No se pudo eliminar la orden",
@@ -182,7 +208,7 @@ const Orders = () => {
               try {
                 await ordersService.markAsFinished(id);
                 toast.success("Orden marcada como terminada");
-                fetchOrders();
+                await fetchOrders();
               } catch (error) {
                 toast.error(
                   error.response?.data?.message || "Error al actualizar",
@@ -225,16 +251,14 @@ const Orders = () => {
     {
       key: "active",
       label: "Órdenes activas",
-      count: tabSummary.active.length,
+      count: tabCounts.active,
     },
     {
       key: "finished",
       label: "Órdenes terminadas",
-      count: tabSummary.finished.length,
+      count: tabCounts.finished,
     },
   ];
-  const canCreate = ["ADMIN", "SUPERVISOR"].includes(currentUser?.role);
-  const canEdit = ["ADMIN", "SUPERVISOR"].includes(currentUser?.role);
 
   return (
     <div className="space-y-6">
@@ -293,8 +317,8 @@ const Orders = () => {
                   onClick={() => setActiveTab(tab.key)}
                   className={`flex-1 rounded-xl px-4 py-2 cursor-pointer text-sm font-semibold transition-colors lg:flex-none ${
                     activeTab === tab.key
-                      ? "bg-white text-[#13529a] shadow-sm cursor-pointer"
-                      : "text-slate-500 hover:text-slate-700 cursor-pointer"
+                      ? "bg-white text-[#13529a] shadow-sm"
+                      : "text-slate-500 hover:text-slate-700"
                   }`}
                 >
                   {tab.label} ({tab.count})
@@ -311,7 +335,13 @@ const Orders = () => {
                 placeholder="Buscar por cliente, producto, ID o estado..."
                 className="pl-9"
                 value={search}
-                onChange={(e) => setSearch(e.target.value)}
+                onChange={(event) => {
+                  setSearch(event.target.value);
+                  setPageByTab({
+                    active: 1,
+                    finished: 1,
+                  });
+                }}
               />
             </div>
           </div>
@@ -321,119 +351,140 @@ const Orders = () => {
           <div className="flex items-center justify-center py-16">
             <Loader2 size={32} className="animate-spin text-[#13529a]" />
           </div>
-        ) : visibleOrders.length === 0 ? (
+        ) : orders.length === 0 ? (
           <div className="py-16 text-center text-gray-500">
             {activeTab === "finished"
               ? "No se encontraron órdenes terminadas con ese criterio."
               : "No se encontraron órdenes activas con ese criterio."}
           </div>
         ) : (
-          <div className="grid gap-4 p-4 lg:grid-cols-2">
-            {visibleOrders.map((order) => (
-              <article
-                key={order.id}
-                className="rounded-2xl border border-slate-200 bg-slate-50/60 p-5 transition-colors hover:border-[#13529a]/40 hover:bg-white"
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <p className="text-xs uppercase tracking-[0.2em] text-slate-400">
-                      Orden #{order.id}
-                    </p>
-                    <h2 className="mt-1 text-lg font-semibold text-slate-900">
-                      {order.product_customer?.name ||
-                        order.product_customer?.product?.name ||
-                        "Sin producto"}
-                    </h2>
-                    <p className="text-sm text-slate-500">
-                      {order.product_customer?.third?.name || "Sin cliente"}
-                    </p>
+          <>
+            <div className="grid gap-4 p-4 lg:grid-cols-2">
+              {orders.map((order) => (
+                <article
+                  key={order.id}
+                  className="rounded-2xl border border-slate-200 bg-slate-50/60 p-5 transition-colors hover:border-[#13529a]/40 hover:bg-white"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-xs uppercase tracking-[0.2em] text-slate-400">
+                        Orden #{order.id}
+                      </p>
+                      <h2 className="mt-1 text-lg font-semibold text-slate-900">
+                        {order.product_customer?.name ||
+                          order.product_customer?.product?.name ||
+                          "Sin producto"}
+                      </h2>
+                      <p className="text-sm text-slate-500">
+                        {order.product_customer?.third?.name || "Sin cliente"}
+                      </p>
+                    </div>
+                    <StatusBadge status={order.order_status} />
                   </div>
-                  <StatusBadge status={order.order_status} />
-                </div>
 
-                <div className="mt-5 grid gap-3 sm:grid-cols-2">
-                  <div className="rounded-xl bg-white p-3">
-                    <p className="text-xs uppercase tracking-wide text-slate-400">
-                      Creación
-                    </p>
-                    <p className="mt-1 font-semibold text-slate-900">
-                      {new Date(order.date).toLocaleDateString("es-CO")}
-                    </p>
+                  <div className="mt-5 grid gap-3 sm:grid-cols-2">
+                    <div className="rounded-xl bg-white p-3">
+                      <p className="text-xs uppercase tracking-wide text-slate-400">
+                        Creación
+                      </p>
+                      <p className="mt-1 font-semibold text-slate-900">
+                        {formatShortDate(order.date)}
+                      </p>
+                    </div>
+                    <div className="rounded-xl bg-white p-3">
+                      <p className="text-xs uppercase tracking-wide text-slate-400">
+                        Entrega estimada
+                      </p>
+                      <p className="mt-1 font-semibold text-slate-900">
+                        {formatShortDate(order.date_delivery_estimated)}
+                      </p>
+                    </div>
+                    <div className="rounded-xl bg-white p-3">
+                      <p className="text-xs uppercase tracking-wide text-slate-400">
+                        Hojas
+                      </p>
+                      <p className="mt-1 font-semibold text-slate-900">
+                        {order.amount_sheets}
+                      </p>
+                    </div>
+                    <div className="rounded-xl bg-white p-3">
+                      <p className="text-xs uppercase tracking-wide text-slate-400">
+                        Unidades estimadas
+                      </p>
+                      <p className="mt-1 font-semibold text-slate-900">
+                        {order.total_estimated?.toLocaleString("es-CO")} unidades
+                      </p>
+                    </div>
                   </div>
-                  <div className="rounded-xl bg-white p-3">
-                    <p className="text-xs uppercase tracking-wide text-slate-400">
-                      Entrega estimada
-                    </p>
-                    <p className="mt-1 font-semibold text-slate-900">
-                      {new Date(
-                        order.date_delivery_estimated,
-                      ).toLocaleDateString("es-CO")}
-                    </p>
-                  </div>
-                  <div className="rounded-xl bg-white p-3">
-                    <p className="text-xs uppercase tracking-wide text-slate-400">
-                      Hojas
-                    </p>
-                    <p className="mt-1 font-semibold text-slate-900">
-                      {order.amount_sheets}
-                    </p>
-                  </div>
-                  <div className="rounded-xl bg-white p-3">
-                    <p className="text-xs uppercase tracking-wide text-slate-400">
-                      Unidades estimadas
-                    </p>
-                    <p className="mt-1 font-semibold text-slate-900">
-                      {order.total_estimated?.toLocaleString("es-CO")} unidades
-                    </p>
-                  </div>
-                </div>
 
-                <div className="mt-5 flex flex-wrap justify-end gap-2">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => navigate(`/ordenes/${order.id}`)}
-                    className="cursor-pointer"
-                  >
-                    <Eye size={16} className="mr-2" />
-                    Ver detalle
-                  </Button>
-                  {canEdit && (
+                  <div className="mt-5 flex flex-wrap justify-end gap-2">
                     <Button
                       size="sm"
                       variant="outline"
-                      onClick={() => navigate(`/ordenes/${order.id}/editar`)}
+                      onClick={() => navigate(`/ordenes/${order.id}`)}
                       className="cursor-pointer"
                     >
-                      <Pencil size={16} className="mr-2" />
-                      Editar
+                      <Eye size={16} className="mr-2" />
+                      Ver detalle
                     </Button>
-                  )}
-                  {!isFinishedOrder(order) && (
-                    <Button
-                      size="sm"
-                      onClick={() => handleFinish(order.id)}
-                      className="bg-green-600 text-white hover:bg-green-700 cursor-pointer"
-                    >
-                      <CheckCircle size={16} className="mr-2" />
-                      Terminar
-                    </Button>
-                  )}
-                  {canDeleteOrder && (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => handleDeleteClick(order)}
-                      className="border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700 cursor-pointer"
-                    >
-                      <Trash2 size={16} className="mr-2" />
-                      Eliminar
-                    </Button>
-                  )}
-                </div>
-              </article>
-            ))}
-          </div>
+                    {canEdit && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => navigate(`/ordenes/${order.id}/editar`)}
+                        className="cursor-pointer"
+                      >
+                        <Pencil size={16} className="mr-2" />
+                        Editar
+                      </Button>
+                    )}
+                    {!isFinishedOrder(order) && (
+                      <Button
+                        size="sm"
+                        onClick={() => handleFinish(order.id)}
+                        className="bg-green-600 text-white hover:bg-green-700 cursor-pointer"
+                      >
+                        <CheckCircle size={16} className="mr-2" />
+                        Terminar
+                      </Button>
+                    )}
+                    {canDeleteOrder && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleDeleteClick(order)}
+                        className="border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700 cursor-pointer"
+                      >
+                        <Trash2 size={16} className="mr-2" />
+                        Eliminar
+                      </Button>
+                    )}
+                  </div>
+                </article>
+              ))}
+            </div>
+
+            <ServerPagination
+              page={meta.page}
+              pageSize={meta.pageSize}
+              total={meta.total}
+              totalPages={meta.totalPages}
+              itemLabel="órdenes"
+              onPageChange={(nextPage) =>
+                setPageByTab((prev) => ({
+                  ...prev,
+                  [activeTab]: nextPage,
+                }))
+              }
+              onPageSizeChange={(nextPageSize) => {
+                setPageSize(nextPageSize);
+                setPageByTab({
+                  active: 1,
+                  finished: 1,
+                });
+              }}
+            />
+          </>
         )}
       </div>
 

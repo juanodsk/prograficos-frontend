@@ -1,16 +1,16 @@
 import api from "./api";
 
 const ordersService = {
-  getAll: async () => {
-    const { data } = await api.get("/order");
+  getAll: async (params = {}) => {
+    const { data } = await api.get("/order", { params });
     return data;
   },
   getById: async (id) => {
     const { data } = await api.get(`/order/${id}`);
     return data;
   },
-  getAudit: async () => {
-    const { data } = await api.get("/order/audit");
+  getAudit: async (params = {}) => {
+    const { data } = await api.get("/order/audit", { params });
     return data;
   },
   create: async (orderData) => {
