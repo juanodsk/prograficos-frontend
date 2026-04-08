@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import processesService from "@/services/processes.service";
 import { Button } from "@/components/ui/button";
@@ -13,7 +13,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Loader2, Plus, Save, Trash2, X } from "lucide-react";
+import { Check, Loader2, Plus, Save, Trash2, X } from "lucide-react";
 
 const toSnakeCase = (value = "") =>
   String(value)
@@ -52,17 +52,26 @@ const createFieldUiId = () =>
   globalThis.crypto?.randomUUID?.() ||
   `field-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
 
-const createFieldDraft = (index = 0, field = {}) => ({
-  id: field.id ?? null,
-  uiId: field.id ? `field-${field.id}` : createFieldUiId(),
-  label: field.label || "",
-  field_type: field.field_type || "TEXT",
-  is_required: Boolean(field.is_required),
-  sort_order: field.sort_order ?? index + 1,
-  options: Array.isArray(field.options)
-    ? field.options.join(", ")
-    : field.options || "",
-});
+const createFieldDraft = (index = 0, field = {}) => {
+  const resolvedKey = field.key || toSnakeCase(field.label || "");
+
+  return {
+    id: field.id ?? null,
+    uiId: field.id ? `field-${field.id}` : createFieldUiId(),
+    label: field.label || "",
+    key: resolvedKey,
+    autoGenerateKey: !field.id,
+    isEditingKey: false,
+    keyStatus: "idle",
+    keyMessage: "",
+    field_type: field.field_type || "TEXT",
+    is_required: Boolean(field.is_required),
+    sort_order: field.sort_order ?? index + 1,
+    options: Array.isArray(field.options)
+      ? field.options.join(", ")
+      : field.options || "",
+  };
+};
 
 const createInitialFormState = () => ({
   name: "",
@@ -73,7 +82,9 @@ const createInitialFormState = () => ({
 });
 
 const hasConfiguredFieldContent = (field) =>
-  Boolean(field.label?.trim() || field.options?.trim());
+  Boolean(field.label?.trim() || field.options?.trim() || field.key?.trim());
+
+const getNormalizedFieldKey = (field) => toSnakeCase(field?.key?.trim() || "");
 
 const ProcessesForm = ({ isOpen, onClose, onSuccess, processId }) => {
   const isEditing = Boolean(processId);
@@ -83,19 +94,28 @@ const ProcessesForm = ({ isOpen, onClose, onSuccess, processId }) => {
   const [errors, setErrors] = useState({});
   const [form, setForm] = useState(createInitialFormState);
 
-  useEffect(() => {
-    if (!isOpen) {
-      setForm(createInitialFormState());
-      setErrors({});
-      return;
-    }
+  const setFieldState = (index, updater) => {
+    setForm((prev) => ({
+      ...prev,
+      field_definitions: prev.field_definitions.map((field, fieldIndex) =>
+        fieldIndex === index
+          ? typeof updater === "function"
+            ? updater(field)
+            : { ...field, ...updater }
+          : field,
+      ),
+    }));
+  };
 
-    if (isEditing) {
-      loadProcess();
-    }
-  }, [isOpen, processId]);
+  const clearFieldDefinitionsError = () => {
+    setErrors((prev) =>
+      prev.field_definitions
+        ? { ...prev, field_definitions: "" }
+        : prev,
+    );
+  };
 
-  const loadProcess = async () => {
+  const loadProcess = useCallback(async () => {
     try {
       setFetching(true);
       const response = await processesService.getById(processId);
@@ -113,21 +133,64 @@ const ProcessesForm = ({ isOpen, onClose, onSuccess, processId }) => {
               )
             : [],
       });
-    } catch (error) {
+    } catch {
       toast.error("No se pudo cargar el proceso");
       onClose();
     } finally {
       setFetching(false);
     }
+  }, [onClose, processId]);
+
+  useEffect(() => {
+    if (!isOpen) {
+      setForm(createInitialFormState());
+      setErrors({});
+      return;
+    }
+
+    if (isEditing) {
+      loadProcess();
+    }
+  }, [isEditing, isOpen, loadProcess, processId]);
+
+  const handleFieldLabelChange = (index, value) => {
+    clearFieldDefinitionsError();
+
+    setFieldState(index, (field) => {
+      const nextField = {
+        ...field,
+        label: value,
+        keyStatus: "idle",
+        keyMessage: "",
+      };
+
+      if (field.autoGenerateKey) {
+        nextField.key = toSnakeCase(value);
+      }
+
+      return nextField;
+    });
+  };
+
+  const handleFieldKeyChange = (index, value) => {
+    clearFieldDefinitionsError();
+
+    setFieldState(index, {
+      key: toSnakeCase(value),
+      autoGenerateKey: false,
+      keyStatus: "idle",
+      keyMessage: "",
+    });
   };
 
   const updateField = (index, key, value) => {
-    setForm((prev) => ({
-      ...prev,
-      field_definitions: prev.field_definitions.map((field, fieldIndex) =>
-        fieldIndex === index ? { ...field, [key]: value } : field,
-      ),
-    }));
+    clearFieldDefinitionsError();
+    setFieldState(index, {
+      [key]: value,
+      ...(key === "field_type" && value !== "SELECT"
+        ? { options: "" }
+        : {}),
+    });
   };
 
   const addField = () => {
@@ -156,12 +219,124 @@ const ProcessesForm = ({ isOpen, onClose, onSuccess, processId }) => {
     });
   };
 
+  const validateFieldKeyOnBlur = async (index) => {
+    const field = form.field_definitions[index];
+
+    if (!field || !hasConfiguredFieldContent(field)) {
+      return true;
+    }
+
+    const normalizedKey = getNormalizedFieldKey(field);
+
+    if (!field.label.trim()) {
+      setFieldState(index, {
+        keyStatus: "invalid",
+        keyMessage: "Primero debes definir la etiqueta del campo",
+      });
+      return false;
+    }
+
+    if (!normalizedKey) {
+      setFieldState(index, {
+        keyStatus: "invalid",
+        keyMessage: "La clave del campo es obligatoria",
+      });
+      return false;
+    }
+
+    const duplicateInForm = form.field_definitions.some(
+      (candidate, candidateIndex) =>
+        candidateIndex !== index &&
+        hasConfiguredFieldContent(candidate) &&
+        getNormalizedFieldKey(candidate) === normalizedKey,
+    );
+
+    if (duplicateInForm) {
+      setFieldState(index, {
+        key: normalizedKey,
+        keyStatus: "invalid",
+        keyMessage: "Esta clave ya está repetida en otro campo del formulario",
+      });
+      return false;
+    }
+
+    try {
+      setFieldState(index, {
+        key: normalizedKey,
+        keyStatus: "checking",
+        keyMessage: "Validando disponibilidad de la clave...",
+      });
+
+      const result = await processesService.validateFieldKey(
+        normalizedKey,
+        field.id,
+      );
+
+      if (!result?.data?.available) {
+        setFieldState(index, {
+          key: result?.data?.key || normalizedKey,
+          keyStatus: "invalid",
+          keyMessage:
+            result?.message ||
+            "La clave ya está siendo utilizada en otro campo",
+        });
+        return false;
+      }
+
+      setFieldState(index, {
+        key: result?.data?.key || normalizedKey,
+        keyStatus: "valid",
+        keyMessage: "Clave disponible",
+      });
+
+      return true;
+    } catch (error) {
+      const message =
+        error?.response?.data?.message ||
+        "No se pudo validar la clave del campo";
+
+      setFieldState(index, {
+        key: normalizedKey,
+        keyStatus: "invalid",
+        keyMessage: message,
+      });
+
+      return false;
+    }
+  };
+
+  const toggleKeyEditing = async (index) => {
+    const field = form.field_definitions[index];
+
+    if (!field) return;
+
+    if (!field.isEditingKey) {
+      setFieldState(index, {
+        isEditingKey: true,
+        autoGenerateKey: false,
+        key: field.key || toSnakeCase(field.label),
+        keyStatus: "idle",
+        keyMessage: "",
+      });
+      return;
+    }
+
+    const isValid = await validateFieldKeyOnBlur(index);
+
+    if (isValid) {
+      setFieldState(index, {
+        isEditingKey: false,
+      });
+    }
+  };
+
   const validate = () => {
     const nextErrors = {};
 
     if (!form.name.trim()) nextErrors.name = "El nombre es requerido";
-    if (!form.order || Number(form.order) <= 0)
+    if (!form.order || Number(form.order) <= 0) {
       nextErrors.order = "El orden debe ser mayor a 0";
+    }
     if (!form.category) nextErrors.category = "La categoria es obligatoria";
 
     const configuredFields = form.field_definitions.filter(
@@ -171,19 +346,29 @@ const ProcessesForm = ({ isOpen, onClose, onSuccess, processId }) => {
     const invalidField = configuredFields.find(
       (field) => !field.label.trim() || !field.field_type,
     );
-    const normalizedKeys = configuredFields.map((field) =>
-      toSnakeCase(field.label.trim()),
+    const invalidKeyField = configuredFields.find(
+      (field) => !getNormalizedFieldKey(field),
     );
+    const normalizedKeys = configuredFields.map(getNormalizedFieldKey);
     const hasDuplicateKeys = normalizedKeys.some(
       (key, index) => key && normalizedKeys.indexOf(key) !== index,
+    );
+    const hasServerValidationErrors = configuredFields.some(
+      (field) => field.keyStatus === "invalid",
     );
 
     if (invalidField) {
       nextErrors.field_definitions =
         "Todos los campos configurables deben tener nombre y tipo";
+    } else if (invalidKeyField) {
+      nextErrors.field_definitions =
+        "Todos los campos configurables deben tener una clave válida";
     } else if (hasDuplicateKeys) {
       nextErrors.field_definitions =
-        "No puedes repetir campos que generen la misma clave automática";
+        "No puedes repetir claves entre campos configurables";
+    } else if (hasServerValidationErrors) {
+      nextErrors.field_definitions =
+        "Corrige las claves duplicadas o no disponibles antes de guardar";
     }
 
     setErrors(nextErrors);
@@ -195,7 +380,7 @@ const ProcessesForm = ({ isOpen, onClose, onSuccess, processId }) => {
       .filter(hasConfiguredFieldContent)
       .map((field, index) => ({
         id: field.id,
-        key: toSnakeCase(field.label.trim()),
+        key: getNormalizedFieldKey(field),
         label: field.label.trim(),
         field_type: field.field_type,
         is_required: Boolean(field.is_required),
@@ -209,9 +394,37 @@ const ProcessesForm = ({ isOpen, onClose, onSuccess, processId }) => {
             : null,
       }));
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const validateAllFieldKeys = async () => {
+    const fieldsToValidate = form.field_definitions
+      .map((field, index) => ({ field, index }))
+      .filter(({ field }) => hasConfiguredFieldContent(field));
+
+    for (const { index } of fieldsToValidate) {
+      const isValid = await validateFieldKeyOnBlur(index);
+
+      if (!isValid) {
+        setErrors((prev) => ({
+          ...prev,
+          field_definitions:
+            "Corrige las claves duplicadas o no disponibles antes de guardar",
+        }));
+        return false;
+      }
+    }
+
+    return true;
+  };
+
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+
     if (!validate()) return;
+
+    const allKeysAreValid = await validateAllFieldKeys();
+
+    if (!allKeysAreValid) {
+      return;
+    }
 
     const payload = {
       name: form.name.trim(),
@@ -286,8 +499,8 @@ const ProcessesForm = ({ isOpen, onClose, onSuccess, processId }) => {
                   <Label>Nombre</Label>
                   <Input
                     value={form.name}
-                    onChange={(e) =>
-                      setForm((prev) => ({ ...prev, name: e.target.value }))
+                    onChange={(event) =>
+                      setForm((prev) => ({ ...prev, name: event.target.value }))
                     }
                   />
                   {errors.name && (
@@ -301,8 +514,8 @@ const ProcessesForm = ({ isOpen, onClose, onSuccess, processId }) => {
                     type="number"
                     min="1"
                     value={form.order}
-                    onChange={(e) =>
-                      setForm((prev) => ({ ...prev, order: e.target.value }))
+                    onChange={(event) =>
+                      setForm((prev) => ({ ...prev, order: event.target.value }))
                     }
                   />
                   {errors.order && (
@@ -424,24 +637,73 @@ const ProcessesForm = ({ isOpen, onClose, onSuccess, processId }) => {
                         </Button>
                       </div>
 
-                      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+                      <div className="grid gap-4 lg:grid-cols-[minmax(0,1.6fr)_minmax(180px,0.8fr)_minmax(180px,0.8fr)_120px]">
                         <div className="space-y-2">
                           <Label>Etiqueta</Label>
                           <Input
                             value={field.label}
-                            onChange={(e) =>
-                              updateField(index, "label", e.target.value)
+                            onChange={(event) =>
+                              handleFieldLabelChange(index, event.target.value)
                             }
-                            placeholder="ej: Color 1"
+                            placeholder="ej: Papel parafinado"
                           />
-                        </div>
-                        <div className="space-y-2">
-                          <Label>Clave</Label>
-                          <Input
-                            value={toSnakeCase(field.label)}
-                            readOnly
-                            disabled
-                          />
+
+                          <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500">
+                            <span className="font-medium text-slate-500">
+                              Clave:
+                            </span>
+
+                            {!field.isEditingKey ? (
+                              <>
+                                <code className="rounded bg-slate-100 px-1.5 py-0.5 text-xs text-[#13529a]">
+                                  {field.key || toSnakeCase(field.label) || "-"}
+                                </code>
+                                <button
+                                  type="button"
+                                  onClick={() => toggleKeyEditing(index)}
+                                  className="cursor-pointer text-xs font-medium text-[#13529a] underline underline-offset-2"
+                                >
+                                  Editar
+                                </button>
+                              </>
+                            ) : (
+                              <div className="flex w-full max-w-md items-center gap-2">
+                                <Input
+                                  value={field.key}
+                                  onChange={(event) =>
+                                    handleFieldKeyChange(index, event.target.value)
+                                  }
+                                  onBlur={() => validateFieldKeyOnBlur(index)}
+                                  placeholder="ej: papel_parafinado"
+                                  className="h-8 text-xs"
+                                />
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  onClick={() => toggleKeyEditing(index)}
+                                  className="h-8 cursor-pointer px-2 text-xs"
+                                >
+                                  <Check size={12} />
+                                </Button>
+                              </div>
+                            )}
+                          </div>
+
+                          {field.keyStatus === "checking" && (
+                            <p className="text-xs text-slate-500">
+                              Validando...
+                            </p>
+                          )}
+                          {field.keyStatus === "valid" && (
+                            <p className="text-xs text-emerald-600">
+                              {field.keyMessage}
+                            </p>
+                          )}
+                          {field.keyStatus === "invalid" && (
+                            <p className="text-xs text-red-500">
+                              {field.keyMessage}
+                            </p>
+                          )}
                         </div>
                         <div className="space-y-2">
                           <Label>Tipo</Label>
@@ -451,7 +713,7 @@ const ProcessesForm = ({ isOpen, onClose, onSuccess, processId }) => {
                               updateField(index, "field_type", value)
                             }
                           >
-                            <SelectTrigger className="w-full">
+                            <SelectTrigger className="h-10 w-full">
                               <SelectValue>
                                 {getFieldTypeLabel(field.field_type)}
                               </SelectValue>
@@ -472,17 +734,6 @@ const ProcessesForm = ({ isOpen, onClose, onSuccess, processId }) => {
                           </Select>
                         </div>
                         <div className="space-y-2">
-                          <Label>Orden</Label>
-                          <Input
-                            type="number"
-                            min="1"
-                            value={field.sort_order}
-                            onChange={(e) =>
-                              updateField(index, "sort_order", e.target.value)
-                            }
-                          />
-                        </div>
-                        <div className="space-y-2">
                           <Label>Obligatorio</Label>
                           <Select
                             value={field.is_required ? "si" : "no"}
@@ -490,7 +741,7 @@ const ProcessesForm = ({ isOpen, onClose, onSuccess, processId }) => {
                               updateField(index, "is_required", value === "si")
                             }
                           >
-                            <SelectTrigger className="w-full">
+                            <SelectTrigger className="h-10 w-full">
                               <SelectValue>
                                 {field.is_required ? "Sí" : "No"}
                               </SelectValue>
@@ -501,6 +752,18 @@ const ProcessesForm = ({ isOpen, onClose, onSuccess, processId }) => {
                             </SelectContent>
                           </Select>
                         </div>
+                        <div className="space-y-2">
+                          <Label>Orden</Label>
+                          <Input
+                            type="number"
+                            min="1"
+                            value={field.sort_order}
+                            onChange={(event) =>
+                              updateField(index, "sort_order", event.target.value)
+                            }
+                            className="h-10"
+                          />
+                        </div>
                       </div>
 
                       {field.field_type === "SELECT" && (
@@ -508,8 +771,8 @@ const ProcessesForm = ({ isOpen, onClose, onSuccess, processId }) => {
                           <Label>Opciones</Label>
                           <Input
                             value={field.options}
-                            onChange={(e) =>
-                              updateField(index, "options", e.target.value)
+                            onChange={(event) =>
+                              updateField(index, "options", event.target.value)
                             }
                             placeholder="Ej: Mate, Brillante, Satinado"
                           />

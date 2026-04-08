@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
+import ServerPagination from "../../components/common/ServerPagination";
 import ordersService from "@/services/orders.service";
 import { connectSocket } from "@/services/socket.service";
 import StatusBadge from "@/components/common/StatusBadge";
@@ -16,6 +17,20 @@ import {
   Search,
   UserRound,
 } from "lucide-react";
+
+const defaultMeta = {
+  page: 1,
+  pageSize: 10,
+  total: 0,
+  totalPages: 1,
+};
+
+const defaultSummary = {
+  totalClosed: 0,
+  deliveredTotal: 0,
+  damagedTotal: 0,
+  operators: 0,
+};
 
 const formatDate = (value) =>
   value
@@ -75,23 +90,54 @@ const OrdersAudit = () => {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [selectedOrderId, setSelectedOrderId] = useState(null);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(defaultMeta.pageSize);
+  const [meta, setMeta] = useState(defaultMeta);
+  const [summary, setSummary] = useState(defaultSummary);
 
-  const fetchAudit = async () => {
-    try {
-      setLoading(true);
-      const response = await ordersService.getAudit();
-      setOrders(response.data || []);
-    } catch {
-      toast.error("Error al cargar la auditoría de órdenes");
-    } finally {
-      setLoading(false);
-    }
-  };
+  const fetchAudit = useCallback(
+    async ({
+      pageValue = page,
+      pageSizeValue = pageSize,
+      searchValue = debouncedSearch,
+    } = {}) => {
+      try {
+        setLoading(true);
+        const response = await ordersService.getAudit({
+          page: pageValue,
+          pageSize: pageSizeValue,
+          search: searchValue || undefined,
+        });
+
+        setOrders(response?.data || []);
+        setMeta(response?.meta || defaultMeta);
+        setSummary(response?.summary || defaultSummary);
+
+        if (response?.meta?.page && response.meta.page !== pageValue) {
+          setPage(response.meta.page);
+        }
+      } catch {
+        toast.error("Error al cargar la auditoría de órdenes");
+      } finally {
+        setLoading(false);
+      }
+    },
+    [debouncedSearch, page, pageSize],
+  );
+
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      setDebouncedSearch(search.trim());
+    }, 350);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [search]);
 
   useEffect(() => {
     fetchAudit();
-  }, []);
+  }, [fetchAudit]);
 
   useEffect(() => {
     const socket = connectSocket();
@@ -104,81 +150,23 @@ const OrdersAudit = () => {
     return () => {
       socket.off("production:changed", handleProductionChange);
     };
-  }, []);
-
-  const filteredOrders = useMemo(() => {
-    const term = search.trim().toLowerCase();
-
-    if (!term) return orders;
-
-    return orders.filter((order) => {
-      const client = order.product_customer?.third?.name?.toLowerCase() || "";
-      const product = (
-        order.product_customer?.name ||
-        order.product_customer?.product?.name ||
-        ""
-      ).toLowerCase();
-      const createdBy = formatUserLabel(order.user).toLowerCase();
-      const closedBy = formatUserLabel(
-        order.audit_summary?.closed_by,
-      ).toLowerCase();
-
-      return (
-        String(order.id).includes(term) ||
-        client.includes(term) ||
-        product.includes(term) ||
-        createdBy.includes(term) ||
-        closedBy.includes(term) ||
-        order.order_status?.toLowerCase().includes(term)
-      );
-    });
-  }, [orders, search]);
+  }, [fetchAudit]);
 
   useEffect(() => {
-    if (!filteredOrders.length) {
+    if (!orders.length) {
       setSelectedOrderId(null);
       return;
     }
 
-    const selectedExists = filteredOrders.some(
-      (order) => order.id === selectedOrderId,
-    );
+    const selectedExists = orders.some((order) => order.id === selectedOrderId);
 
     if (!selectedExists) {
-      setSelectedOrderId(filteredOrders[0].id);
+      setSelectedOrderId(orders[0].id);
     }
-  }, [filteredOrders, selectedOrderId]);
+  }, [orders, selectedOrderId]);
 
-  const selectedOrder = useMemo(
-    () =>
-      filteredOrders.find((order) => order.id === selectedOrderId) ||
-      filteredOrders[0] ||
-      null,
-    [filteredOrders, selectedOrderId],
-  );
-
-  const summary = useMemo(() => {
-    const users = new Set();
-
-    orders.forEach((order) => {
-      order.detail_production_orders?.forEach((detail) => {
-        if (detail.user?.id) users.add(detail.user.id);
-      });
-    });
-
-    return {
-      totalClosed: orders.length,
-      deliveredTotal: orders.reduce(
-        (total, order) => total + (order.audit_summary?.delivered_total || 0),
-        0,
-      ),
-      damagedTotal: orders.reduce(
-        (total, order) => total + (order.audit_summary?.damaged_total || 0),
-        0,
-      ),
-      operators: users.size,
-    };
-  }, [orders]);
+  const selectedOrder =
+    orders.find((order) => order.id === selectedOrderId) || orders[0] || null;
 
   const statCards = [
     {
@@ -271,7 +259,10 @@ const OrdersAudit = () => {
                 placeholder="Buscar por ID, cliente, producto o usuario..."
                 className="pl-9"
                 value={search}
-                onChange={(e) => setSearch(e.target.value)}
+                onChange={(event) => {
+                  setSearch(event.target.value);
+                  setPage(1);
+                }}
               />
             </div>
           </div>
@@ -280,67 +271,82 @@ const OrdersAudit = () => {
             <div className="flex items-center justify-center py-16">
               <Loader2 size={32} className="animate-spin text-[#13529a]" />
             </div>
-          ) : filteredOrders.length === 0 ? (
+          ) : orders.length === 0 ? (
             <div className="py-16 text-center text-slate-500">
               No se encontraron órdenes cerradas con ese criterio.
             </div>
           ) : (
-            <div className="max-h-[calc(100vh-17rem)] space-y-3 overflow-y-auto p-4">
-              {filteredOrders.map((order) => {
-                const isSelected = selectedOrder?.id === order.id;
-                const productName =
-                  order.product_customer?.name ||
-                  order.product_customer?.product?.name ||
-                  "Sin producto";
+            <>
+              <div className="max-h-[calc(100vh-22rem)] space-y-3 overflow-y-auto p-4">
+                {orders.map((order) => {
+                  const isSelected = selectedOrder?.id === order.id;
+                  const productName =
+                    order.product_customer?.name ||
+                    order.product_customer?.product?.name ||
+                    "Sin producto";
 
-                return (
-                  <button
-                    key={order.id}
-                    type="button"
-                    onClick={() => setSelectedOrderId(order.id)}
-                    className={`w-full rounded-2xl border p-4 text-left transition-colors ${
-                      isSelected
-                        ? "border-[#13529a] bg-[#13529a]/5"
-                        : "border-slate-200 bg-slate-50 hover:border-[#13529a]/40 hover:bg-white"
-                    }`}
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <p className="text-xs uppercase tracking-[0.2em] text-slate-400">
-                          Orden #{order.id}
-                        </p>
-                        <p className="mt-1 font-semibold text-slate-900">
-                          {productName}
-                        </p>
-                        <p className="text-sm text-slate-500">
-                          {order.product_customer?.third?.name || "Sin cliente"}
-                        </p>
+                  return (
+                    <button
+                      key={order.id}
+                      type="button"
+                      onClick={() => setSelectedOrderId(order.id)}
+                      className={`w-full rounded-2xl border p-4 text-left transition-colors ${
+                        isSelected
+                          ? "border-[#13529a] bg-[#13529a]/5"
+                          : "border-slate-200 bg-slate-50 hover:border-[#13529a]/40 hover:bg-white"
+                      }`}
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <p className="text-xs uppercase tracking-[0.2em] text-slate-400">
+                            Orden #{order.id}
+                          </p>
+                          <p className="mt-1 font-semibold text-slate-900">
+                            {productName}
+                          </p>
+                          <p className="text-sm text-slate-500">
+                            {order.product_customer?.third?.name || "Sin cliente"}
+                          </p>
+                        </div>
+                        <StatusBadge status={order.order_status} />
                       </div>
-                      <StatusBadge status={order.order_status} />
-                    </div>
 
-                    <div className="mt-4 grid gap-2 sm:grid-cols-2">
-                      <div className="rounded-xl bg-white px-3 py-2">
-                        <p className="text-[11px] uppercase tracking-wide text-slate-400">
-                          Cierre
-                        </p>
-                        <p className="text-sm font-medium text-slate-900">
-                          {formatDateTime(order.audit_summary?.closed_at)}
-                        </p>
+                      <div className="mt-4 grid gap-2 sm:grid-cols-2">
+                        <div className="rounded-xl bg-white px-3 py-2">
+                          <p className="text-[11px] uppercase tracking-wide text-slate-400">
+                            Cierre
+                          </p>
+                          <p className="text-sm font-medium text-slate-900">
+                            {formatDateTime(order.audit_summary?.closed_at)}
+                          </p>
+                        </div>
+                        <div className="rounded-xl bg-white px-3 py-2">
+                          <p className="text-[11px] uppercase tracking-wide text-slate-400">
+                            Último responsable
+                          </p>
+                          <p className="text-sm font-medium text-slate-900">
+                            {formatUserLabel(order.audit_summary?.closed_by)}
+                          </p>
+                        </div>
                       </div>
-                      <div className="rounded-xl bg-white px-3 py-2">
-                        <p className="text-[11px] uppercase tracking-wide text-slate-400">
-                          Último responsable
-                        </p>
-                        <p className="text-sm font-medium text-slate-900">
-                          {formatUserLabel(order.audit_summary?.closed_by)}
-                        </p>
-                      </div>
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
+                    </button>
+                  );
+                })}
+              </div>
+
+              <ServerPagination
+                page={meta.page}
+                pageSize={meta.pageSize}
+                total={meta.total}
+                totalPages={meta.totalPages}
+                itemLabel="órdenes auditadas"
+                onPageChange={setPage}
+                onPageSizeChange={(nextPageSize) => {
+                  setPageSize(nextPageSize);
+                  setPage(1);
+                }}
+              />
+            </>
           )}
         </section>
 

@@ -29,6 +29,12 @@ import {
 
 const menuItems = [
   {
+    label: "Dashboard",
+    path: "/dashboard",
+    icon: LayoutDashboard,
+    roles: ["ADMIN", "SUPERVISOR", "EMPLOYEE", "USER"],
+  },
+  {
     label: "Órdenes",
     path: "/ordenes",
     icon: ClipboardList,
@@ -41,6 +47,19 @@ const menuItems = [
     roles: ["ADMIN", "SUPERVISOR", "EMPLOYEE", "USER"],
   },
 
+  {
+    label: "Administración",
+    icon: ShieldUser,
+    roles: ["ADMIN", "SUPERVISOR"],
+    children: [
+      {
+        label: "Auditoría",
+        path: "/ordenes/auditoria",
+        icon: ScrollText,
+        roles: ["ADMIN", "SUPERVISOR", "EMPLOYEE", "USER"],
+      },
+    ],
+  },
   {
     label: "Configuración",
     icon: Settings,
@@ -107,25 +126,6 @@ const menuItems = [
         roles: ["ADMIN"],
       },
     ],
-  },
-  {
-    label: "Administración",
-    icon: ShieldUser,
-    roles: ["ADMIN", "SUPERVISOR"],
-    children: [
-      {
-        label: "Auditoría",
-        path: "/ordenes/auditoria",
-        icon: ScrollText,
-        roles: ["ADMIN", "SUPERVISOR", "EMPLOYEE", "USER"],
-      },
-    ],
-  },
-  {
-    label: "Dashboard",
-    path: "/dashboard",
-    icon: LayoutDashboard,
-    roles: ["ADMIN", "SUPERVISOR", "EMPLOYEE", "USER"],
   },
 ];
 
