@@ -61,8 +61,12 @@ const Login = () => {
     <div className="min-h-screen bg-linear-to-br from-[#13529a] to-[#0f3f77] flex items-center justify-center p-6">
       <Card className="w-full max-w-md shadow-2xl border-0 rounded-2xl">
         <CardHeader className="text-center space-y-2">
-          <CardTitle className="text-3xl font-bold text-[#13529a]">
-            Prográficos
+          <CardTitle className="flex justify-center">
+            <img
+              src="/logo_login.svg"
+              alt="Prográficos"
+              className="h-20 w-auto"
+            />
           </CardTitle>
           <CardDescription className="text-gray-500">
             Ingresa tus credenciales para continuar
@@ -137,6 +141,12 @@ const Login = () => {
               )}
             </Button>
           </form>
+          <CardDescription className="text-center text-gray-500 mt-6">
+            <p className="text-sm ">
+              © {new Date().getFullYear()} Prograficos S.A.S. Todos los derechos
+              reservados.
+            </p>
+          </CardDescription>
         </CardContent>
       </Card>
     </div>
