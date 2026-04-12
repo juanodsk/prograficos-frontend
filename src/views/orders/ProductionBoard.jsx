@@ -158,7 +158,7 @@ const ProductionBoard = () => {
       if (silent) setRefreshing(true);
       else setLoading(true);
 
-      const response = await ordersService.getAll();
+      const response = await ordersService.getBoard();
       setOrders(response?.data || []);
       setLastRefresh(new Date());
     } catch {

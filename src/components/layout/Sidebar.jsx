@@ -335,9 +335,11 @@ const Sidebar = ({ mobileOpen = false, onCloseMobile }) => {
           {!collapsed ? (
             <>
               <div className="flex items-center gap-2">
-                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#13529a]">
-                  <span className="text-sm font-bold text-white">P</span>
-                </div>
+                <img
+                  src="/logo_pr.png"
+                  alt="Prograficos"
+                  className="h-10 w-10 shrink-0 rounded-xl object-contain"
+                />
                 <div>
                   <h1 className="text-sm font-bold leading-tight text-gray-900">
                     Prográficos
@@ -357,9 +359,11 @@ const Sidebar = ({ mobileOpen = false, onCloseMobile }) => {
               </button>
             </>
           ) : (
-            <div className="mx-auto flex h-8 w-8 items-center justify-center rounded-lg bg-[#13529a]">
-              <span className="text-sm font-bold text-white">P</span>
-            </div>
+            <img
+              src="/logo_pr.png"
+              alt="Prograficos"
+              className="mx-auto h-10 w-10 rounded-xl object-contain"
+            />
           )}
         </div>
 
@@ -388,9 +392,11 @@ const Sidebar = ({ mobileOpen = false, onCloseMobile }) => {
           <aside className="relative flex h-full w-[85vw] max-w-xs flex-col bg-white shadow-2xl">
             <div className="flex min-h-16 items-center justify-between border-b p-4">
               <div className="flex items-center gap-2">
-                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#13529a]">
-                  <span className="text-sm font-bold text-white">P</span>
-                </div>
+                <img
+                  src="/logo_pr.png"
+                  alt="Prograficos"
+                  className="h-10 w-10 shrink-0 rounded-xl object-contain"
+                />
                 <div>
                   <h1 className="text-sm font-bold leading-tight text-gray-900">
                     Prográficos

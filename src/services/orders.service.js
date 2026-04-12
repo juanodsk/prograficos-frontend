@@ -5,6 +5,10 @@ const ordersService = {
     const { data } = await api.get("/order", { params });
     return data;
   },
+  getBoard: async () => {
+    const { data } = await api.get("/order/board");
+    return data;
+  },
   getById: async (id) => {
     const { data } = await api.get(`/order/${id}`);
     return data;
