@@ -2,6 +2,7 @@ import { createBrowserRouter, Navigate } from "react-router-dom";
 import { useAuthStore } from "../store/authStore";
 import ProtectedRoute from "../components/layout/ProtectedRoute";
 import Login from "../views/auth/Login";
+import Landing from "../views/landing/Landing";
 import Dashboard from "../views/dashboard/Dashboard";
 import Users from "../views/users/Users";
 import Orders from "../views/orders/Orders";
@@ -29,7 +30,7 @@ const PublicRoute = ({ children }) => {
 const router = createBrowserRouter([
   {
     path: "/",
-    element: <Navigate to="/login" />,
+    element: <Landing />,
   },
   {
     path: "/login",
