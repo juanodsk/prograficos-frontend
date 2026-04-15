@@ -1,10 +1,8 @@
 import api from "./api";
 
 const troquelesService = {
-  getAll: async (options = {}) => {
-    const { data } = await api.get("/troqueles", {
-      params: options.onlyActive ? { onlyActive: true } : undefined,
-    });
+  getAll: async (params = {}) => {
+    const { data } = await api.get("/troqueles", { params });
     return data;
   },
   getById: async (id) => {

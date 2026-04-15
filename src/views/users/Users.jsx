@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { toast } from "sonner";
 import userService from "../../services/user.service";
 import ConfirmDialog from "../../components/common/ConfirmDialog";
@@ -58,11 +58,23 @@ const RoleBadge = ({ role }) => {
   );
 };
 
+const defaultMeta = {
+  page: 1,
+  pageSize: 10,
+  total: 0,
+  totalPages: 1,
+};
+
 const Users = () => {
   const { user: currentUser } = useAuthStore();
 
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(defaultMeta.pageSize);
+  const [meta, setMeta] = useState(defaultMeta);
 
   const [viewModal, setViewModal] = useState({
     isOpen: false,
@@ -81,23 +93,39 @@ const Users = () => {
     loading: false,
   });
 
-  useEffect(() => {
-    fetchUsers();
-  }, []);
-
-  const fetchUsers = async () => {
+  const fetchUsers = useCallback(async () => {
     try {
       setLoading(true);
+      const response = await userService.getUsers({
+        page,
+        pageSize,
+        search: debouncedSearch || undefined,
+      });
 
-      const data = await userService.getUsers();
+      setUsers(response?.data || []);
+      setMeta(response?.meta || defaultMeta);
 
-      setUsers(data || []);
+      if (response?.meta?.page && response.meta.page !== page) {
+        setPage(response.meta.page);
+      }
     } catch {
       toast.error("Error al cargar los usuarios");
     } finally {
       setLoading(false);
     }
-  };
+  }, [debouncedSearch, page, pageSize]);
+
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      setDebouncedSearch(search.trim());
+    }, 350);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [search]);
+
+  useEffect(() => {
+    fetchUsers();
+  }, [fetchUsers]);
 
   // ───────────── MODALES ─────────────
 
@@ -111,16 +139,8 @@ const Users = () => {
 
   const handleCloseView = () => setViewModal({ isOpen: false, userId: null });
 
-  const handleFormSuccess = (savedUser) => {
-    if (formModal.userId) {
-      setUsers((prev) =>
-        prev.map((u) =>
-          u.id === formModal.userId ? { ...u, ...savedUser } : u,
-        ),
-      );
-    } else {
-      fetchUsers();
-    }
+  const handleFormSuccess = () => {
+    fetchUsers();
   };
 
   // ───────────── ELIMINAR ─────────────
@@ -284,7 +304,7 @@ const Users = () => {
           <h1 className="text-2xl font-bold text-[#13529a]">Usuarios</h1>
 
           <p className="text-sm text-gray-500">
-            {users.length} usuarios registrados
+            {meta.total} usuarios registrados
           </p>
         </div>
 
@@ -305,7 +325,27 @@ const Users = () => {
             <Loader2 size={32} className="animate-spin text-[#13529a]" />
           </div>
         ) : (
-          <DataTable data={users} columns={columns} actions={actions} />
+          <DataTable
+            data={users}
+            columns={columns}
+            actions={actions}
+            serverSide
+            searchValue={search}
+            onSearchChange={(value) => {
+              setSearch(value);
+              setPage(1);
+            }}
+            currentPage={meta.page}
+            currentPageSize={meta.pageSize}
+            total={meta.total}
+            totalPages={meta.totalPages}
+            onPageChange={setPage}
+            onPageSizeChange={(nextPageSize) => {
+              setPageSize(nextPageSize);
+              setPage(1);
+            }}
+            itemLabel="usuarios"
+          />
         )}
       </div>
 

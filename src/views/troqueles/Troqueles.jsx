@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { toast } from "sonner";
 import troquelesService from "../../services/troqueles.service";
 import ConfirmDialog from "../../components/common/ConfirmDialog";
@@ -10,11 +10,23 @@ import { useAuthStore } from "../../store/authStore";
 import { Button } from "@/components/ui/button";
 import { Plus, Pencil, Trash2, Loader2, ScanEye, Download } from "lucide-react";
 
+const defaultMeta = {
+  page: 1,
+  pageSize: 10,
+  total: 0,
+  totalPages: 1,
+};
+
 const Troqueles = () => {
   const { user: currentUser } = useAuthStore();
 
   const [troqueles, setTroqueles] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(defaultMeta.pageSize);
+  const [meta, setMeta] = useState(defaultMeta);
 
   const [viewModal, setViewModal] = useState({
     isOpen: false,
@@ -31,23 +43,40 @@ const Troqueles = () => {
     loading: false,
   });
 
-  useEffect(() => {
-    fetchTroqueles();
-  }, []);
-
   // ───────────── CARGAR TROQUELES ─────────────
-  const fetchTroqueles = async () => {
+  const fetchTroqueles = useCallback(async () => {
     try {
       setLoading(true);
-      const response = await troquelesService.getAll();
+      const response = await troquelesService.getAll({
+        page,
+        pageSize,
+        search: debouncedSearch || undefined,
+      });
       const troquelesArray = response?.data || [];
       setTroqueles(troquelesArray);
+      setMeta(response?.meta || defaultMeta);
+
+      if (response?.meta?.page && response.meta.page !== page) {
+        setPage(response.meta.page);
+      }
     } catch {
       toast.error("Error al cargar los troqueles");
     } finally {
       setLoading(false);
     }
-  };
+  }, [debouncedSearch, page, pageSize]);
+
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      setDebouncedSearch(search.trim());
+    }, 350);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [search]);
+
+  useEffect(() => {
+    fetchTroqueles();
+  }, [fetchTroqueles]);
 
   // ───────────── MODALES ─────────────
   const handleOpenCreate = () =>
@@ -59,16 +88,8 @@ const Troqueles = () => {
   const handleCloseView = () =>
     setViewModal({ isOpen: false, troquelId: null });
 
-  const handleFormSuccess = (savedTroquel) => {
-    if (formModal.troquelId) {
-      setTroqueles((prev) =>
-        prev.map((t) =>
-          t.id === formModal.troquelId ? { ...t, ...savedTroquel } : t,
-        ),
-      );
-    } else {
-      fetchTroqueles();
-    }
+  const handleFormSuccess = () => {
+    fetchTroqueles();
   };
 
   // ───────────── ELIMINAR ─────────────
@@ -210,7 +231,7 @@ const Troqueles = () => {
         <div>
           <h1 className="text-2xl font-bold text-[#13529a]">Troqueles</h1>
           <p className="text-sm text-gray-500">
-            {troqueles.length} Troqueles registrados
+            {meta.total} Troqueles registrados
           </p>
         </div>
 
@@ -229,7 +250,27 @@ const Troqueles = () => {
             <Loader2 size={32} className="animate-spin text-[#13529a]" />
           </div>
         ) : (
-          <DataTable data={troqueles} columns={columns} actions={actions} />
+          <DataTable
+            data={troqueles}
+            columns={columns}
+            actions={actions}
+            serverSide
+            searchValue={search}
+            onSearchChange={(value) => {
+              setSearch(value);
+              setPage(1);
+            }}
+            currentPage={meta.page}
+            currentPageSize={meta.pageSize}
+            total={meta.total}
+            totalPages={meta.totalPages}
+            onPageChange={setPage}
+            onPageSizeChange={(nextPageSize) => {
+              setPageSize(nextPageSize);
+              setPage(1);
+            }}
+            itemLabel="troqueles"
+          />
         )}
       </div>
 

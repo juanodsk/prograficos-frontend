@@ -1,10 +1,8 @@
 import api from "./api";
 
 const paperTypesService = {
-  getAll: async (options = {}) => {
-    const { data } = await api.get("/paper_types", {
-      params: options.onlyActive ? { onlyActive: true } : undefined,
-    });
+  getAll: async (params = {}) => {
+    const { data } = await api.get("/paper_types", { params });
     return data;
   },
   getById: async (id) => {

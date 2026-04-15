@@ -11,6 +11,7 @@ import {
 
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import ServerPagination from "@/components/common/ServerPagination";
 
 import {
   ArrowUpDown,
@@ -20,16 +21,32 @@ import {
   Download,
 } from "lucide-react";
 
-const DataTable = ({ data = [], columns = [], actions }) => {
+const DataTable = ({
+  data = [],
+  columns = [],
+  actions,
+  serverSide = false,
+  searchValue = "",
+  onSearchChange,
+  currentPage = 1,
+  currentPageSize = 10,
+  total = 0,
+  totalPages = 1,
+  onPageChange,
+  onPageSizeChange,
+  itemLabel = "registros",
+}) => {
   const [search, setSearch] = useState("");
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
+  const [clientPage, setClientPage] = useState(1);
+  const [clientPageSize, setClientPageSize] = useState(10);
 
   const [sortKey, setSortKey] = useState("id");
   const [sortDirection, setSortDirection] = useState("asc");
 
   const filteredData = useMemo(() => {
     const arr = Array.isArray(data) ? data : [];
+
+    if (serverSide) return arr;
     if (!search) return arr;
 
     return arr.filter((row) =>
@@ -39,12 +56,12 @@ const DataTable = ({ data = [], columns = [], actions }) => {
         .toLowerCase()
         .includes(search.toLowerCase()),
     );
-  }, [data, search]);
+  }, [data, search, serverSide]);
 
   const sortedData = useMemo(() => {
     const arr = [...filteredData];
 
-    if (!sortKey) return arr;
+    if (serverSide || !sortKey) return arr;
 
     return arr.sort((a, b) => {
       const A = a[sortKey];
@@ -58,14 +75,16 @@ const DataTable = ({ data = [], columns = [], actions }) => {
 
       return 0;
     });
-  }, [filteredData, sortKey, sortDirection]);
+  }, [filteredData, sortKey, sortDirection, serverSide]);
 
-  const totalPages = Math.ceil(sortedData.length / pageSize);
+  const clientTotalPages = Math.ceil(sortedData.length / clientPageSize);
 
-  const paginatedData = sortedData.slice(
-    (page - 1) * pageSize,
-    page * pageSize,
-  );
+  const paginatedData = serverSide
+    ? sortedData
+    : sortedData.slice(
+        (clientPage - 1) * clientPageSize,
+        clientPage * clientPageSize,
+      );
 
   const handleSort = (key) => {
     if (sortKey === key) {
@@ -77,7 +96,11 @@ const DataTable = ({ data = [], columns = [], actions }) => {
   };
 
   const exportCSV = () => {
-    const arr = Array.isArray(data) ? data : [];
+    const arr = Array.isArray(serverSide ? paginatedData : data)
+      ? serverSide
+        ? paginatedData
+        : data
+      : [];
     const headers = columns.map((c) => c.label).join(",");
 
     const rows = arr.map((row) =>
@@ -107,10 +130,15 @@ const DataTable = ({ data = [], columns = [], actions }) => {
           <Input
             placeholder="Buscar..."
             className="pl-9"
-            value={search}
+            value={serverSide ? searchValue : search}
             onChange={(e) => {
+              if (serverSide) {
+                onSearchChange?.(e.target.value);
+                return;
+              }
+
               setSearch(e.target.value);
-              setPage(1);
+              setClientPage(1);
             }}
           />
         </div>
@@ -131,14 +159,18 @@ const DataTable = ({ data = [], columns = [], actions }) => {
             <TableRow>
               {columns.map((col) => (
                 <TableHead key={col.key}>
-                  <Button
-                    variant="ghost"
-                    className="p-0 font-semibold cursor-pointer"
-                    onClick={() => handleSort(col.key)}
-                  >
-                    {col.label}
-                    <ArrowUpDown size={14} className="ml-1" />
-                  </Button>
+                  {serverSide ? (
+                    <span className="font-semibold">{col.label}</span>
+                  ) : (
+                    <Button
+                      variant="ghost"
+                      className="p-0 font-semibold cursor-pointer"
+                      onClick={() => handleSort(col.key)}
+                    >
+                      {col.label}
+                      <ArrowUpDown size={14} className="ml-1" />
+                    </Button>
+                  )}
                 </TableHead>
               ))}
 
@@ -177,49 +209,31 @@ const DataTable = ({ data = [], columns = [], actions }) => {
         </Table>
       </div>
 
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <div className="flex items-center gap-2 text-sm">
-          Mostrar
-          <select
-            className="border rounded px-2 py-1"
-            value={pageSize}
-            onChange={(e) => {
-              setPageSize(Number(e.target.value));
-              setPage(1);
-            }}
-          >
-            <option value={10}>10</option>
-            <option value={25}>25</option>
-            <option value={50}>50</option>
-            <option value={100}>100</option>
-          </select>
-          registros
-        </div>
-
-        <div className="flex items-center gap-2">
-          <p className="text-sm text-gray-500">
-            Página {page} de {totalPages || 1}
-          </p>
-
-          <Button
-            variant="outline"
-            size="icon"
-            disabled={page === 1}
-            onClick={() => setPage(page - 1)}
-          >
-            <ChevronLeft size={16} />
-          </Button>
-
-          <Button
-            variant="outline"
-            size="icon"
-            disabled={page === totalPages}
-            onClick={() => setPage(page + 1)}
-          >
-            <ChevronRight size={16} />
-          </Button>
-        </div>
-      </div>
+      {serverSide ? (
+        <ServerPagination
+          page={currentPage}
+          pageSize={currentPageSize}
+          total={total}
+          totalPages={totalPages}
+          itemLabel={itemLabel}
+          onPageChange={onPageChange}
+          onPageSizeChange={onPageSizeChange}
+        />
+      ) : (
+        <ServerPagination
+          page={clientPage}
+          pageSize={clientPageSize}
+          total={sortedData.length}
+          totalPages={clientTotalPages || 1}
+          itemLabel={itemLabel}
+          onPageChange={setClientPage}
+          onPageSizeChange={(nextPageSize) => {
+            setClientPageSize(nextPageSize);
+            setClientPage(1);
+          }}
+          pageSizeOptions={[10, 25, 50, 100]}
+        />
+      )}
     </div>
   );
 };

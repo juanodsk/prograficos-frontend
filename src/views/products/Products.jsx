@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import productsService from "../../services/products.service";
 import { useAuthStore } from "../../store/authStore";
 
@@ -13,11 +13,23 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Plus, Pencil, Trash2, Loader2, ScanEye } from "lucide-react";
 
+const defaultMeta = {
+  page: 1,
+  pageSize: 10,
+  total: 0,
+  totalPages: 1,
+};
+
 const Products = () => {
   const { user: currentUser } = useAuthStore();
 
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(defaultMeta.pageSize);
+  const [meta, setMeta] = useState(defaultMeta);
 
   const [viewModal, setViewModal] = useState({
     isOpen: false,
@@ -36,25 +48,42 @@ const Products = () => {
     loading: false,
   });
 
-  useEffect(() => {
-    fetchProducts();
-  }, []);
-
   // ───────────── CARGAR PRODUCTOS ─────────────
-  const fetchProducts = async () => {
+  const fetchProducts = useCallback(async () => {
     try {
       setLoading(true);
 
-      const response = await productsService.getAll();
+      const response = await productsService.getAll({
+        page,
+        pageSize,
+        search: debouncedSearch || undefined,
+      });
       const productsArray = response?.data?.products || [];
 
       setProducts(productsArray);
+      setMeta(response?.meta || defaultMeta);
+
+      if (response?.meta?.page && response.meta.page !== page) {
+        setPage(response.meta.page);
+      }
     } catch {
       toast.error("Error al cargar los productos");
     } finally {
       setLoading(false);
     }
-  };
+  }, [debouncedSearch, page, pageSize]);
+
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      setDebouncedSearch(search.trim());
+    }, 350);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [search]);
+
+  useEffect(() => {
+    fetchProducts();
+  }, [fetchProducts]);
 
   // ───────────── MODALES ─────────────
   const handleOpenCreate = () =>
@@ -70,16 +99,8 @@ const Products = () => {
   const handleCloseView = () =>
     setViewModal({ isOpen: false, productId: null });
 
-  const handleFormSuccess = (savedProduct) => {
-    if (formModal.productId) {
-      setProducts((prev) =>
-        prev.map((p) =>
-          p.id === formModal.productId ? { ...p, ...savedProduct } : p,
-        ),
-      );
-    } else {
-      fetchProducts();
-    }
+  const handleFormSuccess = () => {
+    fetchProducts();
   };
 
   // ───────────── ELIMINAR ─────────────
@@ -207,7 +228,7 @@ const Products = () => {
         <div>
           <h1 className="text-2xl font-bold text-[#13529a]">Productos</h1>
           <p className="text-sm text-gray-500">
-            {products.length} Productos registrados
+            {meta.total} Productos registrados
           </p>
         </div>
 
@@ -227,7 +248,27 @@ const Products = () => {
             <Loader2 size={32} className="animate-spin text-[#13529a]" />
           </div>
         ) : (
-          <DataTable data={products} columns={columns} actions={actions} />
+          <DataTable
+            data={products}
+            columns={columns}
+            actions={actions}
+            serverSide
+            searchValue={search}
+            onSearchChange={(value) => {
+              setSearch(value);
+              setPage(1);
+            }}
+            currentPage={meta.page}
+            currentPageSize={meta.pageSize}
+            total={meta.total}
+            totalPages={meta.totalPages}
+            onPageChange={setPage}
+            onPageSizeChange={(nextPageSize) => {
+              setPageSize(nextPageSize);
+              setPage(1);
+            }}
+            itemLabel="productos"
+          />
         )}
       </div>
 
