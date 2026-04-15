@@ -51,6 +51,7 @@ const ServerPagination = ({
           <Button
             variant="outline"
             size="icon"
+            className="cursor-pointer"
             disabled={page <= 1}
             onClick={() => onPageChange(page - 1)}
           >
@@ -60,6 +61,7 @@ const ServerPagination = ({
           <Button
             variant="outline"
             size="icon"
+            className="cursor-pointer"
             disabled={page >= totalPages}
             onClick={() => onPageChange(page + 1)}
           >

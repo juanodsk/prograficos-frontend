@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { toast } from "sonner";
 
 import thirdService from "../../services/thirds.service";
@@ -16,9 +16,21 @@ import {
 import { Button } from "@/components/ui/button";
 import { Loader2, Plus, Pencil, Trash2, ScanEye } from "lucide-react";
 
+const defaultMeta = {
+  page: 1,
+  pageSize: 10,
+  total: 0,
+  totalPages: 1,
+};
+
 const Thirds = () => {
   const [thirds, setThirds] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(defaultMeta.pageSize);
+  const [meta, setMeta] = useState(defaultMeta);
 
   // Modal ver
   const [viewModal, setViewModal] = useState({
@@ -40,24 +52,41 @@ const Thirds = () => {
     thirdName: "",
   });
 
-  useEffect(() => {
-    fetchThirds();
-  }, []);
-
-  const fetchThirds = async () => {
+  const fetchThirds = useCallback(async () => {
     try {
       setLoading(true);
 
-      const response = await thirdService.getAll();
+      const response = await thirdService.getAll({
+        page,
+        pageSize,
+        search: debouncedSearch || undefined,
+      });
 
       setThirds(response?.data?.thirds || []);
+      setMeta(response?.meta || defaultMeta);
+
+      if (response?.meta?.page && response.meta.page !== page) {
+        setPage(response.meta.page);
+      }
     } catch (error) {
       console.error(error);
       toast.error("Error al cargar los terceros");
     } finally {
       setLoading(false);
     }
-  };
+  }, [debouncedSearch, page, pageSize]);
+
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      setDebouncedSearch(search.trim());
+    }, 350);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [search]);
+
+  useEffect(() => {
+    fetchThirds();
+  }, [fetchThirds]);
 
   // ───────────── MODALES ─────────────
 
@@ -71,16 +100,8 @@ const Thirds = () => {
 
   const handleCloseView = () => setViewModal({ isOpen: false, thirdId: null });
 
-  const handleFormSuccess = (savedThird) => {
-    if (formModal.thirdId) {
-      setThirds((prev) =>
-        prev.map((t) =>
-          t.id === formModal.thirdId ? { ...t, ...savedThird } : t,
-        ),
-      );
-    } else {
-      fetchThirds();
-    }
+  const handleFormSuccess = () => {
+    fetchThirds();
   };
 
   // ───────────── ELIMINAR ─────────────
@@ -228,7 +249,7 @@ const Thirds = () => {
           <h1 className="text-2xl font-bold text-[#13529a]">Terceros</h1>
 
           <p className="text-sm text-gray-500">
-            {thirds.length} terceros registrados
+            {meta.total} terceros registrados
           </p>
         </div>
 
@@ -248,7 +269,27 @@ const Thirds = () => {
             <Loader2 size={32} className="animate-spin text-[#13529a]" />
           </div>
         ) : (
-          <DataTable data={thirds} columns={columns} actions={actions} />
+          <DataTable
+            data={thirds}
+            columns={columns}
+            actions={actions}
+            serverSide
+            searchValue={search}
+            onSearchChange={(value) => {
+              setSearch(value);
+              setPage(1);
+            }}
+            currentPage={meta.page}
+            currentPageSize={meta.pageSize}
+            total={meta.total}
+            totalPages={meta.totalPages}
+            onPageChange={setPage}
+            onPageSizeChange={(nextPageSize) => {
+              setPageSize(nextPageSize);
+              setPage(1);
+            }}
+            itemLabel="terceros"
+          />
         )}
       </div>
 

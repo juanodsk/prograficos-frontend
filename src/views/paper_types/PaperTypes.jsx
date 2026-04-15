@@ -1,6 +1,5 @@
-import React from "react";
 import { useAuthStore } from "../../store/authStore";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import paperTypesService from "@/services/paper_types.service";
 
 //VIEWS
@@ -13,10 +12,22 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Plus, Pencil, Trash2, Loader2 } from "lucide-react";
 
+const defaultMeta = {
+  page: 1,
+  pageSize: 10,
+  total: 0,
+  totalPages: 1,
+};
+
 const PaperTypes = () => {
   const { user: currentUser } = useAuthStore();
   const [paperTypes, setPaperTypes] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(defaultMeta.pageSize);
+  const [meta, setMeta] = useState(defaultMeta);
 
   const [formModal, setFormModal] = useState({
     isOpen: false,
@@ -29,23 +40,41 @@ const PaperTypes = () => {
     loading: false,
   });
 
-  useEffect(() => {
-    fetchPaperTypes();
-  }, []);
-
   // ───────────── CARGAR TIPOS DE PAPEL ─────────────
-  const fetchPaperTypes = async () => {
+  const fetchPaperTypes = useCallback(async () => {
     try {
       setLoading(true);
-      const [paperTypesRes] = await Promise.all([paperTypesService.getAll()]);
+      const [paperTypesRes] = await Promise.all([
+        paperTypesService.getAll({
+          page,
+          pageSize,
+          search: debouncedSearch || undefined,
+        }),
+      ]);
       setPaperTypes(paperTypesRes?.data || []);
-      console.log(paperTypesRes);
+      setMeta(paperTypesRes?.meta || defaultMeta);
+
+      if (paperTypesRes?.meta?.page && paperTypesRes.meta.page !== page) {
+        setPage(paperTypesRes.meta.page);
+      }
     } catch {
       toast.error("Error al cargar los tipos de papel");
     } finally {
       setLoading(false);
     }
-  };
+  }, [debouncedSearch, page, pageSize]);
+
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      setDebouncedSearch(search.trim());
+    }, 350);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [search]);
+
+  useEffect(() => {
+    fetchPaperTypes();
+  }, [fetchPaperTypes]);
 
   // ───────────── MODALES ─────────────
   const handleOpenCreate = () =>
@@ -55,16 +84,8 @@ const PaperTypes = () => {
   const handleCloseForm = () =>
     setFormModal({ isOpen: false, paperTypeId: null });
 
-  const handleFormSuccess = (savedFormat) => {
-    if (formModal.paperTypeId) {
-      setPaperTypes((prev) =>
-        prev.map((pt) =>
-          pt.id === formModal.paperTypeId ? { ...pt, ...savedFormat } : pt,
-        ),
-      );
-    } else {
-      fetchPaperTypes();
-    }
+  const handleFormSuccess = () => {
+    fetchPaperTypes();
   };
 
   // ───────────── ELIMINAR ─────────────
@@ -190,7 +211,7 @@ const PaperTypes = () => {
         <div>
           <h1 className="text-2xl font-bold text-[#13529a]">Tipos de Papel</h1>
           <p className="text-sm text-gray-500">
-            {paperTypes.length} Tipos de papel registrados
+            {meta.total} Tipos de papel registrados
           </p>
         </div>
 
@@ -210,7 +231,27 @@ const PaperTypes = () => {
             <Loader2 size={32} className="animate-spin text-[#13529a]" />
           </div>
         ) : (
-          <DataTable data={paperTypes} columns={columns} actions={actions} />
+          <DataTable
+            data={paperTypes}
+            columns={columns}
+            actions={actions}
+            serverSide
+            searchValue={search}
+            onSearchChange={(value) => {
+              setSearch(value);
+              setPage(1);
+            }}
+            currentPage={meta.page}
+            currentPageSize={meta.pageSize}
+            total={meta.total}
+            totalPages={meta.totalPages}
+            onPageChange={setPage}
+            onPageSizeChange={(nextPageSize) => {
+              setPageSize(nextPageSize);
+              setPage(1);
+            }}
+            itemLabel="tipos de papel"
+          />
         )}
       </div>
 

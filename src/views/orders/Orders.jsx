@@ -10,11 +10,21 @@ import StatusBadge from "@/components/common/StatusBadge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
   CheckCircle,
   Eye,
+  LayoutGrid,
   Loader2,
   Pencil,
   Plus,
+  Rows3,
   Search,
   Trash2,
 } from "lucide-react";
@@ -53,6 +63,7 @@ const Orders = () => {
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [activeTab, setActiveTab] = useState("active");
+  const [viewMode, setViewMode] = useState("cards");
   const [pageByTab, setPageByTab] = useState({
     active: 1,
     finished: 1,
@@ -326,23 +337,50 @@ const Orders = () => {
               ))}
             </div>
 
-            <div className="relative max-w-md">
-              <Search
-                size={16}
-                className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
-              />
-              <Input
-                placeholder="Buscar por cliente, producto, ID o estado..."
-                className="pl-9"
-                value={search}
-                onChange={(event) => {
-                  setSearch(event.target.value);
-                  setPageByTab({
-                    active: 1,
-                    finished: 1,
-                  });
-                }}
-              />
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
+              <div className="inline-flex rounded-2xl border border-slate-200 bg-white p-1 shadow-sm">
+                <button
+                  type="button"
+                  onClick={() => setViewMode("cards")}
+                  className={`inline-flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium transition-colors cursor-pointer ${
+                    viewMode === "cards"
+                      ? "bg-[#13529a] text-white shadow-sm"
+                      : "text-slate-500 hover:text-slate-700"
+                  }`}
+                >
+                  <LayoutGrid size={16} />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setViewMode("table")}
+                  className={`inline-flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium transition-colors cursor-pointer ${
+                    viewMode === "table"
+                      ? "bg-[#13529a] text-white shadow-sm"
+                      : "text-slate-500 hover:text-slate-700"
+                  }`}
+                >
+                  <Rows3 size={16} />
+                </button>
+              </div>
+
+              <div className="relative max-w-md">
+                <Search
+                  size={16}
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+                />
+                <Input
+                  placeholder="Buscar por cliente, producto, ID o estado..."
+                  className="pl-9"
+                  value={search}
+                  onChange={(event) => {
+                    setSearch(event.target.value);
+                    setPageByTab({
+                      active: 1,
+                      finished: 1,
+                    });
+                  }}
+                />
+              </div>
             </div>
           </div>
         </div>
@@ -359,110 +397,211 @@ const Orders = () => {
           </div>
         ) : (
           <>
-            <div className="grid gap-4 p-4 lg:grid-cols-2">
-              {orders.map((order) => (
-                <article
-                  key={order.id}
-                  className="rounded-2xl border border-slate-200 bg-slate-50/60 p-5 transition-colors hover:border-[#13529a]/40 hover:bg-white"
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <p className="text-xs uppercase tracking-[0.2em] text-slate-400">
-                        Orden #{order.id}
-                      </p>
-                      <h2 className="mt-1 text-lg font-semibold text-slate-900">
-                        {order.product_customer?.name ||
-                          order.product_customer?.product?.name ||
-                          "Sin producto"}
-                      </h2>
-                      <p className="text-sm text-slate-500">
-                        {order.product_customer?.third?.name || "Sin cliente"}
-                      </p>
+            {viewMode === "cards" ? (
+              <div className="grid gap-4 p-4 lg:grid-cols-2">
+                {orders.map((order) => (
+                  <article
+                    key={order.id}
+                    className="rounded-2xl border border-slate-200 bg-slate-50/60 p-5 transition-colors hover:border-[#13529a]/40 hover:bg-white"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="text-xs uppercase tracking-[0.2em] text-slate-400">
+                          Orden #{order.id}
+                        </p>
+                        <h2 className="mt-1 text-lg font-semibold text-slate-900">
+                          {order.product_customer?.name ||
+                            order.product_customer?.product?.name ||
+                            "Sin producto"}
+                        </h2>
+                        <p className="text-sm text-slate-500">
+                          {order.product_customer?.third?.name || "Sin cliente"}
+                        </p>
+                      </div>
+                      <StatusBadge status={order.order_status} />
                     </div>
-                    <StatusBadge status={order.order_status} />
-                  </div>
 
-                  <div className="mt-5 grid gap-3 sm:grid-cols-2">
-                    <div className="rounded-xl bg-white p-3">
-                      <p className="text-xs uppercase tracking-wide text-slate-400">
-                        Creación
-                      </p>
-                      <p className="mt-1 font-semibold text-slate-900">
-                        {formatShortDate(order.date)}
-                      </p>
+                    <div className="mt-5 grid gap-3 sm:grid-cols-2">
+                      <div className="rounded-xl bg-white p-3">
+                        <p className="text-xs uppercase tracking-wide text-slate-400">
+                          Creación
+                        </p>
+                        <p className="mt-1 font-semibold text-slate-900">
+                          {formatShortDate(order.date)}
+                        </p>
+                      </div>
+                      <div className="rounded-xl bg-white p-3">
+                        <p className="text-xs uppercase tracking-wide text-slate-400">
+                          Entrega estimada
+                        </p>
+                        <p className="mt-1 font-semibold text-slate-900">
+                          {formatShortDate(order.date_delivery_estimated)}
+                        </p>
+                      </div>
+                      <div className="rounded-xl bg-white p-3">
+                        <p className="text-xs uppercase tracking-wide text-slate-400">
+                          Hojas
+                        </p>
+                        <p className="mt-1 font-semibold text-slate-900">
+                          {order.amount_sheets}
+                        </p>
+                      </div>
+                      <div className="rounded-xl bg-white p-3">
+                        <p className="text-xs uppercase tracking-wide text-slate-400">
+                          Unidades estimadas
+                        </p>
+                        <p className="mt-1 font-semibold text-slate-900">
+                          {order.total_estimated?.toLocaleString("es-CO")}{" "}
+                          unidades
+                        </p>
+                      </div>
                     </div>
-                    <div className="rounded-xl bg-white p-3">
-                      <p className="text-xs uppercase tracking-wide text-slate-400">
-                        Entrega estimada
-                      </p>
-                      <p className="mt-1 font-semibold text-slate-900">
-                        {formatShortDate(order.date_delivery_estimated)}
-                      </p>
-                    </div>
-                    <div className="rounded-xl bg-white p-3">
-                      <p className="text-xs uppercase tracking-wide text-slate-400">
-                        Hojas
-                      </p>
-                      <p className="mt-1 font-semibold text-slate-900">
-                        {order.amount_sheets}
-                      </p>
-                    </div>
-                    <div className="rounded-xl bg-white p-3">
-                      <p className="text-xs uppercase tracking-wide text-slate-400">
-                        Unidades estimadas
-                      </p>
-                      <p className="mt-1 font-semibold text-slate-900">
-                        {order.total_estimated?.toLocaleString("es-CO")} unidades
-                      </p>
-                    </div>
-                  </div>
 
-                  <div className="mt-5 flex flex-wrap justify-end gap-2">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => navigate(`/ordenes/${order.id}`)}
-                      className="cursor-pointer"
-                    >
-                      <Eye size={16} className="mr-2" />
-                      Ver detalle
-                    </Button>
-                    {canEdit && (
+                    <div className="mt-5 flex flex-wrap justify-end gap-2">
                       <Button
                         size="sm"
                         variant="outline"
-                        onClick={() => navigate(`/ordenes/${order.id}/editar`)}
+                        onClick={() => navigate(`/ordenes/${order.id}`)}
                         className="cursor-pointer"
                       >
-                        <Pencil size={16} className="mr-2" />
-                        Editar
+                        <Eye size={16} className="mr-2" />
+                        Ver detalle
                       </Button>
-                    )}
-                    {!isFinishedOrder(order) && (
-                      <Button
-                        size="sm"
-                        onClick={() => handleFinish(order.id)}
-                        className="bg-green-600 text-white hover:bg-green-700 cursor-pointer"
-                      >
-                        <CheckCircle size={16} className="mr-2" />
-                        Terminar
-                      </Button>
-                    )}
-                    {canDeleteOrder && (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => handleDeleteClick(order)}
-                        className="border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700 cursor-pointer"
-                      >
-                        <Trash2 size={16} className="mr-2" />
-                        Eliminar
-                      </Button>
-                    )}
-                  </div>
-                </article>
-              ))}
-            </div>
+                      {canEdit && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() =>
+                            navigate(`/ordenes/${order.id}/editar`)
+                          }
+                          className="cursor-pointer"
+                        >
+                          <Pencil size={16} className="mr-2" />
+                          Editar
+                        </Button>
+                      )}
+                      {!isFinishedOrder(order) && (
+                        <Button
+                          size="sm"
+                          onClick={() => handleFinish(order.id)}
+                          className="bg-green-600 text-white hover:bg-green-700 cursor-pointer"
+                        >
+                          <CheckCircle size={16} className="mr-2" />
+                          Terminar
+                        </Button>
+                      )}
+                      {canDeleteOrder && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleDeleteClick(order)}
+                          className="border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700 cursor-pointer"
+                        >
+                          <Trash2 size={16} className="mr-2" />
+                          Eliminar
+                        </Button>
+                      )}
+                    </div>
+                  </article>
+                ))}
+              </div>
+            ) : (
+              <div className="p-4">
+                <div className="overflow-hidden rounded-2xl border border-slate-200">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Orden</TableHead>
+                        <TableHead>Producto</TableHead>
+                        <TableHead>Cliente</TableHead>
+                        <TableHead>Creación</TableHead>
+                        <TableHead>Entrega</TableHead>
+                        <TableHead>Hojas</TableHead>
+                        <TableHead>Unidades</TableHead>
+                        <TableHead>Estado</TableHead>
+                        <TableHead className="text-right">Acciones</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {orders.map((order) => (
+                        <TableRow key={order.id}>
+                          <TableCell className="font-semibold text-slate-900">
+                            #{order.id}
+                          </TableCell>
+                          <TableCell>
+                            {order.product_customer?.name ||
+                              order.product_customer?.product?.name ||
+                              "Sin producto"}
+                          </TableCell>
+                          <TableCell>
+                            {order.product_customer?.third?.name ||
+                              "Sin cliente"}
+                          </TableCell>
+                          <TableCell>{formatShortDate(order.date)}</TableCell>
+                          <TableCell>
+                            {formatShortDate(order.date_delivery_estimated)}
+                          </TableCell>
+                          <TableCell>{order.amount_sheets}</TableCell>
+                          <TableCell>
+                            {order.total_estimated?.toLocaleString("es-CO")}
+                          </TableCell>
+                          <TableCell>
+                            <StatusBadge status={order.order_status} />
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex flex-wrap justify-end gap-2">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => navigate(`/ordenes/${order.id}`)}
+                                className="cursor-pointer"
+                              >
+                                <Eye size={16} className="mr-2" />
+                                Ver
+                              </Button>
+                              {canEdit && (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() =>
+                                    navigate(`/ordenes/${order.id}/editar`)
+                                  }
+                                  className="cursor-pointer"
+                                >
+                                  <Pencil size={16} className="mr-2" />
+                                  Editar
+                                </Button>
+                              )}
+                              {!isFinishedOrder(order) && (
+                                <Button
+                                  size="sm"
+                                  onClick={() => handleFinish(order.id)}
+                                  className="bg-green-600 text-white hover:bg-green-700 cursor-pointer"
+                                >
+                                  <CheckCircle size={16} className="mr-2" />
+                                  Terminar
+                                </Button>
+                              )}
+                              {canDeleteOrder && (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => handleDeleteClick(order)}
+                                  className="border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700 cursor-pointer"
+                                >
+                                  <Trash2 size={16} className="mr-2" />
+                                  Eliminar
+                                </Button>
+                              )}
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </div>
+            )}
 
             <ServerPagination
               page={meta.page}

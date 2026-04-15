@@ -73,8 +73,8 @@ const Landing = () => {
     {
       "@context": "https://schema.org",
       "@type": "Organization",
-      name: "Prograficos S.A.S.",
-      alternateName: "Prograficos",
+      name: "Prográficos S.A.S.",
+      alternateName: "Prográficos",
       description:
         "Empresa de soluciones gráficas y empaques en papel y cartón en Neiva, Huila.",
       logo: new URL("/logo_pr.png", window.location.origin).href,
@@ -92,7 +92,7 @@ const Landing = () => {
     {
       "@context": "https://schema.org",
       "@type": "WebSite",
-      name: "Prograficos S.A.S.",
+      name: "Prográficos S.A.S.",
       url: window.location.origin,
       inLanguage: "es-CO",
     },
@@ -101,9 +101,9 @@ const Landing = () => {
   return (
     <>
       <Seo
-        title="Prograficos S.A.S. | Cajas, empaques y soluciones gráficas"
-        description="Landing corporativa de Prograficos S.A.S. enfocada en cajas, empaques personalizados y soluciones gráficas en papel y cartón en Neiva, Huila."
-        keywords="Prograficos, Prograficos SAS, empaques personalizados, cajas en carton, cajas personalizadas, soluciones graficas, Neiva, Huila, empaques en papel"
+        title="Prográficos S.A.S. | Cajas, empaques y soluciones gráficas"
+        description="Landing corporativa de Prográficos S.A.S. enfocada en cajas, empaques personalizados y soluciones gráficas en papel y cartón en Neiva, Huila."
+        keywords="Prográficos, Prográficos SAS, empaques personalizados, cajas en carton, cajas personalizadas, soluciones graficas, Neiva, Huila, empaques en papel"
         structuredData={structuredData}
       />
 
@@ -118,7 +118,7 @@ const Landing = () => {
               <Link to="/" className="flex items-center gap-3">
                 <img
                   src="/logo_login.svg"
-                  alt="Prograficos"
+                  alt="Prográficos"
                   className="h-9 w-auto md:h-10"
                 />
               </Link>
@@ -162,7 +162,7 @@ const Landing = () => {
                 </h1>
 
                 <p className="mt-6 max-w-2xl text-lg leading-8 text-slate-700">
-                  En Prograficos S.A.S. desarrollamos soluciones gráficas y de
+                  En Prográficos S.A.S. desarrollamos soluciones gráficas y de
                   empaque para marcas que buscan presentación, personalización y
                   funcionalidad en sus productos.
                 </p>
@@ -203,11 +203,11 @@ const Landing = () => {
                   <div className="rounded-[1.7rem] border border-white/10 bg-[linear-gradient(145deg,_rgba(19,82,154,0.96),_rgba(9,28,52,0.98))] p-8">
                     <div className="flex items-center justify-between">
                       <span className="rounded-full border border-white/15 bg-white/10 px-3 py-1 text-xs uppercase tracking-[0.28em] text-white/75">
-                        Prograficos
+                        Prográficos
                       </span>
                       <img
                         src="/logo_pr.png"
-                        alt="Icono Prograficos"
+                        alt="Icono Prográficos"
                         className="h-14 w-14 rounded-2xl bg-white/10 p-2"
                       />
                     </div>
@@ -217,8 +217,8 @@ const Landing = () => {
                         Empaques y piezas gráficas
                       </p>
                       <h2 className="text-3xl font-semibold leading-tight">
-                        Una presencia digital clara para mostrar lo que hace tu
-                        empresa
+                        Presencia digital clara, para mostrar lo que tu empresa
+                        hace
                       </h2>
                       <p className="max-w-md text-sm leading-7 text-white/78">
                         Cajas, empaques y soluciones visuales pensadas para
@@ -265,7 +265,7 @@ const Landing = () => {
 
             <div className=" text-lg  text-slate-700">
               <p>
-                Prograficos S.A.S. proyecta una propuesta orientada a empaques
+                Prográficos S.A.S. proyecta una propuesta orientada a empaques
                 en papel y cartón, cajas personalizadas y piezas gráficas para
                 distintos usos comerciales.
               </p>
@@ -352,7 +352,7 @@ const Landing = () => {
                     Consulta de productos y referencias activas.
                   </p>
                   <p className="rounded-2xl bg-[#f5f9ef] px-4 py-3">
-                    Seguimiento mas claro de la gestion con Prograficos.
+                    Seguimiento mas claro de la gestion con Prográficos.
                   </p>
                   <p className="rounded-2xl bg-[#f5f9ef] px-4 py-3">
                     Un canal digital mas comodo para tus solicitudes.
@@ -409,7 +409,7 @@ const Landing = () => {
 
             <div className="flex flex-col gap-3 sm:flex-row">
               <a
-                href="mailto:prograficos@hotmail.com"
+                href="mailto:Prográficos@hotmail.com"
                 className="inline-flex items-center justify-center rounded-full border border-white/20 bg-white/10 px-6 py-3 font-semibold text-white transition hover:bg-white/16"
               >
                 Escribir por correo
@@ -428,29 +428,29 @@ const Landing = () => {
         <footer className="border-t border-slate-200/80 bg-white/60 px-6 py-8 text-center text-sm text-slate-600 lg:px-10">
           <div className="mb-4 flex items-center justify-center gap-3">
             <a
-              href="https://www.facebook.com/prograficosN"
-              aria-label="Facebook Prograficos"
+              href="https://www.facebook.com/PrográficosN"
+              aria-label="Facebook Prográficos"
               className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-slate-200 bg-white text-[#13529a] transition hover:border-[#13529a] hover:bg-[#13529a] hover:text-white"
             >
               <Facebook className="h-5 w-5" />
             </a>
             <a
-              href="https://www.instagram.com/prograficos_neiva/"
-              aria-label="Instagram Prograficos"
+              href="https://www.instagram.com/Prográficos_neiva/"
+              aria-label="Instagram Prográficos"
               className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-slate-200 bg-white text-[#13529a] transition hover:border-[#13529a] hover:bg-[#13529a] hover:text-white"
             >
               <Instagram className="h-5 w-5" />
             </a>
             <a
               href="https://wa.me/573152791153"
-              aria-label="WhatsApp Prograficos"
+              aria-label="WhatsApp Prográficos"
               className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-slate-200 bg-white text-[#13529a] transition hover:border-[#13529a] hover:bg-[#13529a] hover:text-white"
             >
               <MessageCircle className="h-5 w-5" />
             </a>
           </div>
           <p>
-            © {new Date().getFullYear()} Prograficos S.A.S. Todos los derechos
+            © {new Date().getFullYear()} Prográficos S.A.S. Todos los derechos
             reservados.
           </p>
         </footer>

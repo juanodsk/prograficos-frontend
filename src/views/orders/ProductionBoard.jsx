@@ -3,7 +3,20 @@ import { toast } from "sonner";
 import { Activity, Factory, RefreshCw, TimerReset } from "lucide-react";
 import ordersService from "@/services/orders.service";
 import { connectSocket } from "@/services/socket.service";
-import { Button } from "@/components/ui/button";
+import ServerPagination from "@/components/common/ServerPagination";
+
+const defaultMeta = {
+  page: 1,
+  pageSize: 10,
+  total: 0,
+  totalPages: 1,
+};
+
+const defaultSummary = {
+  totalOrders: 0,
+  activeOrders: 0,
+  activeProcesses: 0,
+};
 
 const formatDate = (value) =>
   value
@@ -152,22 +165,34 @@ const ProductionBoard = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [now, setNow] = useState(new Date());
   const [lastRefresh, setLastRefresh] = useState(null);
+  const [page, setPage] = useState(1);
+  const [meta, setMeta] = useState(defaultMeta);
+  const [summary, setSummary] = useState(defaultSummary);
 
   const loadOrders = useCallback(async (silent = false) => {
     try {
       if (silent) setRefreshing(true);
       else setLoading(true);
 
-      const response = await ordersService.getBoard();
+      const response = await ordersService.getBoard({
+        page,
+        pageSize: 10,
+      });
       setOrders(response?.data || []);
+      setMeta(response?.meta || defaultMeta);
+      setSummary(response?.summary || defaultSummary);
       setLastRefresh(new Date());
+
+      if (response?.meta?.page && response.meta.page !== page) {
+        setPage(response.meta.page);
+      }
     } catch {
       toast.error("No se pudo cargar el monitor de planta");
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, []);
+  }, [page]);
 
   useEffect(() => {
     loadOrders();
@@ -196,46 +221,15 @@ const ProductionBoard = () => {
     };
   }, [loadOrders]);
 
-  const boardOrders = useMemo(
-    () => orders.filter((order) => !isOrderFinished(order)),
-    [orders],
-  );
-
-  const activeOrders = useMemo(
-    () =>
-      boardOrders
-        .filter((order) => getBoardOrderStatus(order) === "EN_PROCESO")
-        .sort(
-          (a, b) =>
-            new Date(a.date_delivery_estimated) -
-            new Date(b.date_delivery_estimated),
-        ),
-    [boardOrders],
-  );
-
   const visibleOrders = useMemo(
     () =>
-      [...boardOrders].sort(
+      [...orders].sort(
         (a, b) =>
           new Date(a.date_delivery_estimated) -
           new Date(b.date_delivery_estimated),
       ),
-    [boardOrders],
+    [orders],
   );
-
-  const stats = useMemo(() => {
-    const details = boardOrders.flatMap(
-      (order) => order.detail_production_orders || [],
-    );
-
-    return {
-      totalOrders: boardOrders.length,
-      activeOrders: activeOrders.length,
-      activeProcesses: details.filter(
-        (detail) => detail.process_state === "EN_PROCESO",
-      ).length,
-    };
-  }, [boardOrders, activeOrders]);
 
   if (loading) {
     return (
@@ -299,7 +293,7 @@ const ProductionBoard = () => {
                     {card.label}
                   </p>
                   <p className="mt-3 text-[clamp(2rem,2vw,3.5rem)] font-black leading-none text-white">
-                    {stats[card.key]}
+                    {summary[card.key]}
                   </p>
                 </div>
 
@@ -323,7 +317,7 @@ const ProductionBoard = () => {
             </div>
 
             <div className="rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-slate-200">
-              {visibleOrders.length} abiertas
+              {meta.total} abiertas
             </div>
           </div>
 
@@ -471,6 +465,16 @@ const ProductionBoard = () => {
               })}
             </div>
           )}
+
+          <ServerPagination
+            page={meta.page}
+            pageSize={meta.pageSize}
+            total={meta.total}
+            totalPages={meta.totalPages}
+            itemLabel="órdenes"
+            onPageChange={setPage}
+            pageSizeOptions={[10]}
+          />
         </section>
       </div>
     </div>

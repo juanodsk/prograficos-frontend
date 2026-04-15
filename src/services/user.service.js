@@ -1,8 +1,8 @@
 import api from "./api";
 
 const userService = {
-  getUsers: async () => {
-    const { data } = await api.get("/users");
+  getUsers: async (params = {}) => {
+    const { data } = await api.get("/users", { params });
     return data;
   },
   createUser: async (userData) => {
