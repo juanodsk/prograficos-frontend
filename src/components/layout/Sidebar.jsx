@@ -150,7 +150,7 @@ const Sidebar = ({ mobileOpen = false, onCloseMobile }) => {
   const avatarUrl = resolveAvatarUrl(user);
 
   const [collapsed, setCollapsed] = useState(false);
-  const [openMenus, setOpenMenus] = useState({ Administración: true });
+  const [openMenus, setOpenMenus] = useState({});
 
   const handleLogout = async () => {
     try {
