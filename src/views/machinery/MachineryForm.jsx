@@ -230,10 +230,10 @@ export default function MachineryForm({
         onClick={handleClose}
       />
 
-      <div className="relative mx-auto w-full max-w-lg overflow-hidden rounded-2xl bg-white shadow-2xl animate-in">
+      <div className="relative mx-auto flex max-h-[92vh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl animate-in">
         <div className="h-1.5 w-full bg-[#13529a]" />
 
-        <div className="flex items-center justify-between border-b px-6 py-4">
+        <div className="flex items-center justify-between border-b px-4 py-4 sm:px-6">
           <div>
             <h2 className="text-base font-bold text-[#13529a]">
               {isEditing ? "Editar Maquinaria" : "Nueva Maquinaria"}
@@ -255,13 +255,13 @@ export default function MachineryForm({
           </button>
         </div>
 
-        <div className="px-6 py-5">
+        <div className="flex-1 overflow-y-auto px-4 py-4 sm:px-6 sm:py-5">
           {fetching ? (
             <div className="flex items-center justify-center py-10">
               <Loader2 size={28} className="animate-spin text-[#13529a]" />
             </div>
           ) : (
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form onSubmit={handleSubmit} className="space-y-5">
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div className="space-y-1">
                   <Label className="text-xs">Nombre</Label>
@@ -270,7 +270,7 @@ export default function MachineryForm({
                     placeholder="Ej: Heidelberg CD 74"
                     value={form.name}
                     onChange={handleChange}
-                    className="h-8 text-sm"
+                    className="h-9 text-sm"
                   />
                   {errors.name && (
                     <p className="text-xs text-red-500">{errors.name}</p>
@@ -286,7 +286,7 @@ export default function MachineryForm({
                     value={form.reference}
                     onChange={handleChange}
                     onBlur={validateReferenceOnBlur}
-                    className="h-8 text-sm"
+                    className="h-9 text-sm"
                   />
                   {checkingReference && (
                     <p className="text-xs text-gray-500">
@@ -318,7 +318,7 @@ export default function MachineryForm({
                       }
                     }}
                   >
-                    <SelectTrigger className="h-8 w-full cursor-pointer text-sm">
+                    <SelectTrigger className="h-9 w-full cursor-pointer text-sm">
                       <SelectValue placeholder="Selecciona un tipo">
                         {form.type ? getMachineryTypeLabel(form.type) : null}
                       </SelectValue>
@@ -341,7 +341,7 @@ export default function MachineryForm({
 
                 <div className="space-y-1">
                   <Label className="text-xs">Estado</Label>
-                  <div className="flex h-8 items-center gap-2">
+                  <div className="flex h-9 items-center gap-2">
                     <button
                       type="button"
                       onClick={() =>
@@ -367,13 +367,13 @@ export default function MachineryForm({
                 </div>
               </div>
 
-              <div className="flex gap-3 pt-2">
+              <div className="flex flex-col gap-3 border-t pt-4 sm:flex-row">
                 <Button
                   type="button"
                   variant="outline"
                   onClick={handleClose}
                   disabled={loading}
-                  className="h-8 flex-1 cursor-pointer text-sm"
+                  className="h-9 flex-1 cursor-pointer text-sm"
                 >
                   Cancelar
                 </Button>
@@ -381,7 +381,7 @@ export default function MachineryForm({
                 <Button
                   type="submit"
                   disabled={loading}
-                  className="h-8 flex-1 cursor-pointer bg-[#13529a] text-sm text-white hover:bg-[#0f3f7a]"
+                  className="h-9 flex-1 cursor-pointer bg-[#13529a] text-sm text-white hover:bg-[#0f3f7a]"
                 >
                   {loading ? (
                     <>

@@ -9,6 +9,7 @@ import usePersistedTableState from "../../hooks/usePersistedTableState";
 import ThirdForm from "../thirds/ThirdForm";
 import ThirdView from "./ThirdView";
 import {
+  THIRD_TYPE_OPTIONS,
   getDocumentTypeLabel,
   getPersonTypeLabel,
   getThirdTypeLabel,
@@ -30,7 +31,17 @@ const defaultTableState = {
   pageSize: defaultMeta.pageSize,
   sortKey: "name",
   sortDirection: "asc",
+  typePerson: "ALL",
 };
+
+const thirdTypeTabs = [{ value: "ALL", label: "Todos" }, ...THIRD_TYPE_OPTIONS];
+
+const getTabButtonClassName = (isActive) =>
+  `shrink-0 rounded-t-lg border border-b-0 px-4 py-2.5 text-sm font-semibold transition-colors ${
+    isActive
+      ? "bg-white text-[#13529a] shadow-sm"
+      : "border-transparent bg-transparent text-slate-500 hover:bg-white/60 hover:text-[#13529a]"
+  }`;
 
 const Thirds = () => {
   const [thirds, setThirds] = useState([]);
@@ -39,7 +50,8 @@ const Thirds = () => {
     "config-thirds",
     defaultTableState,
   );
-  const { search, page, pageSize, sortKey, sortDirection } = tableState;
+  const { search, page, pageSize, sortKey, sortDirection, typePerson } =
+    tableState;
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [meta, setMeta] = useState(defaultMeta);
 
@@ -73,6 +85,7 @@ const Thirds = () => {
         search: debouncedSearch || undefined,
         sortBy: sortKey,
         sortDirection,
+        typePerson: typePerson !== "ALL" ? typePerson : undefined,
       });
 
       setThirds(response?.data?.thirds || []);
@@ -87,7 +100,7 @@ const Thirds = () => {
     } finally {
       setLoading(false);
     }
-  }, [debouncedSearch, page, pageSize, sortDirection, sortKey]);
+  }, [debouncedSearch, page, pageSize, sortDirection, sortKey, typePerson]);
 
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {
@@ -275,8 +288,31 @@ const Thirds = () => {
         </Button>
       </div>
 
-      {/* Tabla */}
-      <div className="bg-white rounded-xl border shadow-sm p-4">
+      <div className="overflow-hidden rounded-2xl border bg-white shadow-sm">
+        <div className="border-b bg-slate-50/90 px-4 pt-4">
+          <div className="flex flex-nowrap gap-1 overflow-x-auto">
+            {thirdTypeTabs.map((option) => (
+              <button
+                key={option.value}
+                type="button"
+                onClick={() =>
+                  setTableState((prev) => ({
+                    ...prev,
+                    typePerson: option.value,
+                    page: 1,
+                  }))
+                }
+                className={`${getTabButtonClassName(
+                  typePerson === option.value,
+                )} cursor-pointer`}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="p-4">
         {loading ? (
           <div className="flex items-center justify-center py-16">
             <Loader2 size={32} className="animate-spin text-[#13529a]" />
@@ -318,6 +354,7 @@ const Thirds = () => {
             itemLabel="terceros"
           />
         )}
+        </div>
       </div>
 
       {/* Modal formulario */}

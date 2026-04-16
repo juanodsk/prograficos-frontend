@@ -92,17 +92,18 @@ export default function PaperTypesForm({
     try {
       setFetching(true);
       const [thirdsRes, paperTypeRes] = await Promise.all([
-        thirdsService.getAll({ onlyActive: true }),
+        thirdsService.getAll({
+          onlyActive: true,
+          typePerson: "PROVEEDOR",
+          pageSize: 1000,
+        }),
         isEditing
           ? paperTypesService.getById(paperTypeId)
           : Promise.resolve(null),
       ]);
 
       const thirds = thirdsRes?.data?.thirds || thirdsRes?.data || [];
-      const providerList = thirds.filter(
-        (third) => third.type_person === "PROVEEDOR",
-      );
-      setProviders(providerList);
+      setProviders(thirds);
 
       if (paperTypeRes?.data) {
         const paperType = paperTypeRes.data;
@@ -272,10 +273,10 @@ export default function PaperTypesForm({
         onClick={handleClose}
       />
 
-      <div className="relative mx-auto max-h-[90vh] w-full max-w-4xl overflow-hidden rounded-2xl bg-white shadow-2xl animate-in">
+      <div className="relative mx-auto flex max-h-[92vh] w-full max-w-5xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl animate-in">
         <div className="h-1.5 w-full bg-[#13529a]" />
 
-        <div className="flex items-center justify-between border-b px-6 py-4">
+        <div className="flex items-center justify-between border-b px-4 py-4 sm:px-6">
           <div>
             <h2 className="text-base font-bold text-[#13529a]">
               {isEditing ? "Editar Tipo de Papel" : "Nuevo Tipo de Papel"}
@@ -295,7 +296,7 @@ export default function PaperTypesForm({
           </button>
         </div>
 
-        <div className="max-h-[calc(90vh-74px)] overflow-y-auto px-6 py-5">
+        <div className="flex-1 overflow-y-auto px-4 py-4 sm:px-6 sm:py-5">
           {fetching ? (
             <div className="flex items-center justify-center py-10">
               <Loader2 size={28} className="animate-spin text-[#13529a]" />
@@ -557,7 +558,7 @@ export default function PaperTypesForm({
                 )}
               </section>
 
-              <div className="flex gap-3 pt-1">
+              <div className="flex flex-col gap-3 border-t pt-4 sm:flex-row">
                 <Button
                   type="button"
                   variant="outline"

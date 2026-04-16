@@ -1,4 +1,3 @@
-// src/components/common/UserFormModal.jsx
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import userService from "../../services/user.service";
@@ -22,15 +21,6 @@ const roles = [
   { value: "USER", label: "Usuario" },
 ];
 
-/**
- * UserFormModal
- *
- * Props:
- *  - isOpen     {boolean}        Controla visibilidad
- *  - onClose    {function}       Cierra el modal
- *  - onSuccess  {function(user)} Se llama tras crear/editar exitosamente
- *  - userId     {number|null}    Si tiene valor → modo edición
- */
 export default function UserForm({ isOpen, onClose, onSuccess, userId }) {
   const { user: currentUser, updateUser: updateAuthUser } = useAuthStore();
   const isEditing = !!userId;
@@ -48,7 +38,6 @@ export default function UserForm({ isOpen, onClose, onSuccess, userId }) {
     is_active: true,
   });
 
-  // Cargar datos cuando es edición
   useEffect(() => {
     if (isOpen && isEditing) {
       fetchUser();
@@ -116,8 +105,6 @@ export default function UserForm({ isOpen, onClose, onSuccess, userId }) {
       const payload = { ...form };
       if (isEditing && !payload.password) delete payload.password;
 
-      // Si no es ADMIN ni SUPERVISOR, no enviar role
-      // Si es edición y no tiene permisos para cambiar rol, no enviarlo
       if (currentUser?.role !== "ADMIN" && currentUser?.role !== "SUPERVISOR") {
         delete payload.role;
       }
@@ -160,27 +147,22 @@ export default function UserForm({ isOpen, onClose, onSuccess, userId }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      {/* Backdrop */}
       <div
-        className="absolute inset-0 bg-black/50 backdrop-blur-sm cursor-pointer"
+        className="absolute inset-0 cursor-pointer bg-black/50 backdrop-blur-sm"
         onClick={handleClose}
       />
 
-      {/* Panel */}
-      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg mx-auto overflow-hidden animate-in">
-        {/* Franja top */}
+      <div className="relative mx-auto flex max-h-[92vh] w-full max-w-5xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl animate-in">
         <div className="h-1.5 w-full bg-[#13529a]" />
 
-        {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b">
+        <div className="flex items-center justify-between border-b px-4 py-4 sm:px-6">
           <div className="flex items-center gap-3">
-            {/* Avatar preview */}
-            <div className="w-10 h-10 rounded-full overflow-hidden bg-[#13529a]/10 flex items-center justify-center text-base font-bold text-[#13529a] shrink-0">
+            <div className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full bg-[#13529a]/10 text-[#13529a]">
               {form.avatar ? (
                 <img
                   src={form.avatar}
                   alt="avatar"
-                  className="w-full h-full object-cover"
+                  className="h-full w-full object-cover"
                   onError={(e) => {
                     e.target.style.display = "none";
                   }}
@@ -203,168 +185,196 @@ export default function UserForm({ isOpen, onClose, onSuccess, userId }) {
           <button
             onClick={handleClose}
             disabled={loading}
-            className="text-gray-400 hover:text-gray-600 transition-colors disabled:opacity-50"
+            className="text-gray-400 transition-colors hover:text-gray-600 disabled:opacity-50"
           >
             <X size={20} className="cursor-pointer" />
           </button>
         </div>
 
-        {/* Body */}
-        <div className="px-6 py-5">
+        <div className="flex-1 overflow-y-auto px-4 py-4 sm:px-6 sm:py-5">
           {fetching ? (
             <div className="flex items-center justify-center py-10">
               <Loader2 size={28} className="animate-spin text-[#13529a]" />
             </div>
           ) : (
-            <form onSubmit={handleSubmit} className="space-y-4">
-              {/* Nombre y Apellido */}
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <div className="space-y-1">
-                  <Label className="text-xs">Nombre</Label>
-                  <Input
-                    name="name"
-                    placeholder="Juan"
-                    value={form.name}
-                    onChange={handleChange}
-                    className="h-8 text-sm"
-                  />
-                  {errors.name && (
-                    <p className="text-xs text-red-500">{errors.name}</p>
-                  )}
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-xs">Apellido</Label>
-                  <Input
-                    name="surename"
-                    placeholder="Pérez"
-                    value={form.surename}
-                    onChange={handleChange}
-                    className="h-8 text-sm"
-                  />
-                  {errors.surename && (
-                    <p className="text-xs text-red-500">{errors.surename}</p>
-                  )}
+            <form onSubmit={handleSubmit} className="space-y-5">
+              <div className="grid gap-5 xl:grid-cols-[260px_minmax(0,1fr)]">
+                <aside className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                  <div className="flex flex-col items-center text-center">
+                    <div className="flex h-20 w-20 items-center justify-center overflow-hidden rounded-full bg-[#13529a]/10 text-[#13529a]">
+                      {form.avatar ? (
+                        <img
+                          src={form.avatar}
+                          alt="avatar"
+                          className="h-full w-full object-cover"
+                          onError={(e) => {
+                            e.target.style.display = "none";
+                          }}
+                        />
+                      ) : (
+                        <User size={28} />
+                      )}
+                    </div>
+                    <h3 className="mt-4 text-base font-semibold text-slate-900">
+                      {form.name || "Nuevo"} {form.surename || "usuario"}
+                    </h3>
+                    <p className="mt-1 text-sm text-slate-500">
+                      {form.email || "Sin correo"}
+                    </p>
+                  </div>
+
+                  <div className="mt-5 space-y-4 border-t border-slate-200 pt-4">
+                    <div className="space-y-1">
+                      <Label className="text-xs">Rol</Label>
+                      <Select
+                        value={form.role}
+                        onValueChange={(value) =>
+                          setForm((prev) => ({ ...prev, role: value }))
+                        }
+                        disabled={
+                          currentUser?.role !== "ADMIN" &&
+                          currentUser?.role !== "SUPERVISOR"
+                        }
+                      >
+                        <SelectTrigger className="h-9 text-sm">
+                          <SelectValue placeholder="Seleccionar rol" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {roles
+                            .filter((r) => r.value !== "ADMIN")
+                            .map((r) => (
+                              <SelectItem key={r.value} value={r.value}>
+                                {r.label}
+                              </SelectItem>
+                            ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-1">
+                      <Label className="text-xs">Estado</Label>
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setForm((prev) => ({
+                              ...prev,
+                              is_active: !prev.is_active,
+                            }))
+                          }
+                          className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-200 focus:outline-none cursor-pointer ${
+                            form.is_active ? "bg-[#13529a]" : "bg-gray-300"
+                          }`}
+                        >
+                          <span
+                            className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform duration-200 ${
+                              form.is_active ? "translate-x-6" : "translate-x-1"
+                            }`}
+                          />
+                        </button>
+                        <span className="text-sm text-gray-700">
+                          {form.is_active ? "Activo" : "Inactivo"}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </aside>
+
+                <div className="space-y-5">
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div className="space-y-1">
+                      <Label className="text-xs">Nombre</Label>
+                      <Input
+                        name="name"
+                        placeholder="Juan"
+                        value={form.name}
+                        onChange={handleChange}
+                        className="h-9 text-sm"
+                      />
+                      {errors.name && (
+                        <p className="text-xs text-red-500">{errors.name}</p>
+                      )}
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">Apellido</Label>
+                      <Input
+                        name="surename"
+                        placeholder="Pérez"
+                        value={form.surename}
+                        onChange={handleChange}
+                        className="h-9 text-sm"
+                      />
+                      {errors.surename && (
+                        <p className="text-xs text-red-500">{errors.surename}</p>
+                      )}
+                    </div>
+
+                    <div className="space-y-1">
+                      <Label className="text-xs">Email</Label>
+                      <Input
+                        name="email"
+                        type="email"
+                        placeholder="correo@ejemplo.com"
+                        value={form.email}
+                        onChange={handleChange}
+                        className="h-9 text-sm"
+                      />
+                      {errors.email && (
+                        <p className="text-xs text-red-500">{errors.email}</p>
+                      )}
+                    </div>
+
+                    <div className="space-y-1">
+                      <Label className="text-xs">
+                        {isEditing
+                          ? "Nueva Contraseña (vacío = no cambiar)"
+                          : "Contraseña"}
+                      </Label>
+                      <Input
+                        name="password"
+                        type="password"
+                        placeholder="••••••••"
+                        value={form.password}
+                        onChange={handleChange}
+                        className="h-9 text-sm"
+                      />
+                      {errors.password && (
+                        <p className="text-xs text-red-500">
+                          {errors.password}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div className="space-y-1 md:col-span-2">
+                      <Label className="text-xs">URL Avatar (opcional)</Label>
+                      <Input
+                        name="avatar"
+                        placeholder="https://..."
+                        value={form.avatar}
+                        onChange={handleChange}
+                        className="h-9 text-sm"
+                      />
+                    </div>
+                  </div>
                 </div>
               </div>
 
-              {/* Email y Password */}
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <div className="space-y-1">
-                  <Label className="text-xs">Email</Label>
-                  <Input
-                    name="email"
-                    type="email"
-                    placeholder="correo@ejemplo.com"
-                    value={form.email}
-                    onChange={handleChange}
-                    className="h-8 text-sm"
-                  />
-                  {errors.email && (
-                    <p className="text-xs text-red-500">{errors.email}</p>
-                  )}
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-xs">
-                    {isEditing
-                      ? "Nueva Contraseña (vacío = no cambiar)"
-                      : "Contraseña"}
-                  </Label>
-                  <Input
-                    name="password"
-                    type="password"
-                    placeholder="••••••••"
-                    value={form.password}
-                    onChange={handleChange}
-                    className="h-8 text-sm"
-                  />
-                  {errors.password && (
-                    <p className="text-xs text-red-500">{errors.password}</p>
-                  )}
-                </div>
-              </div>
-
-              {/* Rol y Avatar */}
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <div className="space-y-1">
-                  <Label className="text-xs">Rol</Label>
-                  <Select
-                    value={form.role}
-                    onValueChange={(value) =>
-                      setForm((prev) => ({ ...prev, role: value }))
-                    }
-                    disabled={
-                      currentUser?.role !== "ADMIN" &&
-                      currentUser?.role !== "SUPERVISOR"
-                    }
-                  >
-                    <SelectTrigger className="h-8 text-sm">
-                      <SelectValue placeholder="Seleccionar rol" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {roles
-                        .filter((r) => r.value !== "ADMIN")
-                        .map((r) => (
-                          <SelectItem key={r.value} value={r.value}>
-                            {r.label}
-                          </SelectItem>
-                        ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-xs">URL Avatar (opcional)</Label>
-                  <Input
-                    name="avatar"
-                    placeholder="https://..."
-                    value={form.avatar}
-                    onChange={handleChange}
-                    className="h-8 text-sm"
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-1">
-                <Label className="text-xs">Estado</Label>
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setForm((prev) => ({
-                        ...prev,
-                        is_active: !prev.is_active,
-                      }))
-                    }
-                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-200 focus:outline-none cursor-pointer ${
-                      form.is_active ? "bg-[#13529a]" : "bg-gray-300"
-                    }`}
-                  >
-                    <span
-                      className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform duration-200 ${
-                        form.is_active ? "translate-x-6" : "translate-x-1"
-                      }`}
-                    />
-                  </button>
-                  <span className="text-sm text-gray-700">
-                    {form.is_active ? "Activo" : "Inactivo"}
-                  </span>
-                </div>
-              </div>
-
-              {/* Botones */}
-              <div className="flex gap-3 pt-2">
+              <div className="flex flex-col gap-3 border-t pt-4 sm:flex-row">
                 <Button
                   type="button"
                   variant="outline"
                   onClick={handleClose}
                   disabled={loading}
-                  className="flex-1 h-8 text-sm cursor-pointer"
+                  className="h-9 flex-1 cursor-pointer text-sm"
                 >
                   Cancelar
                 </Button>
                 <Button
                   type="submit"
                   disabled={loading}
-                  className="flex-1 h-8 text-sm bg-[#13529a] hover:bg-[#0f3f7a] text-white cursor-pointer"
+                  className="h-9 flex-1 cursor-pointer bg-[#13529a] text-sm text-white hover:bg-[#0f3f7a]"
                 >
                   {loading ? (
                     <>
