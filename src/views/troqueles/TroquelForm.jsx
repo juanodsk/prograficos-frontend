@@ -21,6 +21,12 @@ import {
 } from "@/components/ui/popover";
 import { es } from "date-fns/locale";
 
+const sizeLabels = {
+  SMALL: "Pequeño",
+  MEDIUM: "Mediano",
+  LARGE: "Grande",
+};
+
 export default function TroquelFormModal({
   isOpen,
   onClose,
@@ -230,12 +236,14 @@ export default function TroquelFormModal({
                   }
                 >
                   <SelectTrigger className="h-8 text-sm w-full">
-                    <SelectValue placeholder="Selecciona tamaño" />
+                    <SelectValue placeholder="Selecciona tamaño">
+                      {sizeLabels[form.size] || form.size}
+                    </SelectValue>
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="SMALL">Small</SelectItem>
-                    <SelectItem value="MEDIUM">Medium</SelectItem>
-                    <SelectItem value="LARGE">Large</SelectItem>
+                    <SelectItem value="SMALL">Pequeño</SelectItem>
+                    <SelectItem value="MEDIUM">Mediano</SelectItem>
+                    <SelectItem value="LARGE">Grande</SelectItem>
                   </SelectContent>
                 </Select>
                 {errors.size && (

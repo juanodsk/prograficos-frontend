@@ -16,7 +16,6 @@ import Troqueles from "../views/troqueles/Troqueles";
 import Measures from "../views/measures/Measures";
 import Formats from "../views/formats/Formats";
 import PaperTypes from "../views/paper_types/PaperTypes";
-import ProductCustomers from "../views/product_customers/ProductCustomers";
 import Processes from "../views/processes/Processes";
 import Machinery from "../views/machinery/Machinery";
 
@@ -91,7 +90,7 @@ const router = createBrowserRouter([
       },
       {
         path: "/configuracion/productos_clientes",
-        element: <ProductCustomers />,
+        element: <Navigate to="/configuracion/productos" replace />,
       },
       {
         path: "/configuracion/procesos",

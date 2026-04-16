@@ -191,7 +191,12 @@ const Machinery = () => {
             </div>
           </div>
         ) : (
-          <DataTable data={machinery} columns={columns} actions={actions} />
+          <DataTable
+            data={machinery}
+            columns={columns}
+            actions={actions}
+            storageKey="config-machinery"
+          />
         )}
       </div>
 

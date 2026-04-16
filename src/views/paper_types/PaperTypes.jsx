@@ -11,6 +11,7 @@ import ConfirmDialog from "../../components/common/ConfirmDialog";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Plus, Pencil, Trash2, Loader2 } from "lucide-react";
+import usePersistedTableState from "../../hooks/usePersistedTableState";
 
 const defaultMeta = {
   page: 1,
@@ -19,14 +20,24 @@ const defaultMeta = {
   totalPages: 1,
 };
 
+const defaultTableState = {
+  search: "",
+  page: 1,
+  pageSize: defaultMeta.pageSize,
+  sortKey: "name",
+  sortDirection: "asc",
+};
+
 const PaperTypes = () => {
   const { user: currentUser } = useAuthStore();
   const [paperTypes, setPaperTypes] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState("");
+  const [tableState, setTableState] = usePersistedTableState(
+    "config-paper-types",
+    defaultTableState,
+  );
+  const { search, page, pageSize, sortKey, sortDirection } = tableState;
   const [debouncedSearch, setDebouncedSearch] = useState("");
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(defaultMeta.pageSize);
   const [meta, setMeta] = useState(defaultMeta);
 
   const [formModal, setFormModal] = useState({
@@ -49,20 +60,22 @@ const PaperTypes = () => {
           page,
           pageSize,
           search: debouncedSearch || undefined,
+          sortBy: sortKey,
+          sortDirection,
         }),
       ]);
       setPaperTypes(paperTypesRes?.data || []);
       setMeta(paperTypesRes?.meta || defaultMeta);
 
       if (paperTypesRes?.meta?.page && paperTypesRes.meta.page !== page) {
-        setPage(paperTypesRes.meta.page);
+        setTableState((prev) => ({ ...prev, page: paperTypesRes.meta.page }));
       }
     } catch {
       toast.error("Error al cargar los tipos de papel");
     } finally {
       setLoading(false);
     }
-  }, [debouncedSearch, page, pageSize]);
+  }, [debouncedSearch, page, pageSize, sortDirection, sortKey]);
 
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {
@@ -141,6 +154,7 @@ const PaperTypes = () => {
     {
       key: "suppliers",
       label: "Proveedores",
+      sortable: false,
       render: (row) =>
         row.suppliers?.length
           ? `${row.suppliers.length} asociado(s)`
@@ -238,17 +252,31 @@ const PaperTypes = () => {
             serverSide
             searchValue={search}
             onSearchChange={(value) => {
-              setSearch(value);
-              setPage(1);
+              setTableState((prev) => ({ ...prev, search: value, page: 1 }));
             }}
             currentPage={meta.page}
             currentPageSize={meta.pageSize}
             total={meta.total}
             totalPages={meta.totalPages}
-            onPageChange={setPage}
+            onPageChange={(nextPage) =>
+              setTableState((prev) => ({ ...prev, page: nextPage }))
+            }
             onPageSizeChange={(nextPageSize) => {
-              setPageSize(nextPageSize);
-              setPage(1);
+              setTableState((prev) => ({
+                ...prev,
+                pageSize: nextPageSize,
+                page: 1,
+              }));
+            }}
+            sortKey={sortKey}
+            sortDirection={sortDirection}
+            onSortChange={(nextSortKey, nextSortDirection) => {
+              setTableState((prev) => ({
+                ...prev,
+                sortKey: nextSortKey,
+                sortDirection: nextSortDirection,
+                page: 1,
+              }));
             }}
             itemLabel="tipos de papel"
           />

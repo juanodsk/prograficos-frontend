@@ -1,23 +1,15 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
-import { format } from "date-fns";
-import { es } from "date-fns/locale";
 import ordersService from "@/services/orders.service";
+import thirdsService from "@/services/thirds.service";
 import measuresService from "@/services/measures.service";
 import paperTypesService from "@/services/paper_types.service";
-import troquelesService from "@/services/troqueles.service";
-import productCustomerService from "@/services/product_customer.service";
+import productsService from "@/services/products.service";
 import processesService from "@/services/processes.service";
 import { Button } from "@/components/ui/button";
-import { Calendar } from "@/components/ui/calendar";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
 import {
   Select,
   SelectContent,
@@ -28,18 +20,20 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
-import { ArrowLeft, ChevronDown, Loader2, Save } from "lucide-react";
+import { ArrowLeft, Loader2, Save } from "lucide-react";
+
+const formatFormatLabel = (format) => {
+  if (!format) return "Formato sin definir";
+  return format.name || "Formato sin definir";
+};
 
 const formatMeasureLabel = (measure) => {
   if (!measure) return "Medida sin definir";
-  const formatName = measure.format?.name || measure.format_name;
   const size =
     measure.width && measure.height
       ? `${measure.width} x ${measure.height}`
-      : null;
-  if (formatName && size) return `${formatName} · ${size}`;
-  if (formatName && measure.name) return `${formatName} · ${measure.name}`;
-  return formatName || size || measure.name || "Medida sin definir";
+      : measure.name || "Medida sin definir";
+  return size;
 };
 
 const formatPaperTypeLabel = (paperType) => {
@@ -48,32 +42,67 @@ const formatPaperTypeLabel = (paperType) => {
   return paperType.grammage ? `${name} - ${paperType.grammage} gr` : name;
 };
 
+const formatThirdLabel = (third) => {
+  if (!third) return "Cliente sin definir";
+  return third.company_name || third.name || "Cliente sin definir";
+};
+
 const formatTroquelLabel = (troquel) => {
   if (!troquel) return "Troquel sin definir";
   return troquel.code || troquel.name || "Troquel sin código";
 };
 
-const formatProductCustomerLabel = (productCustomer) => {
-  if (!productCustomer) return "Producto del cliente sin definir";
-  const customerName =
-    productCustomer.third?.name ||
-    productCustomer.third_name ||
-    productCustomer.client_name;
-  const productName =
-    productCustomer.name ||
-    productCustomer.product?.name ||
-    productCustomer.product_name;
+const formatProductLabel = (product) => {
+  if (!product) return "Producto sin definir";
+  if (product.name) return product.name;
+  const thirdName =
+    product.third?.company_name ||
+    product.third?.name ||
+    product.third_name ||
+    product.client_name;
+  const troquelName =
+    product.troquel?.code ||
+    product.troquel_code ||
+    product.troquel?.file_name ||
+    product.troquel_name;
 
-  if (customerName && productName) return `${customerName} · ${productName}`;
-  if (productName) return productName;
-  if (customerName) return customerName;
-  return "Producto del cliente sin definir";
+  if (thirdName && troquelName) return `${thirdName} · ${troquelName}`;
+  if (troquelName) return troquelName;
+  if (thirdName) return thirdName;
+  return "Producto sin definir";
 };
 
-const toDateInputValue = (value) => {
-  if (!value) return "";
-  if (typeof value === "string") return value.slice(0, 10);
-  return format(value, "yyyy-MM-dd");
+const parseSheetDivisionsFromFormatName = (value) => {
+  const normalizedValue = value?.trim();
+  if (!normalizedValue) return null;
+
+  const fractionMatch = normalizedValue.match(/1\s*\/\s*(\d+)/i);
+  if (!fractionMatch) return null;
+
+  const parsedDivisions = Number(fractionMatch[1]);
+  return Number.isFinite(parsedDivisions) && parsedDivisions > 0
+    ? parsedDivisions
+    : null;
+};
+
+const resolveSheetDivisions = (format) => {
+  const configuredDivisions = Number(format?.sheet_divisions);
+
+  if (Number.isInteger(configuredDivisions) && configuredDivisions > 0) {
+    return configuredDivisions;
+  }
+
+  return parseSheetDivisionsFromFormatName(format?.name) || 1;
+};
+
+const normalizePositiveInteger = (value) => {
+  const normalizedValue = Number(value);
+
+  if (!Number.isFinite(normalizedValue) || normalizedValue <= 0) {
+    return null;
+  }
+
+  return Math.ceil(normalizedValue);
 };
 
 const OrderForm = () => {
@@ -83,24 +112,27 @@ const OrderForm = () => {
 
   const [loading, setLoading] = useState(false);
   const [fetching, setFetching] = useState(true);
-  const [calendarOpen, setCalendarOpen] = useState(false);
   const [errors, setErrors] = useState({});
   const [isOrderLocked, setIsOrderLocked] = useState(false);
   const [catalogs, setCatalogs] = useState({
+    formats: [],
     measures: [],
+    thirds: [],
     paperTypes: [],
-    troqueles: [],
-    productCustomers: [],
+    products: [],
     processes: [],
   });
   const [form, setForm] = useState({
-    date_delivery_estimated: "",
+    calculation_mode: "TOTAL_REQUIRED",
     amount_sheets: "",
+    cavities: "1",
     total_estimated: "",
+    format_id: "",
     measure_id: "",
+    third_id: "",
     paper_type_id: "",
     troquel_id: "",
-    product_customer_id: "",
+    product_id: "",
     processes: [],
   });
 
@@ -113,25 +145,43 @@ const OrderForm = () => {
       setFetching(true);
       const [
         measuresRes,
+        thirdsRes,
         paperTypesRes,
-        troquelesRes,
-        productCustomersRes,
+        productsRes,
         processesRes,
         orderRes,
       ] = await Promise.all([
         measuresService.getAll({ onlyActive: true }),
+        thirdsService.getAll({ onlyActive: true, pageSize: 1000 }),
         paperTypesService.getAll({ onlyActive: true }),
-        troquelesService.getAll({ onlyActive: true }),
-        productCustomerService.getAll({ onlyActive: true }),
+        productsService.getAll({ onlyActive: true, pageSize: 1000 }),
         processesService.getAll({ onlyActive: true }),
         isEditing ? ordersService.getById(id) : Promise.resolve(null),
       ]);
 
+      const measures = measuresRes?.data || [];
+      const formats = Array.from(
+        new Map(
+          measures
+            .filter((measure) => measure.format?.id)
+            .map((measure) => [measure.format.id, measure.format]),
+        ).values(),
+      ).sort((a, b) =>
+        formatFormatLabel(a).localeCompare(formatFormatLabel(b), "es", {
+          sensitivity: "base",
+        }),
+      );
+
+      const thirds = (thirdsRes?.data?.thirds || []).filter(
+        (third) => third.type_person === "CLIENTE",
+      );
+
       setCatalogs({
-        measures: measuresRes?.data || [],
+        formats,
+        measures,
+        thirds,
         paperTypes: paperTypesRes?.data || [],
-        troqueles: troquelesRes?.data || [],
-        productCustomers: productCustomersRes?.data || [],
+        products: productsRes?.data?.products || [],
         processes: (processesRes?.data || []).sort((a, b) => a.order - b.order),
       });
 
@@ -143,19 +193,22 @@ const OrderForm = () => {
           ),
         );
         setForm({
-          date_delivery_estimated: toDateInputValue(
-            order.date_delivery_estimated,
-          ),
+          calculation_mode: "TOTAL_REQUIRED",
           amount_sheets: order.amount_sheets ? String(order.amount_sheets) : "",
+          cavities: order.cavities ? String(order.cavities) : "1",
           total_estimated: order.total_estimated
             ? String(order.total_estimated)
             : "",
+          format_id: order.measure?.format?.id
+            ? String(order.measure.format.id)
+            : "",
           measure_id: order.measure_id ? String(order.measure_id) : "",
+          third_id: order.product?.third_id
+            ? String(order.product.third_id)
+            : "",
           paper_type_id: order.paper_type_id ? String(order.paper_type_id) : "",
           troquel_id: order.troquel_id ? String(order.troquel_id) : "",
-          product_customer_id: order.product_customer_id
-            ? String(order.product_customer_id)
-            : "",
+          product_id: order.product_id ? String(order.product_id) : "",
           processes:
             order.detail_production_orders?.map((detail) =>
               String(detail.process_id),
@@ -189,19 +242,27 @@ const OrderForm = () => {
 
   const validate = () => {
     const nextErrors = {};
-    // if (!form.date_delivery_estimated) nextErrors.date_delivery_estimated = "La fecha estimada es obligatoria";
-    if (!form.amount_sheets || Number(form.amount_sheets) <= 0)
-      nextErrors.amount_sheets = "La cantidad de hojas debe ser mayor a 0";
-    if (!form.total_estimated || Number(form.total_estimated) <= 0)
-      nextErrors.total_estimated =
-        "Las unidades estimadas deben ser mayores a 0";
-    if (!form.measure_id)
-      nextErrors.measure_id = "Selecciona un formato y medida";
+    if (!form.cavities || Number(form.cavities) <= 0)
+      nextErrors.cavities = "La cantidad de cavidades debe ser mayor a 0";
+    if (
+      form.calculation_mode === "SHEETS_REQUIRED" &&
+      (!form.amount_sheets || Number(form.amount_sheets) <= 0)
+    )
+      nextErrors.amount_sheets = "La cantidad de pliegos debe ser mayor a 0";
+    if (
+      form.calculation_mode === "TOTAL_REQUIRED" &&
+      (!form.total_estimated || Number(form.total_estimated) <= 0)
+    )
+      nextErrors.total_estimated = "El total requerido debe ser mayor a 0";
+    if (!form.format_id) nextErrors.format_id = "Selecciona un formato";
+    if (!form.measure_id) nextErrors.measure_id = "Selecciona un tamaño";
+    if (!form.third_id) nextErrors.third_id = "Selecciona un cliente";
     if (!form.paper_type_id)
       nextErrors.paper_type_id = "Selecciona un tipo de papel";
-    if (!form.troquel_id) nextErrors.troquel_id = "Selecciona un troquel";
-    if (!form.product_customer_id)
-      nextErrors.product_customer_id = "Selecciona un producto del cliente";
+    if (!form.troquel_id)
+      nextErrors.troquel_id =
+        "No se encontró troquel para el producto seleccionado";
+    if (!form.product_id) nextErrors.product_id = "Selecciona un producto";
     if (!form.processes.length)
       nextErrors.processes = "Selecciona al menos un proceso";
     setErrors(nextErrors);
@@ -216,12 +277,26 @@ const OrderForm = () => {
     [catalogs.processes, form.processes],
   );
 
+  const selectedFormat = useMemo(
+    () =>
+      catalogs.formats.find((format) => String(format.id) === form.format_id) ||
+      null,
+    [catalogs.formats, form.format_id],
+  );
+
   const selectedMeasure = useMemo(
     () =>
       catalogs.measures.find(
         (measure) => String(measure.id) === form.measure_id,
       ) || null,
     [catalogs.measures, form.measure_id],
+  );
+
+  const selectedThird = useMemo(
+    () =>
+      catalogs.thirds.find((third) => String(third.id) === form.third_id) ||
+      null,
+    [catalogs.thirds, form.third_id],
   );
 
   const selectedPaperType = useMemo(
@@ -232,46 +307,161 @@ const OrderForm = () => {
     [catalogs.paperTypes, form.paper_type_id],
   );
 
-  const selectedTroquel = useMemo(
+  const selectedProduct = useMemo(
     () =>
-      catalogs.troqueles.find(
-        (troquel) => String(troquel.id) === form.troquel_id,
+      catalogs.products.find(
+        (product) => String(product.id) === form.product_id,
       ) || null,
-    [catalogs.troqueles, form.troquel_id],
+    [catalogs.products, form.product_id],
   );
 
-  const selectedProductCustomer = useMemo(
-    () =>
-      catalogs.productCustomers.find(
-        (productCustomer) =>
-          String(productCustomer.id) === form.product_customer_id,
-      ) || null,
-    [catalogs.productCustomers, form.product_customer_id],
+  const selectedTroquel = selectedProduct?.troquel || null;
+
+  const sheetDivisions = useMemo(
+    () => resolveSheetDivisions(selectedFormat),
+    [selectedFormat],
   );
 
-  const selectedDeliveryDate = useMemo(
-    () =>
-      form.date_delivery_estimated
-        ? new Date(`${form.date_delivery_estimated}T00:00:00`)
-        : undefined,
-    [form.date_delivery_estimated],
-  );
+  const unitsPerSheet = useMemo(() => {
+    const cavities = normalizePositiveInteger(form.cavities);
+    if (!selectedMeasure || !cavities) return 0;
+    return sheetDivisions * cavities;
+  }, [form.cavities, selectedMeasure, sheetDivisions]);
 
-  const sortedMeasures = useMemo(
-    () =>
-      [...catalogs.measures].sort((a, b) => {
-        const formatA = a.format?.name || a.format_name || "";
-        const formatB = b.format?.name || b.format_name || "";
-        if (formatA !== formatB) {
-          return formatA.localeCompare(formatB, "es", { sensitivity: "base" });
-        }
+  const availableMeasures = useMemo(() => {
+    if (!form.format_id) return [];
+
+    return catalogs.measures
+      .filter((measure) => String(measure.format_id) === form.format_id)
+      .sort((a, b) => {
         if (Number(a.width) !== Number(b.width)) {
           return Number(a.width) - Number(b.width);
         }
         return Number(a.height) - Number(b.height);
-      }),
-    [catalogs.measures],
-  );
+      });
+  }, [catalogs.measures, form.format_id]);
+
+  const availableProducts = useMemo(() => {
+    if (!form.third_id) return [];
+
+    return catalogs.products.filter(
+      (product) => String(product.third_id) === form.third_id,
+    );
+  }, [catalogs.products, form.third_id]);
+
+  useEffect(() => {
+    if (!selectedProduct) return;
+
+    const nextTroquelId = selectedProduct.troquel_id
+      ? String(selectedProduct.troquel_id)
+      : "";
+
+    setForm((prev) =>
+      prev.troquel_id === nextTroquelId
+        ? prev
+        : { ...prev, troquel_id: nextTroquelId },
+    );
+  }, [selectedProduct]);
+
+  useEffect(() => {
+    if (!unitsPerSheet) return;
+
+    setForm((prev) => {
+      if (prev.calculation_mode === "TOTAL_REQUIRED") {
+        const normalizedTotal = normalizePositiveInteger(prev.total_estimated);
+        const nextAmountSheets = normalizedTotal
+          ? String(Math.ceil(normalizedTotal / unitsPerSheet))
+          : "";
+
+        return prev.amount_sheets === nextAmountSheets
+          ? prev
+          : { ...prev, amount_sheets: nextAmountSheets };
+      }
+
+      const normalizedAmountSheets = normalizePositiveInteger(
+        prev.amount_sheets,
+      );
+      const nextTotalEstimated = normalizedAmountSheets
+        ? String(normalizedAmountSheets * unitsPerSheet)
+        : "";
+
+      return prev.total_estimated === nextTotalEstimated
+        ? prev
+        : { ...prev, total_estimated: nextTotalEstimated };
+    });
+  }, [unitsPerSheet]);
+
+  const handleCalculationModeChange = (mode) => {
+    setForm((prev) => {
+      if (prev.calculation_mode === mode) return prev;
+
+      if (!unitsPerSheet) {
+        return { ...prev, calculation_mode: mode };
+      }
+
+      if (mode === "TOTAL_REQUIRED") {
+        const normalizedTotal = normalizePositiveInteger(prev.total_estimated);
+        return {
+          ...prev,
+          calculation_mode: mode,
+          amount_sheets: normalizedTotal
+            ? String(Math.ceil(normalizedTotal / unitsPerSheet))
+            : "",
+        };
+      }
+
+      const normalizedAmountSheets = normalizePositiveInteger(
+        prev.amount_sheets,
+      );
+      return {
+        ...prev,
+        calculation_mode: mode,
+        total_estimated: normalizedAmountSheets
+          ? String(normalizedAmountSheets * unitsPerSheet)
+          : "",
+      };
+    });
+  };
+
+  const handleAmountSheetsChange = (value) => {
+    setForm((prev) => ({
+      ...prev,
+      calculation_mode: "SHEETS_REQUIRED",
+      amount_sheets: value,
+      total_estimated:
+        unitsPerSheet && normalizePositiveInteger(value)
+          ? String(normalizePositiveInteger(value) * unitsPerSheet)
+          : "",
+    }));
+
+    if (errors.amount_sheets || errors.total_estimated) {
+      setErrors((prev) => ({
+        ...prev,
+        amount_sheets: "",
+        total_estimated: "",
+      }));
+    }
+  };
+
+  const handleTotalEstimatedChange = (value) => {
+    setForm((prev) => ({
+      ...prev,
+      calculation_mode: "TOTAL_REQUIRED",
+      total_estimated: value,
+      amount_sheets:
+        unitsPerSheet && normalizePositiveInteger(value)
+          ? String(Math.ceil(normalizePositiveInteger(value) / unitsPerSheet))
+          : "",
+    }));
+
+    if (errors.amount_sheets || errors.total_estimated) {
+      setErrors((prev) => ({
+        ...prev,
+        amount_sheets: "",
+        total_estimated: "",
+      }));
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -282,13 +472,14 @@ const OrderForm = () => {
     if (!validate()) return;
 
     const payload = {
-      date_delivery_estimated: form.date_delivery_estimated,
+      calculation_mode: form.calculation_mode,
       amount_sheets: Number(form.amount_sheets),
+      cavities: Number(form.cavities),
       total_estimated: Number(form.total_estimated),
       measure_id: Number(form.measure_id),
       paper_type_id: Number(form.paper_type_id),
       troquel_id: Number(form.troquel_id),
-      product_customer_id: Number(form.product_customer_id),
+      product_id: Number(form.product_id),
       processes: form.processes.map(Number),
     };
 
@@ -366,78 +557,95 @@ const OrderForm = () => {
                 </div>
 
                 <div className="grid gap-5 md:grid-cols-2">
-                  {/* <div className="space-y-2">
-                    <Label>Fecha estimada de entrega</Label>
-                    <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
-                      <PopoverTrigger disabled={isOrderLocked}>
-                        <div
-                          className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 text-sm text-left text-foreground shadow-sm transition-colors hover:bg-accent hover:text-accent-foreground disabled:cursor-not-allowed disabled:opacity-60"
-                          onClick={() => setCalendarOpen((prev) => !prev)}
-                        >
-                          <span>
-                            {selectedDeliveryDate
-                              ? format(selectedDeliveryDate, "PPP", {
-                                  locale: es,
-                                })
-                              : "Selecciona fecha"}
-                          </span>
-                          <ChevronDown className="h-4 w-4 opacity-50" />
-                        </div>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar
-                          mode="single"
-                          selected={selectedDeliveryDate}
-                          onSelect={(date) => {
-                            setField(
-                              "date_delivery_estimated",
-                              date ? format(date, "yyyy-MM-dd") : "",
-                            );
-                            setCalendarOpen(false);
-                          }}
-                          defaultMonth={selectedDeliveryDate}
-                          locale={es}
-                        />
-                      </PopoverContent>
-                    </Popover>
-                    {errors.date_delivery_estimated && (
-                      <p className="text-xs text-red-500">
-                        {errors.date_delivery_estimated}
-                      </p>
+                  <div className="space-y-2">
+                    <Label>Cliente</Label>
+                    <Select
+                      value={form.third_id}
+                      disabled={isOrderLocked}
+                      onValueChange={(value) => {
+                        setField("third_id", value);
+                        setField("product_id", "");
+                        setField("troquel_id", "");
+                      }}
+                    >
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Selecciona un cliente">
+                          {selectedThird
+                            ? formatThirdLabel(selectedThird)
+                            : null}
+                        </SelectValue>
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectGroup>
+                          <SelectLabel>Clientes</SelectLabel>
+                          {catalogs.thirds.map((third) => (
+                            <SelectItem key={third.id} value={String(third.id)}>
+                              {formatThirdLabel(third)}
+                            </SelectItem>
+                          ))}
+                        </SelectGroup>
+                      </SelectContent>
+                    </Select>
+                    {errors.third_id && (
+                      <p className="text-xs text-red-500">{errors.third_id}</p>
                     )}
-                  </div> */}
+                  </div>
 
                   <div className="space-y-2">
-                    <Label>Cantidad de hojas</Label>
-                    <Input
-                      type="number"
-                      min="1"
-                      placeholder="Ej: 500"
-                      value={form.amount_sheets}
-                      disabled={isOrderLocked}
-                      onChange={(e) =>
-                        setField("amount_sheets", e.target.value)
-                      }
-                    />
-                    {errors.amount_sheets && (
+                    <Label>Producto</Label>
+                    <Select
+                      value={form.product_id}
+                      disabled={isOrderLocked || !form.third_id}
+                      onValueChange={(value) => setField("product_id", value)}
+                    >
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Selecciona un producto">
+                          {selectedProduct
+                            ? formatProductLabel(selectedProduct)
+                            : null}
+                        </SelectValue>
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectGroup>
+                          <SelectLabel>Productos</SelectLabel>
+                          {availableProducts.map((product) => (
+                            <SelectItem
+                              key={product.id}
+                              value={String(product.id)}
+                            >
+                              {formatProductLabel(product)}
+                            </SelectItem>
+                          ))}
+                        </SelectGroup>
+                      </SelectContent>
+                    </Select>
+                    {errors.product_id && (
                       <p className="text-xs text-red-500">
-                        {errors.amount_sheets}
+                        {errors.product_id}
                       </p>
                     )}
                   </div>
 
                   <div className="space-y-2">
-                    <Label>Unidades estimadas de entrega</Label>
+                    <Label>Total requerido</Label>
                     <Input
                       type="number"
                       min="1"
                       placeholder="Ej: 1000 unidades"
                       value={form.total_estimated}
-                      disabled={isOrderLocked}
+                      disabled={
+                        isOrderLocked ||
+                        form.calculation_mode === "SHEETS_REQUIRED"
+                      }
                       onChange={(e) =>
-                        setField("total_estimated", e.target.value)
+                        handleTotalEstimatedChange(e.target.value)
                       }
                     />
+                    <p className="text-xs text-slate-500">
+                      {form.calculation_mode === "TOTAL_REQUIRED"
+                        ? "Ingresa las unidades pedidas por el cliente."
+                        : "Se calcula automáticamente según los pliegos requeridos."}
+                    </p>
                     {errors.total_estimated && (
                       <p className="text-xs text-red-500">
                         {errors.total_estimated}
@@ -446,14 +654,75 @@ const OrderForm = () => {
                   </div>
 
                   <div className="space-y-2">
-                    <Label>Formato y medida</Label>
+                    <Label>Pliegos requeridos</Label>
+                    <Input
+                      type="number"
+                      min="1"
+                      placeholder="Ej: 500"
+                      value={form.amount_sheets}
+                      disabled={
+                        isOrderLocked ||
+                        form.calculation_mode === "TOTAL_REQUIRED"
+                      }
+                      onChange={(e) => handleAmountSheetsChange(e.target.value)}
+                    />
+                    <p className="text-xs text-slate-500">
+                      {form.calculation_mode === "SHEETS_REQUIRED"
+                        ? "Ingresa la cantidad de pliegos y calculamos el total."
+                        : "Se calcula automáticamente según el total requerido."}
+                    </p>
+                    {errors.amount_sheets && (
+                      <p className="text-xs text-red-500">
+                        {errors.amount_sheets}
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Formato</Label>
+                    <Select
+                      value={form.format_id}
+                      disabled={isOrderLocked}
+                      onValueChange={(value) => {
+                        setField("format_id", value);
+                        setField("measure_id", "");
+                      }}
+                    >
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Selecciona un formato">
+                          {selectedFormat
+                            ? formatFormatLabel(selectedFormat)
+                            : null}
+                        </SelectValue>
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectGroup>
+                          <SelectLabel>Formatos</SelectLabel>
+                          {catalogs.formats.map((format) => (
+                            <SelectItem
+                              key={format.id}
+                              value={String(format.id)}
+                            >
+                              {formatFormatLabel(format)}
+                            </SelectItem>
+                          ))}
+                        </SelectGroup>
+                      </SelectContent>
+                    </Select>
+                    {errors.format_id && (
+                      <p className="text-xs text-red-500">{errors.format_id}</p>
+                    )}
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Tamaño</Label>
                     <Select
                       value={form.measure_id}
-                      disabled={isOrderLocked}
+                      disabled={isOrderLocked || !form.format_id}
                       onValueChange={(value) => setField("measure_id", value)}
                     >
                       <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Selecciona formato y medida">
+                        <SelectValue placeholder="Selecciona un tamaño">
                           {selectedMeasure
                             ? formatMeasureLabel(selectedMeasure)
                             : null}
@@ -461,8 +730,8 @@ const OrderForm = () => {
                       </SelectTrigger>
                       <SelectContent>
                         <SelectGroup>
-                          <SelectLabel>Formatos y medidas</SelectLabel>
-                          {sortedMeasures.map((measure) => (
+                          <SelectLabel>Tamaños disponibles</SelectLabel>
+                          {availableMeasures.map((measure) => (
                             <SelectItem
                               key={measure.id}
                               value={String(measure.id)}
@@ -481,6 +750,39 @@ const OrderForm = () => {
                   </div>
 
                   <div className="space-y-2">
+                    <Label>Troquel asignado</Label>
+                    <Input
+                      value={
+                        selectedTroquel
+                          ? formatTroquelLabel(selectedTroquel)
+                          : ""
+                      }
+                      placeholder="Se asigna automáticamente al seleccionar el producto"
+                      disabled
+                    />
+                    {errors.troquel_id && (
+                      <p className="text-xs text-red-500">
+                        {errors.troquel_id}
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Cavidades</Label>
+                    <Input
+                      type="number"
+                      min="1"
+                      placeholder="Ej: 2"
+                      value={form.cavities}
+                      disabled={isOrderLocked}
+                      onChange={(e) => setField("cavities", e.target.value)}
+                    />
+                    {errors.cavities && (
+                      <p className="text-xs text-red-500">{errors.cavities}</p>
+                    )}
+                  </div>
+
+                  <div className="space-y-2 md:col-span-2">
                     <Label>Tipo de papel</Label>
                     <Select
                       value={form.paper_type_id}
@@ -517,78 +819,37 @@ const OrderForm = () => {
                     )}
                   </div>
 
-                  <div className="space-y-2">
-                    <Label>Troquel</Label>
-                    <Select
-                      value={form.troquel_id}
-                      disabled={isOrderLocked}
-                      onValueChange={(value) => setField("troquel_id", value)}
-                    >
-                      <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Selecciona un troquel">
-                          {selectedTroquel
-                            ? formatTroquelLabel(selectedTroquel)
-                            : null}
-                        </SelectValue>
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectGroup>
-                          <SelectLabel>Troqueles</SelectLabel>
-                          {catalogs.troqueles.map((troquel) => (
-                            <SelectItem
-                              key={troquel.id}
-                              value={String(troquel.id)}
-                            >
-                              {formatTroquelLabel(troquel)}
-                            </SelectItem>
-                          ))}
-                        </SelectGroup>
-                      </SelectContent>
-                    </Select>
-                    {errors.troquel_id && (
-                      <p className="text-xs text-red-500">
-                        {errors.troquel_id}
-                      </p>
-                    )}
-                  </div>
-
-                  <div className="space-y-2 md:col-span-2">
-                    <Label>Producto del cliente</Label>
-                    <Select
-                      value={form.product_customer_id}
-                      disabled={isOrderLocked}
-                      onValueChange={(value) =>
-                        setField("product_customer_id", value)
-                      }
-                    >
-                      <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Selecciona un producto del cliente">
-                          {selectedProductCustomer
-                            ? formatProductCustomerLabel(
-                                selectedProductCustomer,
-                              )
-                            : null}
-                        </SelectValue>
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectGroup>
-                          <SelectLabel>Productos del cliente</SelectLabel>
-                          {catalogs.productCustomers.map((productCustomer) => (
-                            <SelectItem
-                              key={productCustomer.id}
-                              value={String(productCustomer.id)}
-                            >
-                              {formatProductCustomerLabel(productCustomer)}
-                            </SelectItem>
-                          ))}
-                        </SelectGroup>
-                      </SelectContent>
-                    </Select>
-                    {errors.product_customer_id && (
-                      <p className="text-xs text-red-500">
-                        {errors.product_customer_id}
-                      </p>
-                    )}
+                  <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-4 md:col-span-2">
+                    <div className="grid gap-3 md:grid-cols-3">
+                      <div>
+                        <p className="text-xs uppercase tracking-wide text-slate-400">
+                          Formato base
+                        </p>
+                        <p className="mt-1 font-semibold text-slate-900">
+                          {selectedFormat?.name || "Selecciona un formato"}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-xs uppercase tracking-wide text-slate-400">
+                          Divisiones del pliego
+                        </p>
+                        <p className="mt-1 font-semibold text-slate-900">
+                          {selectedMeasure ? sheetDivisions : "-"}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-xs uppercase tracking-wide text-slate-400">
+                          Unidades por pliego
+                        </p>
+                        <p className="mt-1 font-semibold text-slate-900">
+                          {unitsPerSheet || "-"}
+                        </p>
+                      </div>
+                    </div>
+                    <p className="mt-3 text-xs text-slate-500">
+                      Fórmula aplicada: divisiones del pliego × cavidades del
+                      troquel.
+                    </p>
                   </div>
                 </div>
               </section>

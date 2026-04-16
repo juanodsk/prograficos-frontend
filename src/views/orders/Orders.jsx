@@ -55,6 +55,17 @@ const isFinishedOrder = (order) => finishedStatuses.has(order?.order_status);
 const formatShortDate = (value) =>
   value ? new Date(value).toLocaleDateString("es-CO") : "Sin fecha";
 
+const getOrderProductLabel = (order) =>
+  order?.product?.name ||
+  order?.product?.troquel?.code ||
+  order?.troquel?.code ||
+  `Orden #${order?.id ?? ""}`;
+
+const getOrderClientLabel = (order) =>
+  order?.product?.third?.company_name ||
+  order?.product?.third?.name ||
+  "Sin cliente";
+
 const Orders = () => {
   const navigate = useNavigate();
   const { user: currentUser } = useAuthStore();
@@ -148,10 +159,7 @@ const Orders = () => {
     setConfirmDialog({
       isOpen: true,
       orderId: order.id,
-      orderName:
-        order.product_customer?.name ||
-        order.product_customer?.product?.name ||
-        `Orden #${order.id}`,
+      orderName: getOrderProductLabel(order),
       loading: false,
     });
   };
@@ -410,12 +418,10 @@ const Orders = () => {
                           Orden #{order.id}
                         </p>
                         <h2 className="mt-1 text-lg font-semibold text-slate-900">
-                          {order.product_customer?.name ||
-                            order.product_customer?.product?.name ||
-                            "Sin producto"}
+                          {getOrderProductLabel(order)}
                         </h2>
                         <p className="text-sm text-slate-500">
-                          {order.product_customer?.third?.name || "Sin cliente"}
+                          {getOrderClientLabel(order)}
                         </p>
                       </div>
                       <StatusBadge status={order.order_status} />
@@ -428,14 +434,6 @@ const Orders = () => {
                         </p>
                         <p className="mt-1 font-semibold text-slate-900">
                           {formatShortDate(order.date)}
-                        </p>
-                      </div>
-                      <div className="rounded-xl bg-white p-3">
-                        <p className="text-xs uppercase tracking-wide text-slate-400">
-                          Entrega estimada
-                        </p>
-                        <p className="mt-1 font-semibold text-slate-900">
-                          {formatShortDate(order.date_delivery_estimated)}
                         </p>
                       </div>
                       <div className="rounded-xl bg-white p-3">
@@ -515,7 +513,6 @@ const Orders = () => {
                         <TableHead>Producto</TableHead>
                         <TableHead>Cliente</TableHead>
                         <TableHead>Creación</TableHead>
-                        <TableHead>Entrega</TableHead>
                         <TableHead>Hojas</TableHead>
                         <TableHead>Unidades</TableHead>
                         <TableHead>Estado</TableHead>
@@ -528,19 +525,9 @@ const Orders = () => {
                           <TableCell className="font-semibold text-slate-900">
                             #{order.id}
                           </TableCell>
-                          <TableCell>
-                            {order.product_customer?.name ||
-                              order.product_customer?.product?.name ||
-                              "Sin producto"}
-                          </TableCell>
-                          <TableCell>
-                            {order.product_customer?.third?.name ||
-                              "Sin cliente"}
-                          </TableCell>
+                          <TableCell>{getOrderProductLabel(order)}</TableCell>
+                          <TableCell>{getOrderClientLabel(order)}</TableCell>
                           <TableCell>{formatShortDate(order.date)}</TableCell>
-                          <TableCell>
-                            {formatShortDate(order.date_delivery_estimated)}
-                          </TableCell>
                           <TableCell>{order.amount_sheets}</TableCell>
                           <TableCell>
                             {order.total_estimated?.toLocaleString("es-CO")}

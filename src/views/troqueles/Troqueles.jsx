@@ -6,6 +6,7 @@ import TroquelForm from "../troqueles/TroquelForm";
 import TroquelView from "./TroquelView";
 import DataTable from "../../components/data-table/DataTable";
 import { useAuthStore } from "../../store/authStore";
+import usePersistedTableState from "../../hooks/usePersistedTableState";
 
 import { Button } from "@/components/ui/button";
 import { Plus, Pencil, Trash2, Loader2, ScanEye, Download } from "lucide-react";
@@ -17,15 +18,40 @@ const defaultMeta = {
   totalPages: 1,
 };
 
+const defaultTableState = {
+  search: "",
+  page: 1,
+  pageSize: defaultMeta.pageSize,
+  sortKey: "elaboration_date",
+  sortDirection: "desc",
+};
+
+const sizeConfig = {
+  SMALL: {
+    label: "Pequeño",
+    className: "bg-blue-100 text-blue-800",
+  },
+  MEDIUM: {
+    label: "Mediano",
+    className: "bg-red-100 text-red-800",
+  },
+  LARGE: {
+    label: "Grande",
+    className: "bg-green-100 text-green-800",
+  },
+};
+
 const Troqueles = () => {
   const { user: currentUser } = useAuthStore();
 
   const [troqueles, setTroqueles] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState("");
+  const [tableState, setTableState] = usePersistedTableState(
+    "config-troqueles",
+    defaultTableState,
+  );
+  const { search, page, pageSize, sortKey, sortDirection } = tableState;
   const [debouncedSearch, setDebouncedSearch] = useState("");
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(defaultMeta.pageSize);
   const [meta, setMeta] = useState(defaultMeta);
 
   const [viewModal, setViewModal] = useState({
@@ -51,20 +77,22 @@ const Troqueles = () => {
         page,
         pageSize,
         search: debouncedSearch || undefined,
+        sortBy: sortKey,
+        sortDirection,
       });
       const troquelesArray = response?.data || [];
       setTroqueles(troquelesArray);
       setMeta(response?.meta || defaultMeta);
 
       if (response?.meta?.page && response.meta.page !== page) {
-        setPage(response.meta.page);
+        setTableState((prev) => ({ ...prev, page: response.meta.page }));
       }
     } catch {
       toast.error("Error al cargar los troqueles");
     } finally {
       setLoading(false);
     }
-  }, [debouncedSearch, page, pageSize]);
+  }, [debouncedSearch, page, pageSize, sortDirection, sortKey]);
 
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {
@@ -144,7 +172,24 @@ const Troqueles = () => {
   const columns = [
     { key: "id", label: "ID" },
     { key: "code", label: "Código" },
-    { key: "size", label: "Tamaño" },
+    {
+      key: "size",
+      label: "Tamaño",
+      render: (row) => {
+        const config = sizeConfig[row.size] || {
+          label: row.size || "N/A",
+          className: "bg-gray-100 text-gray-800",
+        };
+
+        return (
+          <span
+            className={`rounded-full px-2 py-1 text-xs font-semibold ${config.className}`}
+          >
+            {config.label}
+          </span>
+        );
+      },
+    },
     {
       key: "elaboration_date",
       label: "Fecha de Elaboración",
@@ -156,6 +201,7 @@ const Troqueles = () => {
     {
       key: "file",
       label: "Archivo",
+      sortKey: "file",
       render: (row) =>
         row.file ? (
           <Button
@@ -257,17 +303,31 @@ const Troqueles = () => {
             serverSide
             searchValue={search}
             onSearchChange={(value) => {
-              setSearch(value);
-              setPage(1);
+              setTableState((prev) => ({ ...prev, search: value, page: 1 }));
             }}
             currentPage={meta.page}
             currentPageSize={meta.pageSize}
             total={meta.total}
             totalPages={meta.totalPages}
-            onPageChange={setPage}
+            onPageChange={(nextPage) =>
+              setTableState((prev) => ({ ...prev, page: nextPage }))
+            }
             onPageSizeChange={(nextPageSize) => {
-              setPageSize(nextPageSize);
-              setPage(1);
+              setTableState((prev) => ({
+                ...prev,
+                pageSize: nextPageSize,
+                page: 1,
+              }));
+            }}
+            sortKey={sortKey}
+            sortDirection={sortDirection}
+            onSortChange={(nextSortKey, nextSortDirection) => {
+              setTableState((prev) => ({
+                ...prev,
+                sortKey: nextSortKey,
+                sortDirection: nextSortDirection,
+                page: 1,
+              }));
             }}
             itemLabel="troqueles"
           />

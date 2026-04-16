@@ -50,6 +50,17 @@ const formatMeasureLabel = (measure) => {
   return formatName ? `${formatName} · ${size}` : size;
 };
 
+const getOrderClientLabel = (order) =>
+  order?.product?.third?.company_name ||
+  order?.product?.third?.name ||
+  "Sin cliente";
+
+const getOrderProductLabel = (order) =>
+  order?.product?.name ||
+  order?.product?.troquel?.code ||
+  order?.troquel?.code ||
+  "Sin producto";
+
 const OrderDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -405,7 +416,7 @@ const OrderDetail = () => {
                 Orden De Produccion
               </p>
               <h2 className="text-2xl font-bold text-slate-900">
-                Prograficos SAS
+                {getOrderProductLabel(order)}
               </h2>
               <p className="max-w-2xl text-sm text-slate-600">
                 Vista operativa de la orden. Abre cada proceso para registrar
@@ -415,14 +426,6 @@ const OrderDetail = () => {
             </div>
             <div className="flex flex-wrap items-center gap-3">
               <StatusBadge status={order.order_status} />
-              <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-right shadow-sm">
-                <p className="text-xs uppercase tracking-wide text-slate-400">
-                  Entrega estimada
-                </p>
-                <p className="font-semibold text-slate-900">
-                  {fmtDate(order.date_delivery_estimated)}
-                </p>
-              </div>
             </div>
           </div>
         </div>
@@ -441,7 +444,7 @@ const OrderDetail = () => {
               Cliente
             </p>
             <p className="mt-1 font-semibold text-slate-900">
-              {order.product_customer?.third?.name || "Sin cliente"}
+              {getOrderClientLabel(order)}
             </p>
           </div>
           <div className="rounded-2xl bg-white p-4 shadow-sm">
@@ -449,9 +452,7 @@ const OrderDetail = () => {
               Producto
             </p>
             <p className="mt-1 font-semibold text-slate-900">
-              {order.product_customer?.name ||
-                order.product_customer?.product?.name ||
-                "Sin producto"}
+              {getOrderProductLabel(order)}
             </p>
           </div>
           <div className="rounded-2xl bg-white p-4 shadow-sm">
@@ -460,6 +461,14 @@ const OrderDetail = () => {
             </p>
             <p className="mt-1 font-semibold text-slate-900">
               {order.troquel?.code || `Troquel #${order.troquel_id}`}
+            </p>
+          </div>
+          <div className="rounded-2xl bg-white p-4 shadow-sm">
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+              Cavidades
+            </p>
+            <p className="mt-1 font-semibold text-slate-900">
+              {order.cavities || 1}
             </p>
           </div>
           <div className="rounded-2xl bg-white p-4 shadow-sm">
@@ -570,285 +579,291 @@ const OrderDetail = () => {
                 >
                   <div className="min-h-0 overflow-hidden">
                     <div className="border-t border-slate-200">
-                    <div className="grid gap-4 bg-slate-50 p-5 md:grid-cols-2 xl:grid-cols-3">
-                      <div className="rounded-xl bg-white p-4">
-                        <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-                          Fecha inicio
-                        </p>
-                        <p className="mt-1 font-semibold text-slate-900">
-                          {fmtDate(process.start_date)}
-                        </p>
-                      </div>
-                      <div className="rounded-xl bg-white p-4">
-                        <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-                          Hora inicio
-                        </p>
-                        <p className="mt-1 font-semibold text-slate-900">
-                          {fmtHour(process.start_hour)}
-                        </p>
-                      </div>
-                      <div className="rounded-xl bg-white p-4">
-                        <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-                          Fecha final
-                        </p>
-                        <p className="mt-1 font-semibold text-slate-900">
-                          {fmtDate(process.end_date)}
-                        </p>
-                      </div>
-                      <div className="rounded-xl bg-white p-4">
-                        <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-                          Hora final
-                        </p>
-                        <p className="mt-1 font-semibold text-slate-900">
-                          {fmtHour(process.end_hour)}
-                        </p>
-                      </div>
-                      <div className="rounded-xl bg-white p-4">
-                        <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-                          Unidades entregadas
-                        </p>
-                        <p className="mt-1 font-semibold text-slate-900">
-                          {process.quantity_delivered ?? 0}
-                        </p>
-                      </div>
-                      <div className="rounded-xl bg-white p-4">
-                        <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-                          Unidades dañadas
-                        </p>
-                        <p className="mt-1 font-semibold text-slate-900">
-                          {process.quantity_damaged ?? 0}
-                        </p>
-                      </div>
-                    </div>
-
-                    {filledDefs.length > 0 && (
-                      <div className="border-t border-slate-200 bg-white p-5">
-                        <div className="mb-3">
-                          <h3 className="text-sm font-semibold text-slate-900">
-                            Datos diligenciados
-                          </h3>
-                          <p className="text-xs text-slate-500">
-                            Solo se muestran los campos que ya tienen
-                            información registrada.
+                      <div className="grid gap-4 bg-slate-50 p-5 md:grid-cols-2 xl:grid-cols-3">
+                        <div className="rounded-xl bg-white p-4">
+                          <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                            Fecha inicio
+                          </p>
+                          <p className="mt-1 font-semibold text-slate-900">
+                            {fmtDate(process.start_date)}
                           </p>
                         </div>
-                        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-                          {filledDefs.map((field) => (
-                            <div
-                              key={field.id}
-                              className="rounded-xl border border-slate-200 bg-slate-50 p-4"
-                            >
+                        <div className="rounded-xl bg-white p-4">
+                          <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                            Hora inicio
+                          </p>
+                          <p className="mt-1 font-semibold text-slate-900">
+                            {fmtHour(process.start_hour)}
+                          </p>
+                        </div>
+                        <div className="rounded-xl bg-white p-4">
+                          <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                            Fecha final
+                          </p>
+                          <p className="mt-1 font-semibold text-slate-900">
+                            {fmtDate(process.end_date)}
+                          </p>
+                        </div>
+                        <div className="rounded-xl bg-white p-4">
+                          <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                            Hora final
+                          </p>
+                          <p className="mt-1 font-semibold text-slate-900">
+                            {fmtHour(process.end_hour)}
+                          </p>
+                        </div>
+                        <div className="rounded-xl bg-white p-4">
+                          <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                            Unidades entregadas
+                          </p>
+                          <p className="mt-1 font-semibold text-slate-900">
+                            {process.quantity_delivered ?? 0}
+                          </p>
+                        </div>
+                        <div className="rounded-xl bg-white p-4">
+                          <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                            Unidades dañadas
+                          </p>
+                          <p className="mt-1 font-semibold text-slate-900">
+                            {process.quantity_damaged ?? 0}
+                          </p>
+                        </div>
+                      </div>
+
+                      {filledDefs.length > 0 && (
+                        <div className="border-t border-slate-200 bg-white p-5">
+                          <div className="mb-3">
+                            <h3 className="text-sm font-semibold text-slate-900">
+                              Datos diligenciados
+                            </h3>
+                            <p className="text-xs text-slate-500">
+                              Solo se muestran los campos que ya tienen
+                              información registrada.
+                            </p>
+                          </div>
+                          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                            {filledDefs.map((field) => (
+                              <div
+                                key={field.id}
+                                className="rounded-xl border border-slate-200 bg-slate-50 p-4"
+                              >
+                                <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                                  {field.label}
+                                </p>
+                                <p className="mt-1 font-semibold text-slate-900">
+                                  {displayValue(
+                                    field,
+                                    storedValues.get(field.id),
+                                  )}
+                                </p>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {isActive && (
+                        <div className="grid border-t border-slate-200 lg:grid-cols-2">
+                          <div className="border-r border-slate-200 p-5 space-y-4">
+                            <h3 className="text-sm font-bold uppercase tracking-wide text-[#13529a]">
+                              Iniciar proceso
+                            </h3>
+                            {startBlockedByPreviousProcess && (
+                              <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+                                Debes terminar{" "}
+                                <span className="font-semibold">
+                                  {previousProcess?.process?.name ||
+                                    "el proceso anterior"}
+                                </span>{" "}
+                                antes de iniciar este proceso.
+                              </div>
+                            )}
+                            {processInputLocked && (
+                              <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+                                Los datos de entrada quedaron bloqueados desde
+                                que este proceso fue iniciado.
+                              </div>
+                            )}
+                            <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
                               <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-                                {field.label}
+                                Medida de corte de la orden
                               </p>
                               <p className="mt-1 font-semibold text-slate-900">
-                                {displayValue(
-                                  field,
-                                  storedValues.get(field.id),
-                                )}
+                                {sharedMeasureDisplay}
                               </p>
                             </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {isActive && (
-                      <div className="grid border-t border-slate-200 lg:grid-cols-2">
-                        <div className="border-r border-slate-200 p-5 space-y-4">
-                          <h3 className="text-sm font-bold uppercase tracking-wide text-[#13529a]">
-                            Iniciar proceso
-                          </h3>
-                          {startBlockedByPreviousProcess && (
-                            <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-                              Debes terminar{" "}
-                              <span className="font-semibold">
-                                {previousProcess?.process?.name ||
-                                  "el proceso anterior"}
-                              </span>{" "}
-                              antes de iniciar este proceso.
-                            </div>
-                          )}
-                          {processInputLocked && (
-                            <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-                              Los datos de entrada quedaron bloqueados desde que
-                              este proceso fue iniciado.
-                            </div>
-                          )}
-                          <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
-                            <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-                              Medida de corte de la orden
-                            </p>
-                            <p className="mt-1 font-semibold text-slate-900">
-                              {sharedMeasureDisplay}
-                            </p>
-                          </div>
-                          <div className="space-y-2">
-                            <Label>Maquinaria</Label>
-                            <Select
-                              value={startPayload.machinery_id}
-                              disabled={processInputLocked}
-                              onValueChange={(value) =>
-                                setStartPayload((p) => ({
-                                  ...p,
-                                  machinery_id: value,
-                                }))
-                              }
-                            >
-                              <SelectTrigger className="w-full">
-                                <SelectValue placeholder="Selecciona una maquinaria">
-                                  {startPayload.machinery_id
-                                    ? machineLabel(startPayload.machinery_id)
-                                    : null}
-                                </SelectValue>
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectGroup>
-                                  <SelectLabel>
-                                    Maquinaria disponible
-                                  </SelectLabel>
-                                  {catalogs.machinery.map((m) => (
-                                    <SelectItem key={m.id} value={String(m.id)}>
-                                      {formatMachineryLabel(m)}
-                                    </SelectItem>
-                                  ))}
-                                </SelectGroup>
-                              </SelectContent>
-                            </Select>
-                          </div>
-                          {defs.map((field) => (
-                            <div key={field.id} className="space-y-2">
-                              <Label>
-                                {field.label}
-                                {field.is_required ? " *" : ""}
-                              </Label>
-                              {dynamicInput(
-                                field,
-                                startPayload.field_values[field.id] || "",
-                                (value) =>
+                            <div className="space-y-2">
+                              <Label>Maquinaria</Label>
+                              <Select
+                                value={startPayload.machinery_id}
+                                disabled={processInputLocked}
+                                onValueChange={(value) =>
                                   setStartPayload((p) => ({
                                     ...p,
-                                    field_values: {
-                                      ...p.field_values,
-                                      [field.id]: value,
-                                    },
-                                  })),
-                                processInputLocked,
-                              )}
-                            </div>
-                          ))}
-                          <div className="space-y-2">
-                            <Label>Observaciones</Label>
-                            <Input
-                              disabled={processInputLocked}
-                              value={startPayload.observations}
-                              onChange={(e) =>
-                                setStartPayload((p) => ({
-                                  ...p,
-                                  observations: e.target.value,
-                                }))
-                              }
-                            />
-                          </div>
-                          <Button
-                            onClick={submitStart}
-                            disabled={
-                              !canOperate ||
-                              activeProcess?.process_state !== "PENDIENTE" ||
-                              startBlockedByPreviousProcess ||
-                              submittingAction === "start"
-                            }
-                            className="w-full bg-blue-600 text-white hover:bg-blue-700 cursor-pointer"
-                          >
-                            {submittingAction === "start" ? (
-                              <>
-                                <Loader2
-                                  size={16}
-                                  className="mr-2 animate-spin"
-                                />
-                                Iniciando...
-                              </>
-                            ) : (
-                              <>
-                                <PlayCircle size={16} className="mr-2" />
-                                Iniciar proceso
-                              </>
-                            )}
-                          </Button>
-                        </div>
-
-                        <div className="p-5 space-y-4">
-                          <h3 className="text-sm font-bold uppercase tracking-wide text-[#13529a]">
-                            Finalizar proceso
-                          </h3>
-                          {!canFinishActiveProcess && (
-                            <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
-                              {activeProcess?.process_state === "TERMINADO"
-                                ? "Este proceso ya fue finalizado."
-                                : "Debes iniciar el proceso antes de poder finalizarlo."}
-                            </div>
-                          )}
-                          <div className="grid gap-4 sm:grid-cols-2">
-                            <div className="space-y-2">
-                              <Label>Cantidad entregada</Label>
-                              <Input
-                                type="number"
-                                min="0"
-                                disabled={!canFinishActiveProcess}
-                                value={finishPayload.quantity_delivered}
-                                onChange={(e) =>
-                                  setFinishPayload((p) => ({
-                                    ...p,
-                                    quantity_delivered: e.target.value,
+                                    machinery_id: value,
                                   }))
                                 }
-                              />
-                            </div>
-                            <div className="space-y-2">
-                              <Label>Cantidad dañada</Label>
-                              <Input
-                                type="number"
-                                min="0"
-                                disabled={!canFinishActiveProcess}
-                                value={finishPayload.quantity_damaged}
-                                onChange={(e) =>
-                                  setFinishPayload((p) => ({
-                                    ...p,
-                                    quantity_damaged: e.target.value,
-                                  }))
-                                }
-                              />
-                            </div>
-                            <div className="sm:col-span-2">
-                              <Button
-                                onClick={submitFinish}
-                                disabled={
-                                  !canOperate ||
-                                  !canFinishActiveProcess ||
-                                  submittingAction === "finish"
-                                }
-                                className="w-full bg-green-600 text-white hover:bg-green-700 cursor-pointer"
                               >
-                                {submittingAction === "finish" ? (
-                                  <>
-                                    <Loader2
-                                      size={16}
-                                      className="mr-2 animate-spin"
-                                    />
-                                    Finalizando...
-                                  </>
-                                ) : (
-                                  <>
-                                    <CheckCircle2 size={16} className="mr-2" />
-                                    Finalizar proceso
-                                  </>
+                                <SelectTrigger className="w-full">
+                                  <SelectValue placeholder="Selecciona una maquinaria">
+                                    {startPayload.machinery_id
+                                      ? machineLabel(startPayload.machinery_id)
+                                      : null}
+                                  </SelectValue>
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectGroup>
+                                    <SelectLabel>
+                                      Maquinaria disponible
+                                    </SelectLabel>
+                                    {catalogs.machinery.map((m) => (
+                                      <SelectItem
+                                        key={m.id}
+                                        value={String(m.id)}
+                                      >
+                                        {formatMachineryLabel(m)}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectGroup>
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            {defs.map((field) => (
+                              <div key={field.id} className="space-y-2">
+                                <Label>
+                                  {field.label}
+                                  {field.is_required ? " *" : ""}
+                                </Label>
+                                {dynamicInput(
+                                  field,
+                                  startPayload.field_values[field.id] || "",
+                                  (value) =>
+                                    setStartPayload((p) => ({
+                                      ...p,
+                                      field_values: {
+                                        ...p.field_values,
+                                        [field.id]: value,
+                                      },
+                                    })),
+                                  processInputLocked,
                                 )}
-                              </Button>
+                              </div>
+                            ))}
+                            <div className="space-y-2">
+                              <Label>Observaciones</Label>
+                              <Input
+                                disabled={processInputLocked}
+                                value={startPayload.observations}
+                                onChange={(e) =>
+                                  setStartPayload((p) => ({
+                                    ...p,
+                                    observations: e.target.value,
+                                  }))
+                                }
+                              />
+                            </div>
+                            <Button
+                              onClick={submitStart}
+                              disabled={
+                                !canOperate ||
+                                activeProcess?.process_state !== "PENDIENTE" ||
+                                startBlockedByPreviousProcess ||
+                                submittingAction === "start"
+                              }
+                              className="w-full bg-blue-600 text-white hover:bg-blue-700 cursor-pointer"
+                            >
+                              {submittingAction === "start" ? (
+                                <>
+                                  <Loader2
+                                    size={16}
+                                    className="mr-2 animate-spin"
+                                  />
+                                  Iniciando...
+                                </>
+                              ) : (
+                                <>
+                                  <PlayCircle size={16} className="mr-2" />
+                                  Iniciar proceso
+                                </>
+                              )}
+                            </Button>
+                          </div>
+
+                          <div className="p-5 space-y-4">
+                            <h3 className="text-sm font-bold uppercase tracking-wide text-[#13529a]">
+                              Finalizar proceso
+                            </h3>
+                            {!canFinishActiveProcess && (
+                              <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
+                                {activeProcess?.process_state === "TERMINADO"
+                                  ? "Este proceso ya fue finalizado."
+                                  : "Debes iniciar el proceso antes de poder finalizarlo."}
+                              </div>
+                            )}
+                            <div className="grid gap-4 sm:grid-cols-2">
+                              <div className="space-y-2">
+                                <Label>Cantidad entregada</Label>
+                                <Input
+                                  type="number"
+                                  min="0"
+                                  disabled={!canFinishActiveProcess}
+                                  value={finishPayload.quantity_delivered}
+                                  onChange={(e) =>
+                                    setFinishPayload((p) => ({
+                                      ...p,
+                                      quantity_delivered: e.target.value,
+                                    }))
+                                  }
+                                />
+                              </div>
+                              <div className="space-y-2">
+                                <Label>Cantidad dañada</Label>
+                                <Input
+                                  type="number"
+                                  min="0"
+                                  disabled={!canFinishActiveProcess}
+                                  value={finishPayload.quantity_damaged}
+                                  onChange={(e) =>
+                                    setFinishPayload((p) => ({
+                                      ...p,
+                                      quantity_damaged: e.target.value,
+                                    }))
+                                  }
+                                />
+                              </div>
+                              <div className="sm:col-span-2">
+                                <Button
+                                  onClick={submitFinish}
+                                  disabled={
+                                    !canOperate ||
+                                    !canFinishActiveProcess ||
+                                    submittingAction === "finish"
+                                  }
+                                  className="w-full bg-green-600 text-white hover:bg-green-700 cursor-pointer"
+                                >
+                                  {submittingAction === "finish" ? (
+                                    <>
+                                      <Loader2
+                                        size={16}
+                                        className="mr-2 animate-spin"
+                                      />
+                                      Finalizando...
+                                    </>
+                                  ) : (
+                                    <>
+                                      <CheckCircle2
+                                        size={16}
+                                        className="mr-2"
+                                      />
+                                      Finalizar proceso
+                                    </>
+                                  )}
+                                </Button>
+                              </div>
                             </div>
                           </div>
                         </div>
-                      </div>
-                    )}
+                      )}
                     </div>
                   </div>
                 </div>

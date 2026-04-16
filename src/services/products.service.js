@@ -5,6 +5,20 @@ const productsService = {
     const { data } = await api.get("/products", { params });
     return data;
   },
+  searchByCustomer: async (customer, params = {}) => {
+    const { data } = await api.get("/products", {
+      params: {
+        customer,
+        onlyActive: true,
+        page: 1,
+        pageSize: 1000,
+        sortBy: "name",
+        sortDirection: "asc",
+        ...params,
+      },
+    });
+    return data;
+  },
   getById: async (id) => {
     const { data } = await api.get(`/products/${id}`);
     return data;

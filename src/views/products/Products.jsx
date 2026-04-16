@@ -2,16 +2,15 @@ import { useState, useEffect, useCallback } from "react";
 import productsService from "../../services/products.service";
 import { useAuthStore } from "../../store/authStore";
 
-//VIEWS
 import ProductForm from "../products/ProductForm";
 import ProductView from "./ProductView";
 
-//COMPONENTS
 import DataTable from "../../components/data-table/DataTable";
 import ConfirmDialog from "../../components/common/ConfirmDialog";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Plus, Pencil, Trash2, Loader2, ScanEye } from "lucide-react";
+import usePersistedTableState from "../../hooks/usePersistedTableState";
 
 const defaultMeta = {
   page: 1,
@@ -20,15 +19,37 @@ const defaultMeta = {
   totalPages: 1,
 };
 
+const defaultTableState = {
+  search: "",
+  page: 1,
+  pageSize: defaultMeta.pageSize,
+  sortKey: "third",
+  sortDirection: "asc",
+};
+
+const formatTroquelLabel = (troquel) => {
+  if (!troquel) return "-";
+  return troquel.code || troquel.file_name || `Troquel #${troquel.id}`;
+};
+
+const formatThirdLabel = (third) => {
+  if (!third) return "-";
+  return third.company_name || third.name || `Tercero #${third.id}`;
+};
+
+const formatProductDisplayName = (product) =>
+  product?.name || `${formatThirdLabel(product?.third)} · ${formatTroquelLabel(product?.troquel)}`;
+
 const Products = () => {
   const { user: currentUser } = useAuthStore();
-
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState("");
+  const [tableState, setTableState] = usePersistedTableState(
+    "config-products",
+    defaultTableState,
+  );
+  const { search, page, pageSize, sortKey, sortDirection } = tableState;
   const [debouncedSearch, setDebouncedSearch] = useState("");
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(defaultMeta.pageSize);
   const [meta, setMeta] = useState(defaultMeta);
 
   const [viewModal, setViewModal] = useState({
@@ -48,7 +69,6 @@ const Products = () => {
     loading: false,
   });
 
-  // ───────────── CARGAR PRODUCTOS ─────────────
   const fetchProducts = useCallback(async () => {
     try {
       setLoading(true);
@@ -57,21 +77,22 @@ const Products = () => {
         page,
         pageSize,
         search: debouncedSearch || undefined,
+        sortBy: sortKey,
+        sortDirection,
       });
-      const productsArray = response?.data?.products || [];
 
-      setProducts(productsArray);
+      setProducts(response?.data?.products || []);
       setMeta(response?.meta || defaultMeta);
 
       if (response?.meta?.page && response.meta.page !== page) {
-        setPage(response.meta.page);
+        setTableState((prev) => ({ ...prev, page: response.meta.page }));
       }
     } catch {
       toast.error("Error al cargar los productos");
     } finally {
       setLoading(false);
     }
-  }, [debouncedSearch, page, pageSize]);
+  }, [debouncedSearch, page, pageSize, sortDirection, sortKey]);
 
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {
@@ -85,30 +106,18 @@ const Products = () => {
     fetchProducts();
   }, [fetchProducts]);
 
-  // ───────────── MODALES ─────────────
-  const handleOpenCreate = () =>
-    setFormModal({ isOpen: true, productId: null });
-
+  const handleOpenCreate = () => setFormModal({ isOpen: true, productId: null });
   const handleOpenEdit = (id) => setFormModal({ isOpen: true, productId: id });
-
-  const handleCloseForm = () =>
-    setFormModal({ isOpen: false, productId: null });
-
+  const handleCloseForm = () => setFormModal({ isOpen: false, productId: null });
   const handleView = (id) => setViewModal({ isOpen: true, productId: id });
+  const handleCloseView = () => setViewModal({ isOpen: false, productId: null });
+  const handleFormSuccess = () => fetchProducts();
 
-  const handleCloseView = () =>
-    setViewModal({ isOpen: false, productId: null });
-
-  const handleFormSuccess = () => {
-    fetchProducts();
-  };
-
-  // ───────────── ELIMINAR ─────────────
   const handleDeleteClick = (product) => {
     setConfirmDialog({
       isOpen: true,
       productId: product.id,
-      productName: product.name,
+      productName: formatProductDisplayName(product),
       loading: false,
     });
   };
@@ -143,22 +152,29 @@ const Products = () => {
     }
   };
 
-  // ───────────── COLUMNAS ─────────────
   const columns = [
-    {
-      key: "id",
-      label: "ID",
-    },
+    { key: "id", label: "ID" },
     {
       key: "name",
       label: "Nombre",
+      render: (row) => row.name || "Sin nombre",
+    },
+    {
+      key: "third",
+      label: "Tercero",
+      render: (row) => formatThirdLabel(row.third),
+    },
+    {
+      key: "troquel",
+      label: "Troquel",
+      render: (row) => formatTroquelLabel(row.troquel),
     },
     {
       key: "is_active",
       label: "Estado",
       render: (row) => (
         <span
-          className={`px-2 py-1 rounded-full text-xs font-semibold ${
+          className={`rounded-full px-2 py-1 text-xs font-semibold ${
             row.is_active
               ? "bg-green-100 text-green-800"
               : "bg-red-100 text-red-800"
@@ -170,24 +186,21 @@ const Products = () => {
     },
   ];
 
-  // ───────────── ACCIONES ─────────────
   const actions = (row) => {
     const canEdit = ["ADMIN", "SUPERVISOR"].includes(currentUser?.role);
     const canDelete = ["ADMIN", "SUPERVISOR"].includes(currentUser?.role);
 
     return (
       <div className="flex items-center justify-end gap-2">
-        {/* Ver */}
         <Button
           size="icon"
           variant="ghost"
           onClick={() => handleView(row.id)}
-          className="hover:text-[#13529a] hover:bg-[#13529a]/10 cursor-pointer"
+          className="cursor-pointer hover:bg-[#13529a]/10 hover:text-[#13529a]"
         >
           <ScanEye size={16} />
         </Button>
 
-        {/* Editar */}
         <Button
           size="icon"
           variant="ghost"
@@ -195,14 +208,13 @@ const Products = () => {
           onClick={() => canEdit && handleOpenEdit(row.id)}
           className={
             canEdit
-              ? "hover:text-[#13529a] hover:bg-[#13529a]/10 cursor-pointer"
-              : "text-gray-300 cursor-not-allowed opacity-50"
+              ? "cursor-pointer hover:bg-[#13529a]/10 hover:text-[#13529a]"
+              : "cursor-not-allowed text-gray-300 opacity-50"
           }
         >
           <Pencil size={16} />
         </Button>
 
-        {/* Eliminar */}
         <Button
           size="icon"
           variant="ghost"
@@ -210,8 +222,8 @@ const Products = () => {
           onClick={() => canDelete && handleDeleteClick(row)}
           className={
             canDelete
-              ? "hover:text-red-600 hover:bg-red-50 cursor-pointer"
-              : "text-gray-300 cursor-not-allowed opacity-50"
+              ? "cursor-pointer hover:bg-red-50 hover:text-red-600"
+              : "cursor-not-allowed text-gray-300 opacity-50"
           }
         >
           <Trash2 size={16} />
@@ -220,29 +232,24 @@ const Products = () => {
     );
   };
 
-  // ───────────── UI ─────────────
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-[#13529a]">Productos</h1>
-          <p className="text-sm text-gray-500">
-            {meta.total} Productos registrados
-          </p>
+          <p className="text-sm text-gray-500">{meta.total} productos registrados</p>
         </div>
 
         <Button
           onClick={handleOpenCreate}
-          className="bg-[#13529a] hover:bg-[#0f3f7a] text-white cursor-pointer"
+          className="cursor-pointer bg-[#13529a] text-white hover:bg-[#0f3f7a]"
         >
           <Plus size={16} className="mr-2" />
           Nuevo Producto
         </Button>
       </div>
 
-      {/* Tabla */}
-      <div className="bg-white rounded-xl border shadow-sm p-4">
+      <div className="rounded-xl border bg-white p-4 shadow-sm">
         {loading ? (
           <div className="flex items-center justify-center py-16">
             <Loader2 size={32} className="animate-spin text-[#13529a]" />
@@ -255,24 +262,37 @@ const Products = () => {
             serverSide
             searchValue={search}
             onSearchChange={(value) => {
-              setSearch(value);
-              setPage(1);
+              setTableState((prev) => ({ ...prev, search: value, page: 1 }));
             }}
             currentPage={meta.page}
             currentPageSize={meta.pageSize}
             total={meta.total}
             totalPages={meta.totalPages}
-            onPageChange={setPage}
+            onPageChange={(nextPage) =>
+              setTableState((prev) => ({ ...prev, page: nextPage }))
+            }
             onPageSizeChange={(nextPageSize) => {
-              setPageSize(nextPageSize);
-              setPage(1);
+              setTableState((prev) => ({
+                ...prev,
+                pageSize: nextPageSize,
+                page: 1,
+              }));
+            }}
+            sortKey={sortKey}
+            sortDirection={sortDirection}
+            onSortChange={(nextSortKey, nextSortDirection) => {
+              setTableState((prev) => ({
+                ...prev,
+                sortKey: nextSortKey,
+                sortDirection: nextSortDirection,
+                page: 1,
+              }));
             }}
             itemLabel="productos"
           />
         )}
       </div>
 
-      {/* Modal formulario */}
       <ProductForm
         isOpen={formModal.isOpen}
         onClose={handleCloseForm}
@@ -280,22 +300,20 @@ const Products = () => {
         productId={formModal.productId}
       />
 
-      {/* Modal ver */}
       <ProductView
         isOpen={viewModal.isOpen}
         onClose={handleCloseView}
         productId={viewModal.productId}
       />
 
-      {/* Confirm dialog */}
       <ConfirmDialog
         isOpen={confirmDialog.isOpen}
         onClose={handleCloseDialog}
         onConfirm={handleConfirmDelete}
         loading={confirmDialog.loading}
-        title="¿Eliminar producto?"
-        description={`Estás a punto de eliminar a "${confirmDialog.productName}". Esta acción es permanente y no se puede deshacer.`}
-        confirmText="Sí, eliminar"
+        title="¿Desactivar producto?"
+        description={`Estás a punto de desactivar "${confirmDialog.productName}". Esta acción no se puede deshacer.`}
+        confirmText="Sí, desactivar"
         cancelText="Cancelar"
         variant="danger"
       />

@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import {
   Table,
@@ -26,6 +26,10 @@ const DataTable = ({
   columns = [],
   actions,
   serverSide = false,
+  storageKey,
+  sortKey: controlledSortKey,
+  sortDirection: controlledSortDirection = "asc",
+  onSortChange,
   searchValue = "",
   onSearchChange,
   currentPage = 1,
@@ -36,12 +40,78 @@ const DataTable = ({
   onPageSizeChange,
   itemLabel = "registros",
 }) => {
-  const [search, setSearch] = useState("");
-  const [clientPage, setClientPage] = useState(1);
-  const [clientPageSize, setClientPageSize] = useState(10);
+  const readPersistedState = () => {
+    if (typeof window === "undefined" || !storageKey || serverSide) {
+      return {};
+    }
 
-  const [sortKey, setSortKey] = useState("id");
-  const [sortDirection, setSortDirection] = useState("asc");
+    try {
+      const rawValue = window.localStorage.getItem(
+        `prograficos:datatable:${storageKey}`,
+      );
+
+      if (!rawValue) {
+        return {};
+      }
+
+      const parsedValue = JSON.parse(rawValue);
+      return parsedValue && typeof parsedValue === "object" ? parsedValue : {};
+    } catch {
+      return {};
+    }
+  };
+
+  const persistedState = readPersistedState();
+
+  const [search, setSearch] = useState(() => persistedState.search ?? "");
+  const [clientPage, setClientPage] = useState(
+    () => persistedState.clientPage ?? 1,
+  );
+  const [clientPageSize, setClientPageSize] = useState(
+    () => persistedState.clientPageSize ?? 10,
+  );
+
+  const [localSortKey, setLocalSortKey] = useState(
+    () => persistedState.localSortKey ?? "id",
+  );
+  const [localSortDirection, setLocalSortDirection] = useState(
+    () => persistedState.localSortDirection ?? "asc",
+  );
+
+  const isRemoteSort = serverSide && typeof onSortChange === "function";
+  const activeSortKey = isRemoteSort ? controlledSortKey : localSortKey;
+  const activeSortDirection = isRemoteSort
+    ? controlledSortDirection
+    : localSortDirection;
+
+  useEffect(() => {
+    if (serverSide || !storageKey || typeof window === "undefined") {
+      return;
+    }
+
+    try {
+      window.localStorage.setItem(
+        `prograficos:datatable:${storageKey}`,
+        JSON.stringify({
+          search,
+          clientPage,
+          clientPageSize,
+          localSortKey,
+          localSortDirection,
+        }),
+      );
+    } catch {
+      // Ignore storage errors and keep the table usable.
+    }
+  }, [
+    clientPage,
+    clientPageSize,
+    localSortDirection,
+    localSortKey,
+    search,
+    serverSide,
+    storageKey,
+  ]);
 
   const filteredData = useMemo(() => {
     const arr = Array.isArray(data) ? data : [];
@@ -61,21 +131,23 @@ const DataTable = ({
   const sortedData = useMemo(() => {
     const arr = [...filteredData];
 
-    if (serverSide || !sortKey) return arr;
+    if (isRemoteSort || (serverSide && !isRemoteSort) || !activeSortKey) {
+      return arr;
+    }
 
     return arr.sort((a, b) => {
-      const A = a[sortKey];
-      const B = b[sortKey];
+      const A = a[activeSortKey];
+      const B = b[activeSortKey];
 
       if (A === undefined || A === null) return 1;
       if (B === undefined || B === null) return -1;
 
-      if (A < B) return sortDirection === "asc" ? -1 : 1;
-      if (A > B) return sortDirection === "asc" ? 1 : -1;
+      if (A < B) return activeSortDirection === "asc" ? -1 : 1;
+      if (A > B) return activeSortDirection === "asc" ? 1 : -1;
 
       return 0;
     });
-  }, [filteredData, sortKey, sortDirection, serverSide]);
+  }, [activeSortDirection, activeSortKey, filteredData, isRemoteSort, serverSide]);
 
   const clientTotalPages = Math.ceil(sortedData.length / clientPageSize);
 
@@ -86,12 +158,28 @@ const DataTable = ({
         clientPage * clientPageSize,
       );
 
-  const handleSort = (key) => {
-    if (sortKey === key) {
-      setSortDirection(sortDirection === "asc" ? "desc" : "asc");
+  const handleSort = (column) => {
+    if (column?.sortable === false) return;
+
+    const nextSortKey = column?.sortKey || column?.key;
+
+    if (!nextSortKey) return;
+
+    if (isRemoteSort) {
+      const nextDirection =
+        activeSortKey === nextSortKey && activeSortDirection === "asc"
+          ? "desc"
+          : "asc";
+
+      onSortChange(nextSortKey, nextDirection);
+      return;
+    }
+
+    if (activeSortKey === nextSortKey) {
+      setLocalSortDirection(activeSortDirection === "asc" ? "desc" : "asc");
     } else {
-      setSortKey(key);
-      setSortDirection("asc");
+      setLocalSortKey(nextSortKey);
+      setLocalSortDirection("asc");
     }
   };
 
@@ -159,13 +247,17 @@ const DataTable = ({
             <TableRow>
               {columns.map((col) => (
                 <TableHead key={col.key}>
-                  {serverSide ? (
+                  {col.sortable === false || (serverSide && !isRemoteSort) ? (
                     <span className="font-semibold">{col.label}</span>
                   ) : (
                     <Button
                       variant="ghost"
-                      className="p-0 font-semibold cursor-pointer"
-                      onClick={() => handleSort(col.key)}
+                      className={`p-0 font-semibold cursor-pointer ${
+                        activeSortKey === (col.sortKey || col.key)
+                          ? "text-[#13529a]"
+                          : ""
+                      }`}
+                      onClick={() => handleSort(col)}
                     >
                       {col.label}
                       <ArrowUpDown size={14} className="ml-1" />
