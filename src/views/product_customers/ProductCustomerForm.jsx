@@ -145,11 +145,11 @@ export default function ProductCustomerForm({
       />
 
       {/* Panel */}
-      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md mx-auto overflow-hidden animate-in">
+      <div className="relative mx-auto flex max-h-[92vh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl animate-in">
         <div className="h-1.5 w-full bg-[#13529a]" />
 
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b">
+        <div className="flex items-center justify-between border-b px-4 py-4 sm:px-6">
           <div>
             <h2 className="text-base font-bold text-[#13529a]">
               {isEditing
@@ -172,14 +172,15 @@ export default function ProductCustomerForm({
         </div>
 
         {/* Body */}
-        <div className="px-6 py-5">
+        <div className="flex-1 overflow-y-auto px-4 py-4 sm:px-6 sm:py-5">
           {fetching ? (
             <div className="flex items-center justify-center py-10">
               <Loader2 size={28} className="animate-spin text-[#13529a]" />
             </div>
           ) : (
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form onSubmit={handleSubmit} className="space-y-5">
               {/* Nombre */}
+              <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-1">
                 <Label className="text-xs">Nombre</Label>
                 <Input
@@ -191,7 +192,7 @@ export default function ProductCustomerForm({
                     if (errors.name)
                       setErrors((prev) => ({ ...prev, name: "" }));
                   }}
-                  className="h-8 text-sm"
+                  className="h-9 text-sm"
                 />
                 {errors.name && (
                   <p className="text-xs text-red-500">{errors.name}</p>
@@ -209,7 +210,7 @@ export default function ProductCustomerForm({
                       setErrors((prev) => ({ ...prev, product_id: "" }));
                   }}
                 >
-                  <SelectTrigger className="h-8 text-sm w-full">
+                  <SelectTrigger className="h-9 text-sm w-full">
                     <SelectValue>
                       {products.find((p) => String(p.id) === form.product_id)
                         ?.name || "Selecciona un producto"}
@@ -242,7 +243,7 @@ export default function ProductCustomerForm({
                       setErrors((prev) => ({ ...prev, third_id: "" }));
                   }}
                 >
-                  <SelectTrigger className="h-8 text-sm w-full">
+                  <SelectTrigger className="h-9 text-sm w-full">
                     <SelectValue>
                       {thirds.find((t) => String(t.id) === form.third_id)
                         ? `${thirds.find((t) => String(t.id) === form.third_id)?.name}${thirds.find((t) => String(t.id) === form.third_id)?.company_name ? ` — ${thirds.find((t) => String(t.id) === form.third_id)?.company_name}` : ""}`
@@ -266,7 +267,7 @@ export default function ProductCustomerForm({
                 )}
               </div>
 
-              <div className="space-y-1">
+              <div className="space-y-1 md:col-span-2">
                 <Label className="text-xs">Estado</Label>
                 <div className="flex items-center gap-2">
                   <button
@@ -292,22 +293,23 @@ export default function ProductCustomerForm({
                   </span>
                 </div>
               </div>
+              </div>
 
               {/* Botones */}
-              <div className="flex gap-3 pt-2">
+              <div className="flex flex-col gap-3 border-t pt-4 sm:flex-row">
                 <Button
                   type="button"
                   variant="outline"
                   onClick={handleClose}
                   disabled={loading}
-                  className="flex-1 h-8 text-sm cursor-pointer"
+                  className="flex-1 h-9 text-sm cursor-pointer"
                 >
                   Cancelar
                 </Button>
                 <Button
                   type="submit"
                   disabled={loading}
-                  className="flex-1 h-8 text-sm bg-[#13529a] hover:bg-[#0f3f7a] text-white cursor-pointer"
+                  className="flex-1 h-9 text-sm bg-[#13529a] hover:bg-[#0f3f7a] text-white cursor-pointer"
                 >
                   {loading ? (
                     <>

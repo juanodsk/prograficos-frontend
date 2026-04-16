@@ -39,6 +39,11 @@ const DataTable = ({
   onPageChange,
   onPageSizeChange,
   itemLabel = "registros",
+  showExport = true,
+  searchPlaceholder = "Buscar...",
+  searchContainerClassName = "max-w-sm",
+  searchInputClassName = "",
+  toolbarClassName = "",
 }) => {
   const readPersistedState = () => {
     if (typeof window === "undefined" || !storageKey || serverSide) {
@@ -208,16 +213,16 @@ const DataTable = ({
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <div className="relative max-w-sm">
+      <div className={`flex items-center justify-between flex-wrap gap-3 ${toolbarClassName}`}>
+        <div className={`relative w-full ${searchContainerClassName}`}>
           <Search
             size={16}
             className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
           />
 
           <Input
-            placeholder="Buscar..."
-            className="pl-9"
+            placeholder={searchPlaceholder}
+            className={`pl-9 ${searchInputClassName}`}
             value={serverSide ? searchValue : search}
             onChange={(e) => {
               if (serverSide) {
@@ -231,14 +236,16 @@ const DataTable = ({
           />
         </div>
 
-        <Button
-          variant="outline"
-          onClick={exportCSV}
-          className="cursor-pointer"
-        >
-          <Download size={16} className="mr-2" />
-          Exportar
-        </Button>
+        {showExport && (
+          <Button
+            variant="outline"
+            onClick={exportCSV}
+            className="cursor-pointer"
+          >
+            <Download size={16} className="mr-2" />
+            Exportar
+          </Button>
+        )}
       </div>
 
       <div className="border rounded-md">

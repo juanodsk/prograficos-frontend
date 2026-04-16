@@ -475,10 +475,10 @@ const ProcessesForm = ({ isOpen, onClose, onSuccess, processId }) => {
         onClick={loading ? undefined : onClose}
       />
 
-      <div className="relative max-h-[90vh] w-full max-w-4xl overflow-auto rounded-2xl bg-white shadow-2xl">
+      <div className="relative flex max-h-[92vh] w-full max-w-6xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
         <div className="h-1.5 w-full bg-[#13529a]" />
 
-        <div className="flex items-center justify-between border-b px-6 py-4">
+        <div className="flex items-center justify-between border-b px-4 py-4 sm:px-6">
           <div>
             <h2 className="text-lg font-bold text-[#13529a]">
               {isEditing ? "Editar proceso" : "Nuevo proceso"}
@@ -497,7 +497,7 @@ const ProcessesForm = ({ isOpen, onClose, onSuccess, processId }) => {
           </button>
         </div>
 
-        <div className="px-6 py-5">
+        <div className="flex-1 overflow-y-auto px-4 py-4 sm:px-6 sm:py-5">
           {fetching ? (
             <div className="flex items-center justify-center py-16">
               <Loader2 size={32} className="animate-spin text-[#13529a]" />
@@ -796,7 +796,7 @@ const ProcessesForm = ({ isOpen, onClose, onSuccess, processId }) => {
                 </div>
               </div>
 
-              <div className="flex justify-end gap-3 border-t pt-4">
+              <div className="flex flex-col gap-3 border-t pt-4 sm:flex-row sm:justify-end">
                 <Button
                   type="button"
                   variant="outline"
