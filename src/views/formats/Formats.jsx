@@ -108,6 +108,10 @@ const Formats = () => {
       label: "Nombre",
     },
     {
+      key: "sheet_divisions",
+      label: "Divisiones",
+    },
+    {
       key: "is_active",
       label: "Estado",
       render: (row) => (
@@ -189,7 +193,12 @@ const Formats = () => {
             <Loader2 size={32} className="animate-spin text-[#13529a]" />
           </div>
         ) : (
-          <DataTable data={formats} columns={columns} actions={actions} />
+          <DataTable
+            data={formats}
+            columns={columns}
+            actions={actions}
+            storageKey="config-formats"
+          />
         )}
       </div>
       <FormatForm

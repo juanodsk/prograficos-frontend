@@ -18,15 +18,6 @@ const defaultSummary = {
   activeProcesses: 0,
 };
 
-const formatDate = (value) =>
-  value
-    ? new Date(value).toLocaleDateString("es-CO", {
-        day: "2-digit",
-        month: "short",
-        year: "numeric",
-      })
-    : "Sin fecha";
-
 const formatClock = (value) =>
   new Date(value).toLocaleTimeString("es-CO", {
     hour: "2-digit",
@@ -75,29 +66,16 @@ const getProcessFlowMessage = (order) => {
   return `Esperando a ${currentDetail.process.name}`;
 };
 
-const getDeadlineTone = (dateValue) => {
-  if (!dateValue) return "text-slate-300";
-
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-
-  const target = new Date(dateValue);
-  target.setHours(0, 0, 0, 0);
-
-  const diffDays = Math.round((target - today) / (1000 * 60 * 60 * 24));
-
-  if (diffDays < 0) return "text-rose-300";
-  if (diffDays <= 1) return "text-amber-300";
-  return "text-emerald-300";
-};
-
 const getShortProductName = (order) =>
-  order?.product_customer?.name ||
-  order?.product_customer?.product?.name ||
+  order?.product?.name ||
+  order?.product?.troquel?.code ||
+  order?.troquel?.code ||
   "Producto sin nombre";
 
 const getClientName = (order) =>
-  order?.product_customer?.third?.name || "Cliente sin definir";
+  order?.product?.third?.company_name ||
+  order?.product?.third?.name ||
+  "Cliente sin definir";
 
 const clampTwoLines = {
   display: "-webkit-box",
@@ -221,15 +199,7 @@ const ProductionBoard = () => {
     };
   }, [loadOrders]);
 
-  const visibleOrders = useMemo(
-    () =>
-      [...orders].sort(
-        (a, b) =>
-          new Date(a.date_delivery_estimated) -
-          new Date(b.date_delivery_estimated),
-      ),
-    [orders],
-  );
+  const visibleOrders = useMemo(() => [...orders], [orders]);
 
   if (loading) {
     return (
@@ -426,15 +396,13 @@ const ProductionBoard = () => {
                       <div className="grid grid-cols-[1fr_160px] items-start gap-6">
                         <div>
                           <p className="text-[11px] uppercase tracking-[0.18em] text-slate-500">
-                            Entrega
+                            Pliegos
                           </p>
-                          <p
-                            className={`mt-2 text-[clamp(1.2rem,0.95vw,1.55rem)] font-bold leading-tight ${getDeadlineTone(order.date_delivery_estimated)}`}
-                          >
-                            {formatDate(order.date_delivery_estimated)}
+                          <p className="mt-2 text-[clamp(1.2rem,0.95vw,1.55rem)] font-bold leading-tight text-slate-200">
+                            {order.amount_sheets ?? 0}
                           </p>
                           <p className="mt-2 text-[clamp(0.95rem,0.74vw,1.05rem)] text-slate-300">
-                            {order.amount_sheets ?? 0} pliegos
+                            {currentDetail?.process?.category || "Sin categoría"}
                           </p>
                         </div>
 

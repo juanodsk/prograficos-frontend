@@ -204,7 +204,12 @@ const Measures = () => {
             <Loader2 size={32} className="animate-spin text-[#13529a]" />
           </div>
         ) : (
-          <DataTable data={measures} columns={columns} actions={actions} />
+          <DataTable
+            data={measures}
+            columns={columns}
+            actions={actions}
+            storageKey="config-measures"
+          />
         )}
       </div>
 

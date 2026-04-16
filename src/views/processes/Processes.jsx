@@ -187,7 +187,12 @@ const Processes = () => {
             <Loader2 size={32} className="animate-spin text-[#13529a]" />
           </div>
         ) : (
-          <DataTable data={processes} columns={columns} actions={actions} />
+          <DataTable
+            data={processes}
+            columns={columns}
+            actions={actions}
+            storageKey="config-processes"
+          />
         )}
       </div>
 

@@ -21,7 +21,6 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   ScrollText,
-  UserStar,
   X,
   Factory,
   ShieldUser,
@@ -81,12 +80,6 @@ const menuItems = [
         label: "Productos",
         path: "/configuracion/productos",
         icon: Package,
-        roles: ["ADMIN", "SUPERVISOR"],
-      },
-      {
-        label: "Productos Clientes",
-        path: "/configuracion/productos_clientes",
-        icon: UserStar,
         roles: ["ADMIN", "SUPERVISOR"],
       },
       {

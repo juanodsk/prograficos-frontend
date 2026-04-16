@@ -19,6 +19,7 @@ export default function FormatoFormModal({
   const [errors, setErrors] = useState({});
   const [form, setForm] = useState({
     name: "",
+    sheet_divisions: "1",
     is_active: true,
   });
 
@@ -28,7 +29,7 @@ export default function FormatoFormModal({
   }, [isOpen, formatId]);
 
   const resetForm = () => {
-    setForm({ name: "", is_active: true });
+    setForm({ name: "", sheet_divisions: "1", is_active: true });
     setErrors({});
   };
 
@@ -39,6 +40,7 @@ export default function FormatoFormModal({
       const f = res?.data?.format || res?.data || res;
       setForm({
         name: f.name || "",
+        sheet_divisions: f.sheet_divisions ? String(f.sheet_divisions) : "1",
         is_active: f.is_active ?? true,
       });
     } catch {
@@ -52,6 +54,9 @@ export default function FormatoFormModal({
   const validate = () => {
     const newErrors = {};
     if (!form.name.trim()) newErrors.name = "El nombre es requerido";
+    if (!form.sheet_divisions || Number(form.sheet_divisions) <= 0) {
+      newErrors.sheet_divisions = "Las divisiones del pliego deben ser mayores a 0";
+    }
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -61,7 +66,11 @@ export default function FormatoFormModal({
     if (!validate()) return;
     try {
       setLoading(true);
-      const payload = { name: form.name, is_active: form.is_active };
+      const payload = {
+        name: form.name,
+        sheet_divisions: Number(form.sheet_divisions),
+        is_active: form.is_active,
+      };
       let result;
       if (isEditing) {
         result = await formatsService.update(formatId, payload);
@@ -152,6 +161,37 @@ export default function FormatoFormModal({
                 />
                 {errors.name && (
                   <p className="text-xs text-red-500">{errors.name}</p>
+                )}
+              </div>
+
+              <div className="space-y-1">
+                <Label className="text-xs">Divisiones del pliego</Label>
+                <Input
+                  name="sheet_divisions"
+                  type="number"
+                  min="1"
+                  placeholder="Ej: 4"
+                  value={form.sheet_divisions}
+                  onChange={(e) => {
+                    setForm((prev) => ({
+                      ...prev,
+                      sheet_divisions: e.target.value,
+                    }));
+                    if (errors.sheet_divisions)
+                      setErrors((prev) => ({
+                        ...prev,
+                        sheet_divisions: "",
+                      }));
+                  }}
+                  className="h-8 text-sm"
+                />
+                <p className="text-[11px] text-gray-400">
+                  Ejemplo: para formato 1/4, registra 4; para 1/8, registra 8.
+                </p>
+                {errors.sheet_divisions && (
+                  <p className="text-xs text-red-500">
+                    {errors.sheet_divisions}
+                  </p>
                 )}
               </div>
 

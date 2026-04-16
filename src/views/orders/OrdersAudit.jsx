@@ -85,6 +85,17 @@ const displayFieldValue = (fieldValue) => {
   return rawValue;
 };
 
+const getOrderProductLabel = (order) =>
+  order?.product?.name ||
+  order?.product?.troquel?.code ||
+  order?.troquel?.code ||
+  `Orden #${order?.id ?? ""}`;
+
+const getOrderClientLabel = (order) =>
+  order?.product?.third?.company_name ||
+  order?.product?.third?.name ||
+  "Sin cliente";
+
 const OrdersAudit = () => {
   const navigate = useNavigate();
   const [orders, setOrders] = useState([]);
@@ -280,10 +291,7 @@ const OrdersAudit = () => {
               <div className="max-h-[calc(100vh-22rem)] space-y-3 overflow-y-auto p-4">
                 {orders.map((order) => {
                   const isSelected = selectedOrder?.id === order.id;
-                  const productName =
-                    order.product_customer?.name ||
-                    order.product_customer?.product?.name ||
-                    "Sin producto";
+                  const productName = getOrderProductLabel(order);
 
                   return (
                     <button
@@ -305,7 +313,7 @@ const OrdersAudit = () => {
                             {productName}
                           </p>
                           <p className="text-sm text-slate-500">
-                            {order.product_customer?.third?.name || "Sin cliente"}
+                            {getOrderClientLabel(order)}
                           </p>
                         </div>
                         <StatusBadge status={order.order_status} />
@@ -371,12 +379,9 @@ const OrdersAudit = () => {
                       Orden #{selectedOrder.id}
                     </h2>
                     <p className="mt-1 text-sm text-slate-500">
-                      {selectedOrder.product_customer?.name ||
-                        selectedOrder.product_customer?.product?.name ||
-                        "Sin producto"}{" "}
+                      {getOrderProductLabel(selectedOrder)}{" "}
                       ·{" "}
-                      {selectedOrder.product_customer?.third?.name ||
-                        "Sin cliente"}
+                      {getOrderClientLabel(selectedOrder)}
                     </p>
                   </div>
                   <StatusBadge status={selectedOrder.order_status} />
@@ -420,14 +425,6 @@ const OrdersAudit = () => {
                 </div>
 
                 <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                  <div className="rounded-2xl border p-4">
-                    <p className="text-xs uppercase tracking-wide text-slate-400">
-                      Entrega estimada
-                    </p>
-                    <p className="mt-1 font-semibold text-slate-900">
-                      {formatDate(selectedOrder.date_delivery_estimated)}
-                    </p>
-                  </div>
                   <div className="rounded-2xl border p-4">
                     <p className="text-xs uppercase tracking-wide text-slate-400">
                       Formato y medida

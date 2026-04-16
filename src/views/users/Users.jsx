@@ -6,6 +6,7 @@ import UserForm from "../users/UserForm";
 import UserView from "./UserView";
 import DataTable from "../../components/data-table/DataTable";
 import { useAuthStore } from "../../store/authStore";
+import usePersistedTableState from "../../hooks/usePersistedTableState";
 
 import { Button } from "@/components/ui/button";
 
@@ -65,15 +66,25 @@ const defaultMeta = {
   totalPages: 1,
 };
 
+const defaultTableState = {
+  search: "",
+  page: 1,
+  pageSize: defaultMeta.pageSize,
+  sortKey: "is_active",
+  sortDirection: "desc",
+};
+
 const Users = () => {
   const { user: currentUser } = useAuthStore();
 
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState("");
+  const [tableState, setTableState] = usePersistedTableState(
+    "config-users",
+    defaultTableState,
+  );
+  const { search, page, pageSize, sortKey, sortDirection } = tableState;
   const [debouncedSearch, setDebouncedSearch] = useState("");
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(defaultMeta.pageSize);
   const [meta, setMeta] = useState(defaultMeta);
 
   const [viewModal, setViewModal] = useState({
@@ -100,20 +111,22 @@ const Users = () => {
         page,
         pageSize,
         search: debouncedSearch || undefined,
+        sortBy: sortKey,
+        sortDirection,
       });
 
       setUsers(response?.data || []);
       setMeta(response?.meta || defaultMeta);
 
       if (response?.meta?.page && response.meta.page !== page) {
-        setPage(response.meta.page);
+        setTableState((prev) => ({ ...prev, page: response.meta.page }));
       }
     } catch {
       toast.error("Error al cargar los usuarios");
     } finally {
       setLoading(false);
     }
-  }, [debouncedSearch, page, pageSize]);
+  }, [debouncedSearch, page, pageSize, sortDirection, sortKey]);
 
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {
@@ -192,6 +205,7 @@ const Users = () => {
     {
       key: "avatar",
       label: "Avatar",
+      sortable: false,
       render: (row) => (
         <div className="w-8 h-8 rounded-full overflow-hidden">
           {row?.avatar && (
@@ -332,17 +346,31 @@ const Users = () => {
             serverSide
             searchValue={search}
             onSearchChange={(value) => {
-              setSearch(value);
-              setPage(1);
+              setTableState((prev) => ({ ...prev, search: value, page: 1 }));
             }}
             currentPage={meta.page}
             currentPageSize={meta.pageSize}
             total={meta.total}
             totalPages={meta.totalPages}
-            onPageChange={setPage}
+            onPageChange={(nextPage) =>
+              setTableState((prev) => ({ ...prev, page: nextPage }))
+            }
             onPageSizeChange={(nextPageSize) => {
-              setPageSize(nextPageSize);
-              setPage(1);
+              setTableState((prev) => ({
+                ...prev,
+                pageSize: nextPageSize,
+                page: 1,
+              }));
+            }}
+            sortKey={sortKey}
+            sortDirection={sortDirection}
+            onSortChange={(nextSortKey, nextSortDirection) => {
+              setTableState((prev) => ({
+                ...prev,
+                sortKey: nextSortKey,
+                sortDirection: nextSortDirection,
+                page: 1,
+              }));
             }}
             itemLabel="usuarios"
           />
