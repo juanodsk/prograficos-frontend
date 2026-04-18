@@ -770,19 +770,19 @@ const OrderDetail = () => {
                                 startBlockedByPreviousProcess ||
                                 submittingAction === "start"
                               }
-                              className="w-full bg-blue-600 text-white hover:bg-blue-700 cursor-pointer"
+                              className="h-16 w-full rounded-xl bg-blue-600 px-5 text-base font-semibold text-white hover:bg-blue-700 cursor-pointer"
                             >
                               {submittingAction === "start" ? (
                                 <>
                                   <Loader2
-                                    size={16}
+                                    size={18}
                                     className="mr-2 animate-spin"
                                   />
                                   Iniciando...
                                 </>
                               ) : (
                                 <>
-                                  <PlayCircle size={16} className="mr-2" />
+                                  <PlayCircle size={18} className="mr-2" />
                                   Iniciar proceso
                                 </>
                               )}
@@ -839,12 +839,12 @@ const OrderDetail = () => {
                                     !canFinishActiveProcess ||
                                     submittingAction === "finish"
                                   }
-                                  className="w-full bg-green-600 text-white hover:bg-green-700 cursor-pointer"
+                                  className="h-16 w-full rounded-xl bg-green-600 px-5 text-base font-semibold text-white hover:bg-green-700 cursor-pointer"
                                 >
                                   {submittingAction === "finish" ? (
                                     <>
                                       <Loader2
-                                        size={16}
+                                        size={18}
                                         className="mr-2 animate-spin"
                                       />
                                       Finalizando...
@@ -852,7 +852,7 @@ const OrderDetail = () => {
                                   ) : (
                                     <>
                                       <CheckCircle2
-                                        size={16}
+                                        size={18}
                                         className="mr-2"
                                       />
                                       Finalizar proceso

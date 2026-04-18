@@ -167,7 +167,7 @@ const Measures = () => {
           onClick={() => canDelete && handleDeleteClick(row)}
           className={
             canDelete
-              ? "hover:text-red-600 hover:bg-red-50 cursor-pointer"
+              ? "text-red-600 hover:text-red-700 hover:bg-red-50 cursor-pointer"
               : "text-gray-300 cursor-not-allowed opacity-50"
           }
         >

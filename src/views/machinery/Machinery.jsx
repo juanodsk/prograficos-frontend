@@ -142,7 +142,7 @@ const Machinery = () => {
           onClick={() => canDelete && handleDeleteClick(row)}
           className={
             canDelete
-              ? "cursor-pointer hover:bg-red-50 hover:text-red-600"
+              ? "cursor-pointer text-red-600 hover:bg-red-50 hover:text-red-700"
               : "cursor-not-allowed text-gray-300 opacity-50"
           }
         >

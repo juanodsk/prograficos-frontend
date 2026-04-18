@@ -328,14 +328,6 @@ const OrdersAudit = () => {
                             {formatDateTime(order.audit_summary?.closed_at)}
                           </p>
                         </div>
-                        <div className="rounded-xl bg-white px-3 py-2">
-                          <p className="text-[11px] uppercase tracking-wide text-slate-400">
-                            Último responsable
-                          </p>
-                          <p className="text-sm font-medium text-slate-900">
-                            {formatUserLabel(order.audit_summary?.closed_by)}
-                          </p>
-                        </div>
                       </div>
                     </button>
                   );
