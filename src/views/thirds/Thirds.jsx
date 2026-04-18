@@ -256,7 +256,7 @@ const Thirds = () => {
       <Button
         size="icon"
         variant="ghost"
-        className="hover:text-red-600 hover:bg-red-50 cursor-pointer"
+        className="text-red-600 hover:text-red-700 hover:bg-red-50 cursor-pointer"
         onClick={() => handleDeleteClick(row)}
         title="Eliminar tercero"
       >

@@ -74,7 +74,7 @@ const Orders = () => {
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [activeTab, setActiveTab] = useState("active");
-  const [viewMode, setViewMode] = useState("cards");
+  const [viewMode, setViewMode] = useState("table");
   const [pageByTab, setPageByTab] = useState({
     active: 1,
     finished: 1,
