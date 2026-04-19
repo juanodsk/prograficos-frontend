@@ -29,6 +29,10 @@ const processesService = {
     const { data } = await api.put(`/processes/${id}`, processData);
     return data;
   },
+  reorder: async (processIds) => {
+    const { data } = await api.patch("/processes/reorder", { processIds });
+    return data;
+  },
   delete: async (id) => {
     const { data } = await api.delete(`/processes/${id}`);
     return data;

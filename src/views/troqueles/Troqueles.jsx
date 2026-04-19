@@ -28,15 +28,15 @@ const defaultTableState = {
 
 const sizeConfig = {
   SMALL: {
-    label: "Pequeño",
+    label: "S",
     className: "bg-blue-100 text-blue-800",
   },
   MEDIUM: {
-    label: "Mediano",
+    label: "M",
     className: "bg-red-100 text-red-800",
   },
   LARGE: {
-    label: "Grande",
+    label: "L",
     className: "bg-green-100 text-green-800",
   },
 };
