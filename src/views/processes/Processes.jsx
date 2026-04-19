@@ -11,12 +11,36 @@ import DataTable from "../../components/data-table/DataTable";
 import ConfirmDialog from "../../components/common/ConfirmDialog";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { Plus, Pencil, Trash2, Loader2 } from "lucide-react";
+import { GripVertical, Loader2, Pencil, Plus, Trash2 } from "lucide-react";
+
+const reorderProcessList = (items, draggedProcessId, targetProcessId) => {
+  const draggedIndex = items.findIndex((item) => item.id === draggedProcessId);
+  const targetIndex = items.findIndex((item) => item.id === targetProcessId);
+
+  if (
+    draggedIndex === -1 ||
+    targetIndex === -1 ||
+    draggedIndex === targetIndex
+  ) {
+    return items;
+  }
+
+  const nextItems = [...items];
+  const [draggedItem] = nextItems.splice(draggedIndex, 1);
+  nextItems.splice(targetIndex, 0, draggedItem);
+
+  return nextItems.map((item, index) => ({
+    ...item,
+    order: index + 1,
+  }));
+};
 
 const Processes = () => {
   const { user: currentUser } = useAuthStore();
   const [processes, setProcesses] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [draggedProcessId, setDraggedProcessId] = useState(null);
+  const [reordering, setReordering] = useState(false);
 
   const [formModal, setFormModal] = useState({
     isOpen: false,
@@ -55,6 +79,57 @@ const Processes = () => {
 
   const handleFormSuccess = () => {
     fetchProcesses();
+  };
+
+  const handleDragStart = (processId) => {
+    setDraggedProcessId(processId);
+  };
+
+  const handleDragEnd = () => {
+    setDraggedProcessId(null);
+  };
+
+  const handleDrop = async (targetProcessId) => {
+    if (
+      !draggedProcessId ||
+      draggedProcessId === targetProcessId ||
+      reordering
+    ) {
+      setDraggedProcessId(null);
+      return;
+    }
+
+    const previousProcesses = processes;
+    const nextProcesses = reorderProcessList(
+      previousProcesses,
+      draggedProcessId,
+      targetProcessId,
+    );
+
+    if (nextProcesses === previousProcesses) {
+      setDraggedProcessId(null);
+      return;
+    }
+
+    setProcesses(nextProcesses);
+    setDraggedProcessId(null);
+
+    try {
+      setReordering(true);
+      const response = await processesService.reorder(
+        nextProcesses.map((process) => process.id),
+      );
+      setProcesses(response?.data || nextProcesses);
+      toast.success("Orden de procesos actualizado");
+    } catch (error) {
+      setProcesses(previousProcesses);
+      toast.error(
+        error?.response?.data?.message ||
+          "No se pudo actualizar el orden de los procesos",
+      );
+    } finally {
+      setReordering(false);
+    }
   };
 
   // ───────────── ELIMINAR ─────────────
@@ -97,7 +172,6 @@ const Processes = () => {
     { key: "id", label: "ID" },
     { key: "name", label: "Nombre" },
     { key: "category", label: "Categoria" },
-    { key: "order", label: "Orden" },
     {
       key: "field_definitions",
       label: "Campos",
@@ -187,12 +261,95 @@ const Processes = () => {
             <Loader2 size={32} className="animate-spin text-[#13529a]" />
           </div>
         ) : (
-          <DataTable
-            data={processes}
-            columns={columns}
-            actions={actions}
-            storageKey="config-processes"
-          />
+          <div className="space-y-5">
+            <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4">
+              <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                <div>
+                  <h2 className="text-base font-semibold text-slate-900">
+                    Flujo de procesos
+                  </h2>
+                  <p className="text-sm text-slate-500">
+                    Arrastra cada proceso para definir qué va primero, segundo y
+                    así sucesivamente.
+                  </p>
+                </div>
+                {reordering && (
+                  <div className="inline-flex items-center gap-2 rounded-full bg-white px-3 py-2 text-sm text-[#13529a] shadow-sm">
+                    <Loader2 size={15} className="animate-spin" />
+                    Guardando orden...
+                  </div>
+                )}
+              </div>
+
+              <div className="mt-4 grid gap-3">
+                {processes.map((process, index) => {
+                  const isDragging = draggedProcessId === process.id;
+
+                  return (
+                    <div
+                      key={process.id}
+                      draggable={!reordering}
+                      onDragStart={() => handleDragStart(process.id)}
+                      onDragEnd={handleDragEnd}
+                      onDragOver={(event) => event.preventDefault()}
+                      onDrop={() => handleDrop(process.id)}
+                      className={`flex flex-col gap-3 rounded-2xl border bg-white p-4 transition-all md:flex-row md:items-center ${
+                        isDragging
+                          ? "border-[#13529a] shadow-md opacity-75"
+                          : "border-slate-200 hover:border-[#13529a]/40"
+                      } ${reordering ? "cursor-wait" : "cursor-grab"}`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="rounded-xl bg-[#13529a]/10 p-2 text-[#13529a]">
+                          <GripVertical size={18} />
+                        </div>
+                        <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-slate-100 text-sm font-semibold text-slate-700">
+                          {index + 1}
+                        </div>
+                      </div>
+
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate font-semibold text-slate-900">
+                          {process.name}
+                        </p>
+                        <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-slate-500">
+                          <span>{process.category}</span>
+                          <span className="text-slate-300">•</span>
+                          <span>
+                            {process.field_definitions?.length || 0} campo
+                            {(process.field_definitions?.length || 0) === 1
+                              ? ""
+                              : "s"}
+                          </span>
+                          <span className="text-slate-300">•</span>
+                          <span
+                            className={
+                              process.is_active
+                                ? "font-medium text-emerald-600"
+                                : "font-medium text-rose-600"
+                            }
+                          >
+                            {process.is_active ? "Activo" : "Inactivo"}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="text-xs font-medium uppercase tracking-[0.18em] text-slate-400">
+                        Arrastrar
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            <DataTable
+              data={processes}
+              columns={columns}
+              actions={actions}
+              storageKey="config-processes"
+            />
+          </div>
         )}
       </div>
 

@@ -75,7 +75,6 @@ const createFieldDraft = (index = 0, field = {}) => {
 
 const createInitialFormState = () => ({
   name: "",
-  order: "",
   category: "OTRO",
   is_active: true,
   field_definitions: [],
@@ -109,9 +108,7 @@ const ProcessesForm = ({ isOpen, onClose, onSuccess, processId }) => {
 
   const clearFieldDefinitionsError = () => {
     setErrors((prev) =>
-      prev.field_definitions
-        ? { ...prev, field_definitions: "" }
-        : prev,
+      prev.field_definitions ? { ...prev, field_definitions: "" } : prev,
     );
   };
 
@@ -123,7 +120,6 @@ const ProcessesForm = ({ isOpen, onClose, onSuccess, processId }) => {
 
       setForm({
         name: process?.name || "",
-        order: process?.order ? String(process.order) : "",
         category: process?.category || "OTRO",
         is_active: process?.is_active ?? true,
         field_definitions:
@@ -187,9 +183,7 @@ const ProcessesForm = ({ isOpen, onClose, onSuccess, processId }) => {
     clearFieldDefinitionsError();
     setFieldState(index, {
       [key]: value,
-      ...(key === "field_type" && value !== "SELECT"
-        ? { options: "" }
-        : {}),
+      ...(key === "field_type" && value !== "SELECT" ? { options: "" } : {}),
     });
   };
 
@@ -344,9 +338,6 @@ const ProcessesForm = ({ isOpen, onClose, onSuccess, processId }) => {
     const nextErrors = {};
 
     if (!form.name.trim()) nextErrors.name = "El nombre es requerido";
-    if (!form.order || Number(form.order) <= 0) {
-      nextErrors.order = "El orden debe ser mayor a 0";
-    }
     if (!form.category) nextErrors.category = "La categoria es obligatoria";
 
     const configuredFields = form.field_definitions.filter(
@@ -438,7 +429,6 @@ const ProcessesForm = ({ isOpen, onClose, onSuccess, processId }) => {
 
     const payload = {
       name: form.name.trim(),
-      order: Number(form.order),
       category: form.category,
       is_active: form.is_active,
       field_definitions: normalizeFieldDefinitions(),
@@ -504,7 +494,7 @@ const ProcessesForm = ({ isOpen, onClose, onSuccess, processId }) => {
             </div>
           ) : (
             <form onSubmit={handleSubmit} className="space-y-6">
-              <div className="grid gap-4 md:grid-cols-3">
+              <div className="grid gap-4 md:grid-cols-2">
                 <div className="space-y-2">
                   <Label>Nombre</Label>
                   <Input
@@ -515,21 +505,6 @@ const ProcessesForm = ({ isOpen, onClose, onSuccess, processId }) => {
                   />
                   {errors.name && (
                     <p className="text-xs text-red-500">{errors.name}</p>
-                  )}
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Orden</Label>
-                  <Input
-                    type="number"
-                    min="1"
-                    value={form.order}
-                    onChange={(event) =>
-                      setForm((prev) => ({ ...prev, order: event.target.value }))
-                    }
-                  />
-                  {errors.order && (
-                    <p className="text-xs text-red-500">{errors.order}</p>
                   )}
                 </div>
 
@@ -681,7 +656,10 @@ const ProcessesForm = ({ isOpen, onClose, onSuccess, processId }) => {
                                 <Input
                                   value={field.key}
                                   onChange={(event) =>
-                                    handleFieldKeyChange(index, event.target.value)
+                                    handleFieldKeyChange(
+                                      index,
+                                      event.target.value,
+                                    )
                                   }
                                   onBlur={() => validateFieldKeyOnBlur(index)}
                                   placeholder="ej: papel_parafinado"
@@ -704,11 +682,12 @@ const ProcessesForm = ({ isOpen, onClose, onSuccess, processId }) => {
                               Validando...
                             </p>
                           )}
-                          {field.isEditingKey && field.keyStatus === "valid" && (
-                            <p className="text-xs text-emerald-600">
-                              {field.keyMessage}
-                            </p>
-                          )}
+                          {field.isEditingKey &&
+                            field.keyStatus === "valid" && (
+                              <p className="text-xs text-emerald-600">
+                                {field.keyMessage}
+                              </p>
+                            )}
                           {field.keyStatus === "invalid" && (
                             <p className="text-xs text-red-500">
                               {field.keyMessage}
@@ -763,13 +742,17 @@ const ProcessesForm = ({ isOpen, onClose, onSuccess, processId }) => {
                           </Select>
                         </div>
                         <div className="space-y-2">
-                          <Label>Orden</Label>
+                          <Label>Posición del campo</Label>
                           <Input
                             type="number"
                             min="1"
                             value={field.sort_order}
                             onChange={(event) =>
-                              updateField(index, "sort_order", event.target.value)
+                              updateField(
+                                index,
+                                "sort_order",
+                                event.target.value,
+                              )
                             }
                             className="h-10"
                           />
