@@ -1,5 +1,5 @@
 import { useAuthStore } from "../../store/authStore";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import processesService from "@/services/processes.service";
 
 //VIEWS
@@ -40,6 +40,7 @@ const Processes = () => {
   const [processes, setProcesses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [draggedProcessId, setDraggedProcessId] = useState(null);
+  const [dragTargetProcessId, setDragTargetProcessId] = useState(null);
   const [reordering, setReordering] = useState(false);
 
   const [formModal, setFormModal] = useState({
@@ -81,38 +82,35 @@ const Processes = () => {
     fetchProcesses();
   };
 
-  const handleDragStart = (processId) => {
-    setDraggedProcessId(processId);
-  };
+  const handleDrop = useCallback(async (targetProcessId, sourceProcessId) => {
+    const processIdToMove = sourceProcessId ?? draggedProcessId;
 
-  const handleDragEnd = () => {
-    setDraggedProcessId(null);
-  };
-
-  const handleDrop = async (targetProcessId) => {
     if (
-      !draggedProcessId ||
-      draggedProcessId === targetProcessId ||
+      !processIdToMove ||
+      processIdToMove === targetProcessId ||
       reordering
     ) {
       setDraggedProcessId(null);
+      setDragTargetProcessId(null);
       return;
     }
 
     const previousProcesses = processes;
     const nextProcesses = reorderProcessList(
       previousProcesses,
-      draggedProcessId,
+      processIdToMove,
       targetProcessId,
     );
 
     if (nextProcesses === previousProcesses) {
       setDraggedProcessId(null);
+      setDragTargetProcessId(null);
       return;
     }
 
     setProcesses(nextProcesses);
     setDraggedProcessId(null);
+    setDragTargetProcessId(null);
 
     try {
       setReordering(true);
@@ -130,7 +128,63 @@ const Processes = () => {
     } finally {
       setReordering(false);
     }
+  }, [draggedProcessId, processes, reordering]);
+
+  const handlePointerStart = (event, processId) => {
+    if (reordering) return;
+
+    event.preventDefault();
+    setDraggedProcessId(processId);
+    setDragTargetProcessId(processId);
   };
+
+  const handlePointerEnd = useCallback(() => {
+    if (!draggedProcessId || reordering) {
+      setDraggedProcessId(null);
+      setDragTargetProcessId(null);
+      return;
+    }
+
+    handleDrop(dragTargetProcessId || draggedProcessId, draggedProcessId);
+  }, [dragTargetProcessId, draggedProcessId, handleDrop, reordering]);
+
+  useEffect(() => {
+    if (!draggedProcessId) {
+      return undefined;
+    }
+
+    const handlePointerMove = (event) => {
+      const targetElement = document
+        .elementFromPoint(event.clientX, event.clientY)
+        ?.closest("[data-process-id]");
+
+      if (!targetElement) return;
+
+      const nextTargetId = Number(targetElement.getAttribute("data-process-id"));
+
+      if (!Number.isNaN(nextTargetId)) {
+        setDragTargetProcessId(nextTargetId);
+      }
+    };
+
+    const handleGlobalPointerUp = () => {
+      handlePointerEnd();
+    };
+
+    const previousUserSelect = document.body.style.userSelect;
+    document.body.style.userSelect = "none";
+
+    window.addEventListener("pointermove", handlePointerMove);
+    window.addEventListener("pointerup", handleGlobalPointerUp);
+    window.addEventListener("pointercancel", handleGlobalPointerUp);
+
+    return () => {
+      document.body.style.userSelect = previousUserSelect;
+      window.removeEventListener("pointermove", handlePointerMove);
+      window.removeEventListener("pointerup", handleGlobalPointerUp);
+      window.removeEventListener("pointercancel", handleGlobalPointerUp);
+    };
+  }, [draggedProcessId, handlePointerEnd]);
 
   // ───────────── ELIMINAR ─────────────
   const handleDeleteClick = (process) => {
@@ -284,25 +338,35 @@ const Processes = () => {
               <div className="mt-4 grid gap-3">
                 {processes.map((process, index) => {
                   const isDragging = draggedProcessId === process.id;
+                  const isDropTarget =
+                    draggedProcessId &&
+                    dragTargetProcessId === process.id &&
+                    draggedProcessId !== process.id;
 
                   return (
                     <div
                       key={process.id}
-                      draggable={!reordering}
-                      onDragStart={() => handleDragStart(process.id)}
-                      onDragEnd={handleDragEnd}
-                      onDragOver={(event) => event.preventDefault()}
-                      onDrop={() => handleDrop(process.id)}
+                      data-process-id={process.id}
                       className={`flex flex-col gap-3 rounded-2xl border bg-white p-4 transition-all md:flex-row md:items-center ${
                         isDragging
                           ? "border-[#13529a] shadow-md opacity-75"
+                          : isDropTarget
+                            ? "border-[#13529a] shadow-sm ring-2 ring-[#13529a]/15"
                           : "border-slate-200 hover:border-[#13529a]/40"
                       } ${reordering ? "cursor-wait" : "cursor-grab"}`}
                     >
                       <div className="flex items-center gap-3">
-                        <div className="rounded-xl bg-[#13529a]/10 p-2 text-[#13529a]">
+                        <button
+                          type="button"
+                          onPointerDown={(event) =>
+                            handlePointerStart(event, process.id)
+                          }
+                          disabled={reordering}
+                          aria-label={`Mover proceso ${process.name}`}
+                          className="rounded-xl bg-[#13529a]/10 p-2 text-[#13529a] touch-none cursor-grab active:cursor-grabbing disabled:cursor-wait"
+                        >
                           <GripVertical size={18} />
-                        </div>
+                        </button>
                         <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-slate-100 text-sm font-semibold text-slate-700">
                           {index + 1}
                         </div>

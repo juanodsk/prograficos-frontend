@@ -9,6 +9,7 @@ import StatusBadge from "@/components/common/StatusBadge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { formatTroquelLabel } from "@/lib/troquel";
 import {
   Select,
   SelectContent,
@@ -57,8 +58,7 @@ const getOrderClientLabel = (order) =>
 
 const getOrderProductLabel = (order) =>
   order?.product?.name ||
-  order?.product?.troquel?.code ||
-  order?.troquel?.code ||
+  formatTroquelLabel(order?.product?.troquel || order?.troquel, "") ||
   "Sin producto";
 
 const OrderDetail = () => {
@@ -460,7 +460,7 @@ const OrderDetail = () => {
               Codigo troquel
             </p>
             <p className="mt-1 font-semibold text-slate-900">
-              {order.troquel?.code || `Troquel #${order.troquel_id}`}
+              {formatTroquelLabel(order.troquel, `Troquel #${order.troquel_id}`)}
             </p>
           </div>
           <div className="rounded-2xl bg-white p-4 shadow-sm">

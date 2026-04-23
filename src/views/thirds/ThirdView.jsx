@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { formatTroquelLabel } from "@/lib/troquel";
 import {
   getDocumentTypeLabel,
   getPersonTypeLabel,
@@ -37,11 +38,6 @@ const sizeConfig = {
     label: "Grande",
     className: "bg-green-100 text-green-800",
   },
-};
-
-const formatTroquelLabel = (troquel) => {
-  if (!troquel) return "Troquel sin asignar";
-  return troquel.code || troquel.file_name || `Troquel #${troquel.id}`;
 };
 
 const formatTroquelSize = (size) =>
@@ -168,20 +164,7 @@ const ThirdView = ({ isOpen, onClose, thirdId }) => {
       key: "troquel_code",
       label: "Código de troquel",
     },
-    {
-      key: "troquel_size_label",
-      label: "Tamaño",
-      render: (row) => (
-        <span
-          className={`inline-flex rounded-full px-2 py-1 text-xs font-semibold ${
-            sizeConfig[row.troquel_size]?.className ||
-            "bg-gray-100 text-gray-800"
-          }`}
-        >
-          {row.troquel_size_label}
-        </span>
-      ),
-    },
+   
     {
       key: "troquel_file_name",
       label: "Archivo",

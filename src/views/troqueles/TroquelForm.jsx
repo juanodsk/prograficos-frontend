@@ -47,6 +47,7 @@ export default function TroquelFormModal({
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [errors, setErrors] = useState({});
   const [form, setForm] = useState({
+    code: "",
     elaboration_date: new Date(),
     size: "SMALL",
     file_name: "",
@@ -60,6 +61,7 @@ export default function TroquelFormModal({
 
   const resetForm = () => {
     setForm({
+      code: "",
       elaboration_date: new Date(),
       size: "SMALL",
       file_name: "",
@@ -77,6 +79,7 @@ export default function TroquelFormModal({
       const t = res.data;
 
       setForm({
+        code: t.code || "",
         elaboration_date: new Date(t.elaboration_date),
         size: t.size || "SMALL",
         file_name: t.file_name || "",
@@ -92,9 +95,13 @@ export default function TroquelFormModal({
 
   const validate = () => {
     const newErrors = {};
+    if (!form.code.trim()) newErrors.code = "El código es requerido";
     if (!form.elaboration_date)
       newErrors.elaboration_date = "La fecha es requerida";
     if (!form.size) newErrors.size = "Selecciona un tamaño";
+    if (!isEditing && !fileInputRef.current?.files?.[0]) {
+      newErrors.file = "Debes adjuntar un archivo";
+    }
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -103,6 +110,9 @@ export default function TroquelFormModal({
     const file = e.target.files?.[0];
     if (!file) return;
     setForm((prev) => ({ ...prev, file_name: file.name }));
+    if (errors.file) {
+      setErrors((prev) => ({ ...prev, file: "" }));
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -113,6 +123,7 @@ export default function TroquelFormModal({
       setLoading(true);
 
       const formData = new FormData();
+      formData.append("code", form.code.trim());
       formData.append("elaboration_date", form.elaboration_date.toISOString());
       formData.append("size", form.size);
       formData.append("is_active", form.is_active);
@@ -194,6 +205,14 @@ export default function TroquelFormModal({
                   <div className="mt-4 space-y-3 text-sm">
                     <div>
                       <p className="text-xs uppercase tracking-wide text-slate-400">
+                        Código
+                      </p>
+                      <p className="mt-1 font-medium text-slate-900">
+                        {form.code || "Sin código"}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs uppercase tracking-wide text-slate-400">
                         Tamaño
                       </p>
                       <span
@@ -246,6 +265,25 @@ export default function TroquelFormModal({
                 </aside>
 
                 <div className="grid gap-4 md:grid-cols-2">
+                  <div className="space-y-1">
+                    <Label className="text-xs">Código del Troquel</Label>
+                    <Input
+                      name="code"
+                      placeholder="Ej: BOX01"
+                      value={form.code}
+                      onChange={(e) => {
+                        setForm((prev) => ({ ...prev, code: e.target.value }));
+                        if (errors.code) {
+                          setErrors((prev) => ({ ...prev, code: "" }));
+                        }
+                      }}
+                      className="h-9 text-sm"
+                    />
+                    {errors.code && (
+                      <p className="text-xs text-red-500">{errors.code}</p>
+                    )}
+                  </div>
+
                   <div className="space-y-1">
                     <Label className="text-xs">Fecha de Elaboración</Label>
                     <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
@@ -323,6 +361,9 @@ export default function TroquelFormModal({
                       <p className="mt-1 break-all text-xs text-gray-500">
                         {form.file_name}
                       </p>
+                    )}
+                    {errors.file && (
+                      <p className="text-xs text-red-500">{errors.file}</p>
                     )}
                   </div>
                 </div>
