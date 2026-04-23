@@ -7,6 +7,7 @@ import { connectSocket } from "@/services/socket.service";
 import StatusBadge from "@/components/common/StatusBadge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { formatTroquelLabel } from "@/lib/troquel";
 import {
   CalendarDays,
   Eye,
@@ -87,8 +88,7 @@ const displayFieldValue = (fieldValue) => {
 
 const getOrderProductLabel = (order) =>
   order?.product?.name ||
-  order?.product?.troquel?.code ||
-  order?.troquel?.code ||
+  formatTroquelLabel(order?.product?.troquel || order?.troquel, "") ||
   `Orden #${order?.id ?? ""}`;
 
 const getOrderClientLabel = (order) =>
@@ -441,9 +441,7 @@ const OrdersAudit = () => {
                       Troquel
                     </p>
                     <p className="mt-1 font-semibold text-slate-900">
-                      {selectedOrder.troquel?.code ||
-                        selectedOrder.troquel?.name ||
-                        "Sin registrar"}
+                      {formatTroquelLabel(selectedOrder.troquel, "Sin registrar")}
                     </p>
                   </div>
                   <div className="rounded-2xl border p-4">

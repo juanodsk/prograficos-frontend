@@ -9,12 +9,12 @@ const troquelesService = {
     const { data } = await api.get(`/troqueles/${id}`);
     return data;
   },
-  create: async (troquelesData) => {
-    const { data } = await api.post("/troqueles", troquelesData);
+  create: async (troquelesData, config = {}) => {
+    const { data } = await api.post("/troqueles", troquelesData, config);
     return data;
   },
-  update: async (id, troquelesData) => {
-    const { data } = await api.put(`/troqueles/${id}`, troquelesData);
+  update: async (id, troquelesData, config = {}) => {
+    const { data } = await api.put(`/troqueles/${id}`, troquelesData, config);
     return data;
   },
   delete: async (id) => {

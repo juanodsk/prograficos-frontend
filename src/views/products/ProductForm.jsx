@@ -6,6 +6,7 @@ import thirdsService from "../../services/thirds.service";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { formatTroquelLabel } from "@/lib/troquel";
 import {
   Select,
   SelectContent,
@@ -16,11 +17,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { X, Loader2, Save } from "lucide-react";
-
-const formatTroquelLabel = (troquel) => {
-  if (!troquel) return "Troquel sin asignar";
-  return troquel.code || troquel.file_name || `Troquel #${troquel.id}`;
-};
 
 const formatThirdLabel = (third) => {
   if (!third) return "Tercero sin asignar";
@@ -119,8 +115,9 @@ export default function ProductForm({
 
   const selectedTroquel = useMemo(
     () =>
-      catalogs.troqueles.find((troquel) => String(troquel.id) === form.troquel_id) ||
-      null,
+      catalogs.troqueles.find(
+        (troquel) => String(troquel.id) === form.troquel_id,
+      ) || null,
     [catalogs.troqueles, form.troquel_id],
   );
 
@@ -134,7 +131,8 @@ export default function ProductForm({
     }
 
     return (
-      catalogs.thirds.find((third) => String(third.id) === form.third_id) || null
+      catalogs.thirds.find((third) => String(third.id) === form.third_id) ||
+      null
     );
   }, [catalogs.thirds, defaultThirdId, form.third_id]);
 
@@ -175,7 +173,9 @@ export default function ProductForm({
       onSuccess(result?.data?.product || payload);
       onClose();
     } catch (error) {
-      toast.error(error?.response?.data?.message || "Error al guardar el producto");
+      toast.error(
+        error?.response?.data?.message || "Error al guardar el producto",
+      );
     } finally {
       setLoading(false);
     }
@@ -319,7 +319,10 @@ export default function ProductForm({
                         <SelectGroup>
                           <SelectLabel>Troqueles disponibles</SelectLabel>
                           {catalogs.troqueles.map((troquel) => (
-                            <SelectItem key={troquel.id} value={String(troquel.id)}>
+                            <SelectItem
+                              key={troquel.id}
+                              value={String(troquel.id)}
+                            >
                               {formatTroquelLabel(troquel)}
                             </SelectItem>
                           ))}
@@ -327,7 +330,9 @@ export default function ProductForm({
                       </SelectContent>
                     </Select>
                     {errors.troquel_id && (
-                      <p className="text-xs text-red-500">{errors.troquel_id}</p>
+                      <p className="text-xs text-red-500">
+                        {errors.troquel_id}
+                      </p>
                     )}
                   </div>
 
@@ -349,14 +354,19 @@ export default function ProductForm({
                       >
                         <SelectTrigger className="h-9 w-full">
                           <SelectValue placeholder="Selecciona un tercero">
-                            {selectedThird ? formatThirdLabel(selectedThird) : null}
+                            {selectedThird
+                              ? formatThirdLabel(selectedThird)
+                              : null}
                           </SelectValue>
                         </SelectTrigger>
                         <SelectContent>
                           <SelectGroup>
                             <SelectLabel>Terceros disponibles</SelectLabel>
                             {catalogs.thirds.map((third) => (
-                              <SelectItem key={third.id} value={String(third.id)}>
+                              <SelectItem
+                                key={third.id}
+                                value={String(third.id)}
+                              >
                                 {formatThirdLabel(third)}
                               </SelectItem>
                             ))}

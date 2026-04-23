@@ -4,6 +4,7 @@ import { Activity, Factory, RefreshCw, TimerReset } from "lucide-react";
 import ordersService from "@/services/orders.service";
 import { connectSocket } from "@/services/socket.service";
 import ServerPagination from "@/components/common/ServerPagination";
+import { formatTroquelLabel } from "@/lib/troquel";
 
 const defaultMeta = {
   page: 1,
@@ -68,8 +69,7 @@ const getProcessFlowMessage = (order) => {
 
 const getShortProductName = (order) =>
   order?.product?.name ||
-  order?.product?.troquel?.code ||
-  order?.troquel?.code ||
+  formatTroquelLabel(order?.product?.troquel || order?.troquel, "") ||
   "Producto sin nombre";
 
 const getClientName = (order) =>

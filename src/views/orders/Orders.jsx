@@ -9,6 +9,7 @@ import { connectSocket } from "@/services/socket.service";
 import StatusBadge from "@/components/common/StatusBadge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { formatTroquelLabel } from "@/lib/troquel";
 import {
   Table,
   TableBody,
@@ -57,8 +58,7 @@ const formatShortDate = (value) =>
 
 const getOrderProductLabel = (order) =>
   order?.product?.name ||
-  order?.product?.troquel?.code ||
-  order?.troquel?.code ||
+  formatTroquelLabel(order?.product?.troquel || order?.troquel, "") ||
   `Orden #${order?.id ?? ""}`;
 
 const getOrderClientLabel = (order) =>

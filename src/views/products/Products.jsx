@@ -11,6 +11,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Plus, Pencil, Trash2, Loader2, ScanEye } from "lucide-react";
 import usePersistedTableState from "../../hooks/usePersistedTableState";
+import { formatTroquelLabel } from "@/lib/troquel";
 
 const defaultMeta = {
   page: 1,
@@ -25,11 +26,6 @@ const defaultTableState = {
   pageSize: defaultMeta.pageSize,
   sortKey: "third",
   sortDirection: "asc",
-};
-
-const formatTroquelLabel = (troquel) => {
-  if (!troquel) return "-";
-  return troquel.code || troquel.file_name || `Troquel #${troquel.id}`;
 };
 
 const formatThirdLabel = (third) => {

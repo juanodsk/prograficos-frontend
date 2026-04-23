@@ -15,11 +15,7 @@ import {
   Hash,
 } from "lucide-react";
 import { toast } from "sonner";
-
-const formatTroquelLabel = (troquel) => {
-  if (!troquel) return "Troquel sin asignar";
-  return troquel.code || troquel.file_name || `Troquel #${troquel.id}`;
-};
+import { formatTroquelLabel } from "@/lib/troquel";
 
 const formatThirdLabel = (third) => {
   if (!third) return "Tercero sin asignar";

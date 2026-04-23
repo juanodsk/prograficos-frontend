@@ -4,6 +4,7 @@ import productsService from "../../services/products.service";
 import ProductView from "../products/ProductView";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { formatTroquelLabel } from "@/lib/troquel";
 import {
   Building2,
   CalendarDays,
@@ -18,22 +19,17 @@ import {
 
 const sizeConfig = {
   SMALL: {
-    label: "Pequeño",
+    label: "S",
     className: "bg-blue-100 text-blue-800",
   },
   MEDIUM: {
-    label: "Mediano",
+    label: "M",
     className: "bg-red-100 text-red-800",
   },
   LARGE: {
-    label: "Grande",
+    label: "L",
     className: "bg-green-100 text-green-800",
   },
-};
-
-const formatTroquelLabel = (troquel) => {
-  if (!troquel) return "Sin troquel asignado";
-  return troquel.code || troquel.file_name || `Troquel #${troquel.id}`;
 };
 
 const formatThirdLabel = (third) => {
@@ -41,7 +37,8 @@ const formatThirdLabel = (third) => {
   return third.company_name || third.name || `Cliente #${third.id}`;
 };
 
-const formatTroquelSize = (size) => sizeConfig[size]?.label || size || "Sin tamaño";
+const formatTroquelSize = (size) =>
+  sizeConfig[size]?.label || size || "Sin tamaño";
 
 const formatDate = (value) =>
   value ? new Date(value).toLocaleDateString() : "Sin fecha";

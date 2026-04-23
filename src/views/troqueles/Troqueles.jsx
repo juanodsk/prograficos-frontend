@@ -9,6 +9,7 @@ import { useAuthStore } from "../../store/authStore";
 import usePersistedTableState from "../../hooks/usePersistedTableState";
 
 import { Button } from "@/components/ui/button";
+import { formatTroquelCode } from "@/lib/troquel";
 import { Plus, Pencil, Trash2, Loader2, ScanEye, Download } from "lucide-react";
 
 const defaultMeta = {
@@ -171,13 +172,12 @@ const Troqueles = () => {
   // ───────────── COLUMNAS ─────────────
   const columns = [
     { key: "id", label: "ID" },
-    { key: "code", label: "Código" },
     {
-      key: "size",
-      label: "Tamaño",
+      key: "code",
+      label: "Código",
       render: (row) => {
         const config = sizeConfig[row.size] || {
-          label: row.size || "N/A",
+          label: "",
           className: "bg-gray-100 text-gray-800",
         };
 
@@ -185,11 +185,12 @@ const Troqueles = () => {
           <span
             className={`rounded-full px-2 py-1 text-xs font-semibold ${config.className}`}
           >
-            {config.label}
+            {formatTroquelCode(row) || "Sin código"}
           </span>
         );
       },
     },
+
     {
       key: "elaboration_date",
       label: "Fecha de Elaboración",

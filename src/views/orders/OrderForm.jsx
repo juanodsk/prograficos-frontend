@@ -10,6 +10,7 @@ import processesService from "@/services/processes.service";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { formatTroquelLabel } from "@/lib/troquel";
 import {
   Select,
   SelectContent,
@@ -47,11 +48,6 @@ const formatThirdLabel = (third) => {
   return third.company_name || third.name || "Cliente sin definir";
 };
 
-const formatTroquelLabel = (troquel) => {
-  if (!troquel) return "Troquel sin definir";
-  return troquel.code || troquel.name || "Troquel sin código";
-};
-
 const formatProductLabel = (product) => {
   if (!product) return "Producto sin definir";
   if (product.name) return product.name;
@@ -60,11 +56,9 @@ const formatProductLabel = (product) => {
     product.third?.name ||
     product.third_name ||
     product.client_name;
-  const troquelName =
-    product.troquel?.code ||
-    product.troquel_code ||
-    product.troquel?.file_name ||
-    product.troquel_name;
+  const troquelName = product.troquel
+    ? formatTroquelLabel(product.troquel, "")
+    : product.troquel_code || product.troquel_name;
 
   if (thirdName && troquelName) return `${thirdName} · ${troquelName}`;
   if (troquelName) return troquelName;
