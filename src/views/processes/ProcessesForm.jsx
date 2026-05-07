@@ -15,6 +15,12 @@ import {
 } from "@/components/ui/select";
 import { Check, Loader2, Plus, Save, Trash2, X } from "lucide-react";
 
+const fieldKeyAllowedCharacterPattern = /^[a-zA-Z0-9_]$/;
+const fieldKeyPattern = /^(?=.*[a-z0-9])[a-z0-9_]+$/;
+const fieldKeyInputPattern = "[A-Za-z0-9_]*";
+const fieldKeyValidationMessage =
+  "La clave solo puede contener letras, numeros y raya al piso (_), sin espacios";
+
 const toSnakeCase = (value = "") =>
   String(value)
     .normalize("NFD")
@@ -83,7 +89,46 @@ const createInitialFormState = () => ({
 const hasConfiguredFieldContent = (field) =>
   Boolean(field.label?.trim() || field.options?.trim() || field.key?.trim());
 
-const getNormalizedFieldKey = (field) => toSnakeCase(field?.key?.trim() || "");
+const sanitizeFieldKeyInput = (value = "") =>
+  String(value)
+    .replace(/[^a-zA-Z0-9_]/g, "")
+    .toLowerCase();
+
+const isAllowedFieldKeyCharacter = (key = "") =>
+  fieldKeyAllowedCharacterPattern.test(key);
+
+const getNormalizedFieldKey = (field) =>
+  String(field?.key || "")
+    .trim()
+    .toLowerCase();
+
+const getUniqueFieldKey = (baseKey, fields = [], currentIndex = -1) => {
+  const normalizedBaseKey = sanitizeFieldKeyInput(baseKey);
+
+  if (!normalizedBaseKey) return "";
+
+  const usedKeys = new Set(
+    fields
+      .map((field, index) =>
+        index !== currentIndex && hasConfiguredFieldContent(field)
+          ? getNormalizedFieldKey(field)
+          : "",
+      )
+      .filter(Boolean),
+  );
+
+  if (!usedKeys.has(normalizedBaseKey)) return normalizedBaseKey;
+
+  let suffix = 2;
+  let candidateKey = `${normalizedBaseKey}_${suffix}`;
+
+  while (usedKeys.has(candidateKey)) {
+    suffix += 1;
+    candidateKey = `${normalizedBaseKey}_${suffix}`;
+  }
+
+  return candidateKey;
+};
 
 const ProcessesForm = ({ isOpen, onClose, onSuccess, processId }) => {
   const isEditing = Boolean(processId);
@@ -99,7 +144,7 @@ const ProcessesForm = ({ isOpen, onClose, onSuccess, processId }) => {
       field_definitions: prev.field_definitions.map((field, fieldIndex) =>
         fieldIndex === index
           ? typeof updater === "function"
-            ? updater(field)
+            ? updater(field, prev.field_definitions)
             : { ...field, ...updater }
           : field,
       ),
@@ -152,7 +197,7 @@ const ProcessesForm = ({ isOpen, onClose, onSuccess, processId }) => {
   const handleFieldLabelChange = (index, value) => {
     clearFieldDefinitionsError();
 
-    setFieldState(index, (field) => {
+    setFieldState(index, (field, fields) => {
       const nextField = {
         ...field,
         label: value,
@@ -161,7 +206,7 @@ const ProcessesForm = ({ isOpen, onClose, onSuccess, processId }) => {
       };
 
       if (field.autoGenerateKey) {
-        nextField.key = toSnakeCase(value);
+        nextField.key = getUniqueFieldKey(toSnakeCase(value), fields, index);
       }
 
       return nextField;
@@ -170,9 +215,10 @@ const ProcessesForm = ({ isOpen, onClose, onSuccess, processId }) => {
 
   const handleFieldKeyChange = (index, value) => {
     clearFieldDefinitionsError();
+    const nextKey = sanitizeFieldKeyInput(value);
 
     setFieldState(index, {
-      key: toSnakeCase(value),
+      key: nextKey,
       autoGenerateKey: false,
       keyStatus: "idle",
       keyMessage: "",
@@ -234,6 +280,14 @@ const ProcessesForm = ({ isOpen, onClose, onSuccess, processId }) => {
       setFieldState(index, {
         keyStatus: "invalid",
         keyMessage: "La clave del campo es obligatoria",
+      });
+      return false;
+    }
+
+    if (!fieldKeyPattern.test(normalizedKey)) {
+      setFieldState(index, {
+        keyStatus: "invalid",
+        keyMessage: fieldKeyValidationMessage,
       });
       return false;
     }
@@ -318,7 +372,13 @@ const ProcessesForm = ({ isOpen, onClose, onSuccess, processId }) => {
       setFieldState(index, {
         isEditingKey: true,
         autoGenerateKey: false,
-        key: field.key || toSnakeCase(field.label),
+        key:
+          getNormalizedFieldKey(field) ||
+          getUniqueFieldKey(
+            toSnakeCase(field.label),
+            form.field_definitions,
+            index,
+          ),
         keyStatus: "idle",
         keyMessage: "",
       });
@@ -350,6 +410,9 @@ const ProcessesForm = ({ isOpen, onClose, onSuccess, processId }) => {
     const invalidKeyField = configuredFields.find(
       (field) => !getNormalizedFieldKey(field),
     );
+    const invalidKeyFormatField = configuredFields.find(
+      (field) => !fieldKeyPattern.test(getNormalizedFieldKey(field)),
+    );
     const normalizedKeys = configuredFields.map(getNormalizedFieldKey);
     const hasDuplicateKeys = normalizedKeys.some(
       (key, index) => key && normalizedKeys.indexOf(key) !== index,
@@ -364,6 +427,9 @@ const ProcessesForm = ({ isOpen, onClose, onSuccess, processId }) => {
     } else if (invalidKeyField) {
       nextErrors.field_definitions =
         "Todos los campos configurables deben tener una clave válida";
+    } else if (invalidKeyFormatField) {
+      nextErrors.field_definitions =
+        fieldKeyValidationMessage;
     } else if (hasDuplicateKeys) {
       nextErrors.field_definitions =
         "No puedes repetir claves entre campos configurables";
@@ -641,7 +707,13 @@ const ProcessesForm = ({ isOpen, onClose, onSuccess, processId }) => {
                             {!field.isEditingKey ? (
                               <>
                                 <code className="rounded bg-slate-100 px-1.5 py-0.5 text-xs text-[#13529a]">
-                                  {field.key || toSnakeCase(field.label) || "-"}
+                                  {field.key ||
+                                    getUniqueFieldKey(
+                                      toSnakeCase(field.label),
+                                      form.field_definitions,
+                                      index,
+                                    ) ||
+                                    "-"}
                                 </code>
                                 <button
                                   type="button"
@@ -661,8 +733,21 @@ const ProcessesForm = ({ isOpen, onClose, onSuccess, processId }) => {
                                       event.target.value,
                                     )
                                   }
+                                  onKeyDown={(event) => {
+                                    if (
+                                      event.key.length === 1 &&
+                                      !isAllowedFieldKeyCharacter(event.key)
+                                    ) {
+                                      event.preventDefault();
+                                    }
+                                  }}
                                   onBlur={() => validateFieldKeyOnBlur(index)}
                                   placeholder="ej: papel_parafinado"
+                                  pattern={fieldKeyInputPattern}
+                                  title={fieldKeyValidationMessage}
+                                  autoCapitalize="none"
+                                  autoCorrect="off"
+                                  spellCheck={false}
                                   className="h-8 text-xs"
                                 />
                                 <Button
