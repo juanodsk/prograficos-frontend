@@ -33,6 +33,12 @@ const sizeBadgeClass = {
   LARGE: "bg-green-100 text-green-800",
 };
 
+const troquelCodePattern = /^(?=.*[A-Za-z0-9])[A-Za-z0-9_]+$/;
+const troquelCodeInputPattern = "[A-Za-z0-9_]*";
+
+const sanitizeTroquelCodeInput = (value = "") =>
+  String(value).replace(/[^a-zA-Z0-9_]/g, "");
+
 export default function TroquelFormModal({
   isOpen,
   onClose,
@@ -95,13 +101,18 @@ export default function TroquelFormModal({
 
   const validate = () => {
     const newErrors = {};
-    if (!form.code.trim()) newErrors.code = "El código es requerido";
+    const normalizedCode = form.code.trim();
+
+    if (!normalizedCode) newErrors.code = "El código es requerido";
+    else if (!troquelCodePattern.test(normalizedCode)) {
+      newErrors.code =
+        "El código solo puede contener letras, números y raya al piso";
+    }
+
     if (!form.elaboration_date)
       newErrors.elaboration_date = "La fecha es requerida";
     if (!form.size) newErrors.size = "Selecciona un tamaño";
-    if (!isEditing && !fileInputRef.current?.files?.[0]) {
-      newErrors.file = "Debes adjuntar un archivo";
-    }
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -269,14 +280,23 @@ export default function TroquelFormModal({
                     <Label className="text-xs">Código del Troquel</Label>
                     <Input
                       name="code"
-                      placeholder="Ej: BOX01"
+                      placeholder="Ej: BOX_01"
                       value={form.code}
                       onChange={(e) => {
-                        setForm((prev) => ({ ...prev, code: e.target.value }));
+                        const nextCode = sanitizeTroquelCodeInput(
+                          e.target.value,
+                        );
+                        setForm((prev) => ({ ...prev, code: nextCode }));
                         if (errors.code) {
                           setErrors((prev) => ({ ...prev, code: "" }));
                         }
                       }}
+                      onKeyDown={(event) => {
+                        if (event.key === " ") {
+                          event.preventDefault();
+                        }
+                      }}
+                      pattern={troquelCodeInputPattern}
                       className="h-9 text-sm"
                     />
                     {errors.code && (
@@ -350,7 +370,9 @@ export default function TroquelFormModal({
                   </div>
 
                   <div className="space-y-1 md:col-span-2">
-                    <Label className="text-xs">Archivo de Troquel</Label>
+                    <Label className="text-xs">
+                      Archivo de Troquel (opcional)
+                    </Label>
                     <Input
                       type="file"
                       ref={fileInputRef}
