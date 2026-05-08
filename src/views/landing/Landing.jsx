@@ -145,7 +145,7 @@ const Landing = () => {
                 to="/login"
                 className="inline-flex items-center gap-2 rounded-full bg-[#13529a] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#0f3f77]"
               >
-                Ingresar
+                Portal Empresarial
               </Link>
             </header>
 
