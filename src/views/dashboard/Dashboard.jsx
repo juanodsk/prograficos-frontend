@@ -1,73 +1,49 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import productsService from "../../services/products.service";
-import ProductView from "../products/ProductView";
 import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
 import { formatTroquelLabel } from "@/lib/troquel";
 import {
-  Building2,
-  CalendarDays,
-  FileText,
-  Loader2,
-  Package,
-  ScanEye,
-  Search,
-  Scissors,
-  Ruler,
-} from "lucide-react";
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Loader2, Package, Search } from "lucide-react";
 
-const sizeConfig = {
-  SMALL: {
-    label: "S",
-    className: "bg-blue-100 text-blue-800",
-  },
-  MEDIUM: {
-    label: "M",
-    className: "bg-red-100 text-red-800",
-  },
-  LARGE: {
-    label: "L",
-    className: "bg-green-100 text-green-800",
-  },
-};
+const minimumSearchLength = 2;
+
+const formatProductLabel = (product) =>
+  product?.name || `Producto #${product?.id || ""}`;
 
 const formatThirdLabel = (third) => {
   if (!third) return "Sin cliente asociado";
   return third.company_name || third.name || `Cliente #${third.id}`;
 };
 
-const formatTroquelSize = (size) =>
-  sizeConfig[size]?.label || size || "Sin tamaño";
-
-const formatDate = (value) =>
-  value ? new Date(value).toLocaleDateString() : "Sin fecha";
-
 const Dashboard = () => {
-  const [customerQuery, setCustomerQuery] = useState("");
-  const [debouncedCustomerQuery, setDebouncedCustomerQuery] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [searchedCustomer, setSearchedCustomer] = useState("");
-  const [viewModal, setViewModal] = useState({
-    isOpen: false,
-    productId: null,
-  });
+  const [searchedTerm, setSearchedTerm] = useState("");
 
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {
-      setDebouncedCustomerQuery(customerQuery.trim());
+      setDebouncedSearchQuery(searchQuery.trim());
     }, 350);
 
     return () => window.clearTimeout(timeoutId);
-  }, [customerQuery]);
+  }, [searchQuery]);
 
   useEffect(() => {
-    const customer = debouncedCustomerQuery.trim();
+    const search = debouncedSearchQuery.trim();
 
-    if (customer.length < 2) {
+    if (search.length < minimumSearchLength) {
       setProducts([]);
-      setSearchedCustomer(customer);
+      setSearchedTerm(search);
       setLoading(false);
       return undefined;
     }
@@ -77,19 +53,26 @@ const Dashboard = () => {
     const fetchProducts = async () => {
       try {
         setLoading(true);
-        const response = await productsService.searchByCustomer(customer);
+        const response = await productsService.getAll({
+          search,
+          onlyActive: true,
+          page: 1,
+          pageSize: 1000,
+          sortBy: "third",
+          sortDirection: "asc",
+        });
 
         if (cancelled) return;
 
         setProducts(response?.data?.products || []);
-        setSearchedCustomer(customer);
+        setSearchedTerm(search);
       } catch (error) {
         if (cancelled) return;
 
         console.error(error);
-        toast.error("No se pudieron cargar los productos del cliente");
+        toast.error("No se pudieron cargar los productos");
         setProducts([]);
-        setSearchedCustomer(customer);
+        setSearchedTerm(search);
       } finally {
         if (!cancelled) {
           setLoading(false);
@@ -102,9 +85,9 @@ const Dashboard = () => {
     return () => {
       cancelled = true;
     };
-  }, [debouncedCustomerQuery]);
+  }, [debouncedSearchQuery]);
 
-  const trimmedQuery = useMemo(() => customerQuery.trim(), [customerQuery]);
+  const trimmedQuery = searchQuery.trim();
 
   return (
     <div className="space-y-6">
@@ -115,13 +98,13 @@ const Dashboard = () => {
               Buscador de troqueles
             </h1>
             <p className="text-sm text-slate-500">
-              Busca por cliente y abre el detalle con el ícono de vista.
+              Consulta productos por cliente, producto o codigo de troquel.
             </p>
           </div>
 
           <div className="w-full max-w-2xl rounded-2xl border border-slate-200 bg-white p-3">
             <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">
-              Cliente
+              Buscar
             </label>
             <div className="relative">
               <Search
@@ -129,14 +112,14 @@ const Dashboard = () => {
                 className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
               />
               <Input
-                value={customerQuery}
-                onChange={(e) => setCustomerQuery(e.target.value)}
-                placeholder="Ej. Cartones del Norte"
+                value={searchQuery}
+                onChange={(event) => setSearchQuery(event.target.value)}
+                placeholder="Cliente, producto o troquel. Ej. m100"
                 className="h-11 rounded-2xl border-slate-200 bg-white pl-10 text-sm"
               />
             </div>
             <p className="mt-1 text-[11px] text-slate-500">
-              Solo busca por nombre de cliente.
+              Tambien acepta codigos de troquel como s3, m100 o l25.
             </p>
           </div>
         </div>
@@ -149,9 +132,9 @@ const Dashboard = () => {
             <p className="text-xs text-slate-500">
               {loading
                 ? "Buscando productos asociados..."
-                : searchedCustomer.length >= 2
-                  ? `${products.length} producto(s) encontrado(s) para "${searchedCustomer}"`
-                  : "Ingresa al menos 2 caracteres para empezar la búsqueda"}
+                : searchedTerm.length >= minimumSearchLength
+                  ? `${products.length} producto(s) encontrado(s) para "${searchedTerm}"`
+                  : "Ingresa al menos 2 caracteres para empezar la busqueda"}
             </p>
           </div>
         </div>
@@ -172,13 +155,13 @@ const Dashboard = () => {
               Listo para buscar
             </h3>
             <p className="mt-1 text-sm text-slate-500">
-              Escribe el nombre de un cliente para ver sus productos y troqueles
-              asociados.
+              Escribe un cliente, producto o codigo de troquel para ver los
+              resultados.
             </p>
           </div>
-        ) : trimmedQuery.length < 2 ? (
+        ) : trimmedQuery.length < minimumSearchLength ? (
           <div className="rounded-3xl border border-amber-200 bg-amber-50 p-6 text-sm text-amber-700">
-            Escribe al menos 2 caracteres para hacer una búsqueda útil.
+            Escribe al menos 2 caracteres para hacer una busqueda util.
           </div>
         ) : products.length === 0 ? (
           <div className="rounded-3xl border border-slate-200 bg-white p-10 text-center">
@@ -186,115 +169,59 @@ const Dashboard = () => {
               <Package size={24} />
             </div>
             <h3 className="text-base font-semibold text-slate-900">
-              No encontramos productos para ese cliente
+              No encontramos resultados
             </h3>
             <p className="mt-2 text-sm text-slate-500">
-              Intenta con otra parte del nombre o verifica cómo está registrado
-              el cliente en configuración.
+              Intenta con otro cliente, producto o codigo de troquel.
             </p>
           </div>
         ) : (
-          <div className="grid gap-3 xl:grid-cols-2">
-            {products.map((product) => (
-              <article
-                key={product.id}
-                className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md"
-              >
-                <div className="flex items-start justify-between gap-4">
-                  <div className="min-w-0">
-                    <div className="mb-2 flex flex-wrap items-center gap-2">
-                      <span className="inline-flex rounded-full bg-[#13529a]/10 px-2 py-0.5 text-[11px] font-semibold text-[#13529a]">
-                        Producto #{product.id}
+          <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+            <Table>
+              <TableHeader className="bg-slate-50">
+                <TableRow>
+                  <TableHead className="w-24 px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                    ID
+                  </TableHead>
+                  <TableHead className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                    Producto
+                  </TableHead>
+                  <TableHead className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                    Cliente
+                  </TableHead>
+                  <TableHead className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                    Codigo troquel
+                  </TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {products.map((product) => (
+                  <TableRow key={product.id}>
+                    <TableCell className="px-4 py-3 font-medium text-slate-700">
+                      {product.id}
+                    </TableCell>
+                    <TableCell className="max-w-[320px] px-4 py-3">
+                      <span className="block truncate font-medium text-slate-900">
+                        {formatProductLabel(product)}
                       </span>
-                      <span
-                        className={`inline-flex rounded-full px-2 py-0.5 text-[11px] font-semibold ${
-                          product.is_active
-                            ? "bg-green-100 text-green-700"
-                            : "bg-red-100 text-red-700"
-                        }`}
-                      >
-                        {product.is_active ? "Activo" : "Inactivo"}
+                    </TableCell>
+                    <TableCell className="max-w-[320px] px-4 py-3">
+                      <span className="block truncate text-slate-700">
+                        {formatThirdLabel(product.third)}
                       </span>
-                    </div>
-                    <h3 className="truncate text-base font-semibold text-slate-900">
-                      {product.name || "Producto sin nombre"}
-                    </h3>
-                    <p className="mt-1 flex items-center gap-2 text-xs text-slate-500">
-                      <Building2 size={14} />
-                      {formatThirdLabel(product.third)}
-                    </p>
-                  </div>
-
-                  <Button
-                    size="icon"
-                    variant="outline"
-                    className="cursor-pointer rounded-2xl border-slate-200 hover:border-[#13529a] hover:bg-[#13529a]/5 hover:text-[#13529a]"
-                    onClick={() =>
-                      setViewModal({ isOpen: true, productId: product.id })
-                    }
-                    title="Ver detalle del producto"
-                  >
-                    <ScanEye size={18} />
-                  </Button>
-                </div>
-
-                <div className="mt-4 grid gap-2 sm:grid-cols-2">
-                  <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-2.5">
-                    <p className="mb-1 flex items-center gap-2 text-[11px] font-medium uppercase tracking-wide text-slate-500">
-                      <Scissors size={13} />
-                      Código de troquel
-                    </p>
-                    <p className="text-sm font-semibold text-slate-900">
-                      {formatTroquelLabel(product.troquel)}
-                    </p>
-                  </div>
-
-                  <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-2.5">
-                    <p className="mb-1 flex items-center gap-2 text-[11px] font-medium uppercase tracking-wide text-slate-500">
-                      <Ruler size={13} />
-                      Tamaño
-                    </p>
-                    <span
-                      className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${
-                        sizeConfig[product.troquel?.size]?.className ||
-                        "bg-gray-100 text-gray-800"
-                      }`}
-                    >
-                      {formatTroquelSize(product.troquel?.size)}
-                    </span>
-                  </div>
-
-                  <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-2.5">
-                    <p className="mb-1 flex items-center gap-2 text-[11px] font-medium uppercase tracking-wide text-slate-500">
-                      <FileText size={13} />
-                      Archivo
-                    </p>
-                    <p className="truncate text-sm font-semibold text-slate-900">
-                      {product.troquel?.file_name || "Sin archivo"}
-                    </p>
-                  </div>
-
-                  <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-2.5">
-                    <p className="mb-1 flex items-center gap-2 text-[11px] font-medium uppercase tracking-wide text-slate-500">
-                      <CalendarDays size={13} />
-                      Fecha elaboración
-                    </p>
-                    <p className="text-sm font-semibold text-slate-900">
-                      {formatDate(product.troquel?.elaboration_date)}
-                    </p>
-                  </div>
-                </div>
-              </article>
-            ))}
+                    </TableCell>
+                    <TableCell className="px-4 py-3">
+                      <span className="inline-flex rounded-full bg-[#13529a]/10 px-2.5 py-1 text-xs font-semibold text-[#13529a]">
+                        {formatTroquelLabel(product.troquel)}
+                      </span>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
           </div>
         )}
       </section>
-
-      <ProductView
-        isOpen={viewModal.isOpen}
-        onClose={() => setViewModal({ isOpen: false, productId: null })}
-        productId={viewModal.productId}
-      />
     </div>
   );
 };
