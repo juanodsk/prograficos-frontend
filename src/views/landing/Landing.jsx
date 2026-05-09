@@ -107,21 +107,20 @@ const ProductCarousel = () => {
     (activeSlideIndex + offset + productSlides.length) % productSlides.length;
 
   const showPreviousSlide = () => {
-    setActiveSlide((currentSlide) =>
-      (currentSlide - 1 + productSlides.length) % productSlides.length,
+    setActiveSlide(
+      (currentSlide) =>
+        (currentSlide - 1 + productSlides.length) % productSlides.length,
     );
   };
 
   const showNextSlide = () => {
-    setActiveSlide((currentSlide) =>
-      (currentSlide + 1) % productSlides.length,
-    );
+    setActiveSlide((currentSlide) => (currentSlide + 1) % productSlides.length);
   };
 
   useEffect(() => {
     const intervalId = window.setInterval(() => {
-      setActiveSlide((currentSlide) =>
-        (currentSlide + 1) % productSlides.length,
+      setActiveSlide(
+        (currentSlide) => (currentSlide + 1) % productSlides.length,
       );
     }, 3200);
 
@@ -569,14 +568,14 @@ const Landing = () => {
         <footer className="border-t border-slate-200/80 bg-white/60 px-6 py-8 text-center text-sm text-slate-600 lg:px-10">
           <div className="mb-4 flex items-center justify-center gap-3">
             <a
-              href="https://www.facebook.com/PrográficosN"
+              href="https://www.facebook.com/share/1Az934AsuM/?mibextid=wwXIfr"
               aria-label="Facebook Prográficos"
               className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-slate-200 bg-white text-[#13529a] transition hover:border-[#13529a] hover:bg-[#13529a] hover:text-white"
             >
               <Facebook className="h-5 w-5" />
             </a>
             <a
-              href="https://www.instagram.com/Prográficos_neiva/"
+              href="https://www.instagram.com/prográficos_neiva/"
               aria-label="Instagram Prográficos"
               className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-slate-200 bg-white text-[#13529a] transition hover:border-[#13529a] hover:bg-[#13529a] hover:text-white"
             >
