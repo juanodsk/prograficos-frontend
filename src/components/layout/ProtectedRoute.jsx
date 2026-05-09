@@ -8,15 +8,54 @@ import authService from "../../services/auth.service";
 import inactivityService, {
   SESSION_INACTIVITY_TIMEOUT_MS,
 } from "../../services/inactivity.service";
+import { Loader2 } from "lucide-react";
 
 const ProtectedRoute = ({ roles, withoutShell = false }) => {
-  const { isAuthenticated, user } = useAuthStore();
+  const { isAuthenticated, user, setUser } = useAuthStore();
+  const [checkingSession, setCheckingSession] = useState(true);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const logout = useAuthStore((state) => state.logout);
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (!isAuthenticated) {
+    let isMounted = true;
+
+    const validateSession = async () => {
+      if (!isAuthenticated) {
+        setCheckingSession(false);
+        return;
+      }
+
+      try {
+        const response = await authService.profile();
+        const profileUser = response?.data?.user;
+
+        if (!profileUser) {
+          throw new Error("Perfil inválido");
+        }
+
+        if (isMounted) {
+          setUser(profileUser);
+          setCheckingSession(false);
+        }
+      } catch {
+        if (isMounted) {
+          logout();
+          setCheckingSession(false);
+          navigate("/login", { replace: true });
+        }
+      }
+    };
+
+    validateSession();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [isAuthenticated, logout, navigate, setUser]);
+
+  useEffect(() => {
+    if (!isAuthenticated || checkingSession) {
       inactivityService.stop();
       return undefined;
     }
@@ -39,10 +78,18 @@ const ProtectedRoute = ({ roles, withoutShell = false }) => {
     return () => {
       inactivityService.stop();
     };
-  }, [isAuthenticated, logout, navigate]);
+  }, [checkingSession, isAuthenticated, logout, navigate]);
 
   if (!isAuthenticated) {
     return <Navigate to="/login" />;
+  }
+
+  if (checkingSession) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-gray-100 text-[#13529a]">
+        <Loader2 size={28} className="animate-spin" />
+      </div>
+    );
   }
 
   if (roles && !roles.includes(user?.role)) {
