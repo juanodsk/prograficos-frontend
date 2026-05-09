@@ -570,6 +570,7 @@ const Landing = () => {
             <a
               href="https://www.facebook.com/share/1Az934AsuM/?mibextid=wwXIfr"
               aria-label="Facebook Prográficos"
+              target="_blank"
               className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-slate-200 bg-white text-[#13529a] transition hover:border-[#13529a] hover:bg-[#13529a] hover:text-white"
             >
               <Facebook className="h-5 w-5" />
@@ -577,6 +578,7 @@ const Landing = () => {
             <a
               href="https://www.instagram.com/prograficos_neiva/"
               aria-label="Instagram Prográficos"
+              target="_blank"
               className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-slate-200 bg-white text-[#13529a] transition hover:border-[#13529a] hover:bg-[#13529a] hover:text-white"
             >
               <Instagram className="h-5 w-5" />
@@ -584,6 +586,7 @@ const Landing = () => {
             <a
               href="https://wa.me/573152791153"
               aria-label="WhatsApp Prográficos"
+              target="_blank"
               className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-slate-200 bg-white text-[#13529a] transition hover:border-[#13529a] hover:bg-[#13529a] hover:text-white"
             >
               <MessageCircle className="h-5 w-5" />
