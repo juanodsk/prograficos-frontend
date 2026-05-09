@@ -1,5 +1,9 @@
 import { create } from "zustand";
-import { persist } from "zustand/middleware";
+import { createJSONStorage, persist } from "zustand/middleware";
+
+if (typeof window !== "undefined") {
+  window.localStorage.removeItem("auth-storage");
+}
 
 const buildAuthUser = (user) =>
   user
@@ -39,6 +43,7 @@ export const useAuthStore = create(
     }),
     {
       name: "auth-storage",
+      storage: createJSONStorage(() => sessionStorage),
     },
   ),
 );

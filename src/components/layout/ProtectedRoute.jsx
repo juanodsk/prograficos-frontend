@@ -80,6 +80,26 @@ const ProtectedRoute = ({ roles, withoutShell = false }) => {
     };
   }, [checkingSession, isAuthenticated, logout, navigate]);
 
+  useEffect(() => {
+    if (!isAuthenticated || checkingSession) {
+      return undefined;
+    }
+
+    const handlePageHide = (event) => {
+      if (event.persisted) return;
+
+      authService.logoutOnPageUnload();
+      logout();
+      inactivityService.stop();
+    };
+
+    window.addEventListener("pagehide", handlePageHide);
+
+    return () => {
+      window.removeEventListener("pagehide", handlePageHide);
+    };
+  }, [checkingSession, isAuthenticated, logout]);
+
   if (!isAuthenticated) {
     return <Navigate to="/login" />;
   }
