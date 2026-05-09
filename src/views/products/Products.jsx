@@ -34,7 +34,8 @@ const formatThirdLabel = (third) => {
 };
 
 const formatProductDisplayName = (product) =>
-  product?.name || `${formatThirdLabel(product?.third)} · ${formatTroquelLabel(product?.troquel)}`;
+  product?.name ||
+  `${formatThirdLabel(product?.third)} · ${formatTroquelLabel(product?.troquel)}`;
 
 const Products = () => {
   const { user: currentUser } = useAuthStore();
@@ -102,11 +103,14 @@ const Products = () => {
     fetchProducts();
   }, [fetchProducts]);
 
-  const handleOpenCreate = () => setFormModal({ isOpen: true, productId: null });
+  const handleOpenCreate = () =>
+    setFormModal({ isOpen: true, productId: null });
   const handleOpenEdit = (id) => setFormModal({ isOpen: true, productId: id });
-  const handleCloseForm = () => setFormModal({ isOpen: false, productId: null });
+  const handleCloseForm = () =>
+    setFormModal({ isOpen: false, productId: null });
   const handleView = (id) => setViewModal({ isOpen: true, productId: id });
-  const handleCloseView = () => setViewModal({ isOpen: false, productId: null });
+  const handleCloseView = () =>
+    setViewModal({ isOpen: false, productId: null });
   const handleFormSuccess = () => fetchProducts();
 
   const handleDeleteClick = (product) => {
@@ -157,7 +161,7 @@ const Products = () => {
     },
     {
       key: "third",
-      label: "Tercero",
+      label: "Cliente",
       render: (row) => formatThirdLabel(row.third),
     },
     {
@@ -233,7 +237,9 @@ const Products = () => {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-[#13529a]">Productos</h1>
-          <p className="text-sm text-gray-500">{meta.total} productos registrados</p>
+          <p className="text-sm text-gray-500">
+            {meta.total} productos registrados
+          </p>
         </div>
 
         <Button

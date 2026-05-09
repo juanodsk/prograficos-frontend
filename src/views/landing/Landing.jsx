@@ -2,6 +2,8 @@ import {
   ArrowRight,
   Box,
   Building2,
+  ChevronLeft,
+  ChevronRight,
   CheckCircle2,
   Facebook,
   Instagram,
@@ -10,8 +12,14 @@ import {
   ShoppingBag,
   UtensilsCrossed,
 } from "lucide-react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import Seo from "@/components/common/Seo";
+import productOne from "./productos/img_1.jpeg";
+import productTwo from "./productos/img_2.jpeg";
+import productFour from "./productos/img_4.jpeg";
+import productFive from "./productos/img_5.jpeg";
+import productSix from "./productos/img_6.jpeg";
 
 const highlights = [
   "Cajas y empaques personalizados en papel y cartón.",
@@ -67,6 +75,137 @@ const processSteps = [
       "Desarrollamos la solución acordada para que tu negocio tenga una presentación más sólida y profesional.",
   },
 ];
+
+const productSlides = [
+  {
+    image: productOne,
+    alt: "Variedad de cajas y empaques personalizados de Prográficos.",
+  },
+  {
+    image: productTwo,
+    alt: "Portafolio de empaques impresos sobre una mesa.",
+  },
+  {
+    image: productFour,
+    alt: "Empaques personalizados para alimentos con marca Prográficos.",
+  },
+  {
+    image: productFive,
+    alt: "Cajas y bandejas para comida rápida personalizadas.",
+  },
+  {
+    image: productSix,
+    alt: "Empaques impresos para restaurante sobre una mesa.",
+  },
+];
+
+const ProductCarousel = () => {
+  const [activeSlide, setActiveSlide] = useState(0);
+  const activeSlideIndex = activeSlide % productSlides.length;
+
+  const getSlideIndex = (offset) =>
+    (activeSlideIndex + offset + productSlides.length) % productSlides.length;
+
+  const showPreviousSlide = () => {
+    setActiveSlide((currentSlide) =>
+      (currentSlide - 1 + productSlides.length) % productSlides.length,
+    );
+  };
+
+  const showNextSlide = () => {
+    setActiveSlide((currentSlide) =>
+      (currentSlide + 1) % productSlides.length,
+    );
+  };
+
+  useEffect(() => {
+    const intervalId = window.setInterval(() => {
+      setActiveSlide((currentSlide) =>
+        (currentSlide + 1) % productSlides.length,
+      );
+    }, 3200);
+
+    return () => window.clearInterval(intervalId);
+  }, []);
+
+  return (
+    <section className="relative z-10 -mt-8 bg-[linear-gradient(135deg,_#0e213b_0%,_#13529a_58%,_#1e70bc_100%)] px-4 py-10 shadow-[0_-18px_60px_rgba(19,82,154,0.10)] sm:px-6 sm:py-12 lg:px-10">
+      <div className="mx-auto w-full max-w-7xl">
+        <div className="relative h-80 sm:h-96 md:h-[30rem]">
+          <img
+            src={productSlides[getSlideIndex(-1)].image}
+            alt={productSlides[getSlideIndex(-1)].alt}
+            className="absolute top-16 hidden h-52 max-w-[22rem] rounded-xl object-contain opacity-48 blur-[1px] shadow-[0_18px_50px_rgba(6,48,58,0.30)] transition-all duration-1000 ease-[cubic-bezier(0.22,1,0.36,1)] sm:left-[16%] sm:block md:left-[18%] md:h-72 lg:left-[21%]"
+            loading="lazy"
+            decoding="async"
+          />
+
+          <img
+            src={productSlides[getSlideIndex(1)].image}
+            alt={productSlides[getSlideIndex(1)].alt}
+            className="absolute top-16 hidden h-52 max-w-[22rem] rounded-xl object-contain opacity-48 blur-[1px] shadow-[0_18px_50px_rgba(6,48,58,0.30)] transition-all duration-1000 ease-[cubic-bezier(0.22,1,0.36,1)] sm:right-[16%] sm:block md:right-[18%] md:h-72 lg:right-[21%]"
+            loading="lazy"
+            decoding="async"
+          />
+
+          <div className="absolute left-1/2 top-0 z-10 h-72 w-full max-w-[58rem] -translate-x-1/2 overflow-hidden sm:h-80 md:h-96">
+            {productSlides.map((slide, index) => (
+              <img
+                key={slide.image}
+                src={slide.image}
+                alt={slide.alt}
+                className={`absolute left-1/2 top-1/2 max-h-full max-w-full -translate-x-1/2 rounded-xl object-contain shadow-[0_26px_75px_rgba(6,48,58,0.36)] transition-all duration-1000 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+                  index === activeSlideIndex
+                    ? "-translate-y-1/2 scale-100 opacity-100"
+                    : "-translate-y-[46%] scale-[0.94] opacity-0"
+                }`}
+                loading={index === 0 ? "eager" : "lazy"}
+                decoding="async"
+              />
+            ))}
+          </div>
+
+          <div className="absolute bottom-11 left-1/2 z-20 flex -translate-x-1/2 items-center gap-5">
+            <button
+              type="button"
+              aria-label="Ver producto anterior"
+              onClick={showPreviousSlide}
+              className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-white/12 text-white shadow-[0_12px_30px_rgba(6,48,58,0.24)] backdrop-blur transition hover:bg-white/22"
+            >
+              <ChevronLeft className="h-6 w-6" />
+            </button>
+
+            <button
+              type="button"
+              aria-label="Ver producto siguiente"
+              onClick={showNextSlide}
+              className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-white/12 text-white shadow-[0_12px_30px_rgba(6,48,58,0.24)] backdrop-blur transition hover:bg-white/22"
+            >
+              <ChevronRight className="h-6 w-6" />
+            </button>
+          </div>
+
+          <div className="absolute bottom-3 left-1/2 flex -translate-x-1/2 items-center justify-center gap-3">
+            {productSlides.map((slide, index) => (
+              <button
+                key={slide.alt}
+                type="button"
+                aria-label={`Ver producto ${index + 1}`}
+                aria-pressed={index === activeSlideIndex}
+                onClick={() => setActiveSlide(index)}
+                className={`h-2.5 rounded-full transition-all ${
+                  index === activeSlideIndex
+                    ? "w-2.5 bg-[#f1df9f]"
+                    : "w-2.5 bg-white/62 hover:bg-white"
+                }`}
+              />
+            ))}
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+};
 
 const Landing = () => {
   const structuredData = [
@@ -247,6 +386,8 @@ const Landing = () => {
             </div>
           </div>
         </section>
+
+        <ProductCarousel />
 
         <section
           id="empresa"
