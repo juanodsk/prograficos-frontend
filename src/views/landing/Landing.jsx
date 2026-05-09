@@ -575,7 +575,7 @@ const Landing = () => {
               <Facebook className="h-5 w-5" />
             </a>
             <a
-              href="https://www.instagram.com/prográficos_neiva/"
+              href="https://www.instagram.com/prograficos_neiva/"
               aria-label="Instagram Prográficos"
               className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-slate-200 bg-white text-[#13529a] transition hover:border-[#13529a] hover:bg-[#13529a] hover:text-white"
             >
