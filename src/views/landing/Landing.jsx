@@ -7,10 +7,12 @@ import {
   CheckCircle2,
   Facebook,
   Instagram,
+  Menu,
   MessageCircle,
   Package,
   ShoppingBag,
   UtensilsCrossed,
+  X,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
@@ -97,6 +99,13 @@ const productSlides = [
     image: productSix,
     alt: "Empaques impresos para restaurante sobre una mesa.",
   },
+];
+
+const navLinks = [
+  { href: "#empresa", label: "Empresa" },
+  { href: "#soluciones", label: "Soluciones" },
+  { href: "#proceso", label: "Proceso" },
+  { href: "#contacto", label: "Contacto" },
 ];
 
 const ProductCarousel = () => {
@@ -207,6 +216,8 @@ const ProductCarousel = () => {
 };
 
 const Landing = () => {
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
   const structuredData = [
     {
       "@context": "https://schema.org",
@@ -252,40 +263,85 @@ const Landing = () => {
           <div className="absolute right-[-6rem] top-0 h-80 w-80 rounded-full bg-[#13529a]/15 blur-3xl" />
 
           <div className="relative mx-auto flex min-h-screen w-full max-w-7xl flex-col px-6 pb-16 pt-6 lg:px-10">
-            <header className="flex items-center justify-between rounded-full border border-white/70 bg-white/75 px-4 py-3 shadow-[0_12px_50px_rgba(15,63,119,0.08)] backdrop-blur">
-              <Link to="/" className="flex items-center gap-3">
-                <img
-                  src="/logo_login.svg"
-                  alt="Prográficos"
-                  className="h-9 w-auto md:h-10"
-                />
-              </Link>
+            <div className="relative z-30">
+              <header className="flex items-center justify-between rounded-full border border-white/70 bg-white/75 px-4 py-3 shadow-[0_12px_50px_rgba(15,63,119,0.08)] backdrop-blur">
+                <Link to="/" className="flex items-center gap-3">
+                  <img
+                    src="/logo_login.svg"
+                    alt="Prográficos"
+                    className="h-9 w-auto md:h-10"
+                  />
+                </Link>
 
-              <nav className="hidden items-center gap-8 text-sm font-medium text-slate-700 md:flex">
-                <a href="#empresa" className="transition hover:text-[#13529a]">
-                  Empresa
-                </a>
-                <a
-                  href="#soluciones"
-                  className="transition hover:text-[#13529a]"
+                <nav className="hidden items-center gap-8 text-sm font-medium text-slate-700 md:flex">
+                  {navLinks.map((link) => (
+                    <a
+                      key={link.href}
+                      href={link.href}
+                      className="transition hover:text-[#13529a]"
+                    >
+                      {link.label}
+                    </a>
+                  ))}
+                </nav>
+
+                <Link
+                  to="/login"
+                  className="hidden items-center gap-2 rounded-full bg-[#13529a] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#0f3f77] md:inline-flex"
                 >
-                  Soluciones
-                </a>
-                <a href="#proceso" className="transition hover:text-[#13529a]">
-                  Proceso
-                </a>
-                <a href="#contacto" className="transition hover:text-[#13529a]">
-                  Contacto
-                </a>
-              </nav>
+                  Portal Empresarial
+                </Link>
 
-              <Link
-                to="/login"
-                className="inline-flex items-center gap-2 rounded-full bg-[#13529a] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#0f3f77]"
-              >
-                Portal Empresarial
-              </Link>
-            </header>
+                <button
+                  type="button"
+                  aria-label={
+                    isMobileMenuOpen
+                      ? "Cerrar menú de navegación"
+                      : "Abrir menú de navegación"
+                  }
+                  aria-expanded={isMobileMenuOpen}
+                  aria-controls="mobile-navigation"
+                  onClick={() =>
+                    setIsMobileMenuOpen((currentState) => !currentState)
+                  }
+                  className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white text-[#13529a] shadow-sm transition hover:border-[#13529a] hover:bg-[#13529a] hover:text-white md:hidden"
+                >
+                  {isMobileMenuOpen ? (
+                    <X className="h-5 w-5" />
+                  ) : (
+                    <Menu className="h-5 w-5" />
+                  )}
+                </button>
+              </header>
+
+              {isMobileMenuOpen && (
+                <nav
+                  id="mobile-navigation"
+                  className="absolute left-0 right-0 top-[calc(100%+0.75rem)] rounded-[1.5rem] border border-white/70 bg-white/95 p-3 text-sm font-semibold text-slate-700 shadow-[0_18px_55px_rgba(15,63,119,0.14)] backdrop-blur md:hidden"
+                >
+                  <div className="flex flex-col gap-1">
+                    {navLinks.map((link) => (
+                      <a
+                        key={link.href}
+                        href={link.href}
+                        onClick={() => setIsMobileMenuOpen(false)}
+                        className="rounded-2xl px-4 py-3 transition hover:bg-[#13529a]/8 hover:text-[#13529a]"
+                      >
+                        {link.label}
+                      </a>
+                    ))}
+                  </div>
+
+                  <Link
+                    to="/login"
+                    onClick={() => setIsMobileMenuOpen(false)}
+                    className="mt-3 inline-flex w-full items-center justify-center rounded-full bg-[#13529a] px-4 py-3 text-sm font-semibold text-white transition hover:bg-[#0f3f77]"
+                  >
+                    Portal Empresarial
+                  </Link>
+                </nav>
+              )}
+            </div>
 
             <div className="grid flex-1 items-center gap-14 py-14 lg:grid-cols-[1.08fr_0.92fr] lg:py-20">
               <div className="max-w-3xl">
