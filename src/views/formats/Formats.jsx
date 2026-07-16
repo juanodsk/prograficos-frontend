@@ -41,7 +41,7 @@ const Formats = () => {
       setFormats(formatsArray);
       console.log(formatsArray);
     } catch {
-      toast.error("Error al cargar los formatos");
+      toast.error("Error al cargar los formatos.");
     } finally {
       setLoading(false);
     }
