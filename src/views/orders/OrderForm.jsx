@@ -20,6 +20,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Combobox,
+  ComboboxContent,
+  ComboboxEmpty,
+  ComboboxInput,
+  ComboboxItem,
+  ComboboxList,
+} from "@/components/ui/combobox";
+
 import { Checkbox } from "@/components/ui/checkbox";
 import { ArrowLeft, Loader2, Save } from "lucide-react";
 
@@ -119,6 +128,7 @@ const OrderForm = () => {
   const [form, setForm] = useState({
     calculation_mode: "TOTAL_REQUIRED",
     amount_sheets: "",
+    amount_sheets_additional: "0",
     cavities: "1",
     total_estimated: "",
     format_id: "",
@@ -189,6 +199,10 @@ const OrderForm = () => {
         setForm({
           calculation_mode: "TOTAL_REQUIRED",
           amount_sheets: order.amount_sheets ? String(order.amount_sheets) : "",
+          amount_sheets_additional:
+            order.amount_sheets_additional != null
+              ? String(order.amount_sheets_additional)
+              : "0",
           cavities: order.cavities ? String(order.cavities) : "1",
           total_estimated: order.total_estimated
             ? String(order.total_estimated)
@@ -321,6 +335,13 @@ const OrderForm = () => {
     if (!selectedMeasure || !cavities) return 0;
     return sheetDivisions * cavities;
   }, [form.cavities, selectedMeasure, sheetDivisions]);
+
+  const expectedQuantity = useMemo(() => {
+    const base = normalizePositiveInteger(form.total_estimated);
+    if (base === null) return null;
+    const additionalSheets = Number(form.amount_sheets_additional) || 0;
+    return base + unitsPerSheet * additionalSheets;
+  }, [form.total_estimated, form.amount_sheets_additional, unitsPerSheet]);
 
   const availableMeasures = useMemo(() => {
     if (!form.format_id) return [];
@@ -457,6 +478,10 @@ const OrderForm = () => {
     }
   };
 
+  const handleAmountSheetsAdditionalChange = (value) => {
+    setField("amount_sheets_additional", value.replace(/\D/g, ""));
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (isOrderLocked) {
@@ -468,6 +493,7 @@ const OrderForm = () => {
     const payload = {
       calculation_mode: form.calculation_mode,
       amount_sheets: Number(form.amount_sheets),
+      amount_sheets_additional: Number(form.amount_sheets_additional) || 0,
       cavities: Number(form.cavities),
       total_estimated: Number(form.total_estimated),
       measure_id: Number(form.measure_id),
@@ -553,33 +579,36 @@ const OrderForm = () => {
                 <div className="grid gap-5 md:grid-cols-2">
                   <div className="space-y-2">
                     <Label>Cliente</Label>
-                    <Select
-                      value={form.third_id}
-                      disabled={isOrderLocked}
-                      onValueChange={(value) => {
-                        setField("third_id", value);
-                        setField("product_id", "");
-                        setField("troquel_id", "");
+                    <Combobox
+                      items={catalogs.thirds}
+                      itemToStringValue={(third) => formatThirdLabel(third)}
+                      value={selectedThird ?? null}
+                      onValueChange={(third) => {
+                        if (third) {
+                          setField("third_id", String(third.id));
+                          setField("product_id", "");
+                          setField("troquel_id", "");
+                        }
                       }}
+                      disabled={isOrderLocked}
                     >
-                      <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Selecciona un cliente">
-                          {selectedThird
-                            ? formatThirdLabel(selectedThird)
-                            : null}
-                        </SelectValue>
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectGroup>
-                          <SelectLabel>Clientes</SelectLabel>
-                          {catalogs.thirds.map((third) => (
-                            <SelectItem key={third.id} value={String(third.id)}>
+                      <ComboboxInput
+                        placeholder="Buscar cliente..."
+                        showClear
+                      />
+                      <ComboboxContent>
+                        <ComboboxEmpty>
+                          No se encontró ningún cliente.
+                        </ComboboxEmpty>
+                        <ComboboxList>
+                          {(third) => (
+                            <ComboboxItem key={third.id} value={third.id}>
                               {formatThirdLabel(third)}
-                            </SelectItem>
-                          ))}
-                        </SelectGroup>
-                      </SelectContent>
-                    </Select>
+                            </ComboboxItem>
+                          )}
+                        </ComboboxList>
+                      </ComboboxContent>
+                    </Combobox>
                     {errors.third_id && (
                       <p className="text-xs text-red-500">{errors.third_id}</p>
                     )}
@@ -621,11 +650,11 @@ const OrderForm = () => {
                   </div>
 
                   <div className="space-y-2">
-                    <Label>Total requerido</Label>
+                    <Label>Cantidad requerida</Label>
                     <Input
                       type="number"
                       min="1"
-                      placeholder="Ej: 1000 unidades"
+                      placeholder="Ej: 3000"
                       value={form.total_estimated}
                       disabled={
                         isOrderLocked ||
@@ -643,31 +672,6 @@ const OrderForm = () => {
                     {errors.total_estimated && (
                       <p className="text-xs text-red-500">
                         {errors.total_estimated}
-                      </p>
-                    )}
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label>Pliegos requeridos</Label>
-                    <Input
-                      type="number"
-                      min="1"
-                      placeholder="Ej: 500"
-                      value={form.amount_sheets}
-                      disabled={
-                        isOrderLocked ||
-                        form.calculation_mode === "TOTAL_REQUIRED"
-                      }
-                      onChange={(e) => handleAmountSheetsChange(e.target.value)}
-                    />
-                    <p className="text-xs text-slate-500">
-                      {form.calculation_mode === "SHEETS_REQUIRED"
-                        ? "Ingresa la cantidad de pliegos y calculamos el total."
-                        : "Se calcula automáticamente según el total requerido."}
-                    </p>
-                    {errors.amount_sheets && (
-                      <p className="text-xs text-red-500">
-                        {errors.amount_sheets}
                       </p>
                     )}
                   </div>
@@ -744,6 +748,71 @@ const OrderForm = () => {
                   </div>
 
                   <div className="space-y-2">
+                    <Label>Cavidades</Label>
+                    <Input
+                      type="number"
+                      min="1"
+                      placeholder="Ej: 2"
+                      value={form.cavities}
+                      disabled={isOrderLocked}
+                      onChange={(e) => setField("cavities", e.target.value)}
+                    />
+                    {errors.cavities && (
+                      <p className="text-xs text-red-500">{errors.cavities}</p>
+                    )}
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Pliegos requeridos</Label>
+                    <Input
+                      type="number"
+                      min="1"
+                      placeholder="Ej: 500"
+                      value={form.amount_sheets}
+                      disabled={
+                        isOrderLocked ||
+                        form.calculation_mode === "TOTAL_REQUIRED"
+                      }
+                      onChange={(e) => handleAmountSheetsChange(e.target.value)}
+                    />
+                    <p className="text-xs text-slate-500">
+                      {form.calculation_mode === "SHEETS_REQUIRED"
+                        ? "Ingresa la cantidad de pliegos y calculamos el total."
+                        : "Se calcula automáticamente según el total requerido."}
+                    </p>
+                    {errors.amount_sheets && (
+                      <p className="text-xs text-red-500">
+                        {errors.amount_sheets}
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Pliegos adicionales</Label>
+                    <Input
+                      type="number"
+                      min="0"
+                      placeholder="Ej: 100"
+                      value={form.amount_sheets_additional}
+                      disabled={isOrderLocked}
+                      onChange={(e) =>
+                        handleAmountSheetsAdditionalChange(e.target.value)
+                      }
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Cantidad esperada</Label>
+                    <Input
+                      value={
+                        expectedQuantity != null ? String(expectedQuantity) : ""
+                      }
+                      placeholder="Se calcula automáticamente"
+                      readOnly
+                      className="bg-slate-50 text-slate-600"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
                     <Label>Troquel asignado</Label>
                     <Input
                       value={
@@ -758,21 +827,6 @@ const OrderForm = () => {
                       <p className="text-xs text-red-500">
                         {errors.troquel_id}
                       </p>
-                    )}
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label>Cavidades</Label>
-                    <Input
-                      type="number"
-                      min="1"
-                      placeholder="Ej: 2"
-                      value={form.cavities}
-                      disabled={isOrderLocked}
-                      onChange={(e) => setField("cavities", e.target.value)}
-                    />
-                    {errors.cavities && (
-                      <p className="text-xs text-red-500">{errors.cavities}</p>
                     )}
                   </div>
 

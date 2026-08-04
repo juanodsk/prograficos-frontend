@@ -10,7 +10,6 @@ import ThirdForm from "../thirds/ThirdForm";
 import ThirdView from "./ThirdView";
 import {
   THIRD_TYPE_OPTIONS,
-  getDocumentTypeLabel,
   getPersonTypeLabel,
   getThirdTypeLabel,
 } from "@/constants/thirds";
@@ -190,11 +189,6 @@ const Thirds = () => {
       label: "Nombre",
     },
     {
-      key: "email",
-      label: "Email",
-    },
-
-    {
       key: "type_person",
       label: "Tipo de tercero",
       render: (row) => getThirdTypeLabel(row.type_person),
@@ -206,7 +200,7 @@ const Thirds = () => {
     },
     {
       key: "company_name",
-      label: "Empresa",
+      label: "Razón social",
       render: (row) => row.company_name || "-",
     },
     {
@@ -313,47 +307,47 @@ const Thirds = () => {
         </div>
 
         <div className="p-4">
-        {loading ? (
-          <div className="flex items-center justify-center py-16">
-            <Loader2 size={32} className="animate-spin text-[#13529a]" />
-          </div>
-        ) : (
-          <DataTable
-            data={thirds}
-            columns={columns}
-            actions={actions}
-            serverSide
-            searchValue={search}
-            onSearchChange={(value) => {
-              setTableState((prev) => ({ ...prev, search: value, page: 1 }));
-            }}
-            currentPage={meta.page}
-            currentPageSize={meta.pageSize}
-            total={meta.total}
-            totalPages={meta.totalPages}
-            onPageChange={(nextPage) =>
-              setTableState((prev) => ({ ...prev, page: nextPage }))
-            }
-            onPageSizeChange={(nextPageSize) => {
-              setTableState((prev) => ({
-                ...prev,
-                pageSize: nextPageSize,
-                page: 1,
-              }));
-            }}
-            sortKey={sortKey}
-            sortDirection={sortDirection}
-            onSortChange={(nextSortKey, nextSortDirection) => {
-              setTableState((prev) => ({
-                ...prev,
-                sortKey: nextSortKey,
-                sortDirection: nextSortDirection,
-                page: 1,
-              }));
-            }}
-            itemLabel="terceros"
-          />
-        )}
+          {loading ? (
+            <div className="flex items-center justify-center py-16">
+              <Loader2 size={32} className="animate-spin text-[#13529a]" />
+            </div>
+          ) : (
+            <DataTable
+              data={thirds}
+              columns={columns}
+              actions={actions}
+              serverSide
+              searchValue={search}
+              onSearchChange={(value) => {
+                setTableState((prev) => ({ ...prev, search: value, page: 1 }));
+              }}
+              currentPage={meta.page}
+              currentPageSize={meta.pageSize}
+              total={meta.total}
+              totalPages={meta.totalPages}
+              onPageChange={(nextPage) =>
+                setTableState((prev) => ({ ...prev, page: nextPage }))
+              }
+              onPageSizeChange={(nextPageSize) => {
+                setTableState((prev) => ({
+                  ...prev,
+                  pageSize: nextPageSize,
+                  page: 1,
+                }));
+              }}
+              sortKey={sortKey}
+              sortDirection={sortDirection}
+              onSortChange={(nextSortKey, nextSortDirection) => {
+                setTableState((prev) => ({
+                  ...prev,
+                  sortKey: nextSortKey,
+                  sortDirection: nextSortDirection,
+                  page: 1,
+                }));
+              }}
+              itemLabel="terceros"
+            />
+          )}
         </div>
       </div>
 

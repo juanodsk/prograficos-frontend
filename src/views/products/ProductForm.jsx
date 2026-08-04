@@ -16,6 +16,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Combobox,
+  ComboboxContent,
+  ComboboxEmpty,
+  ComboboxInput,
+  ComboboxItem,
+  ComboboxList,
+} from "@/components/ui/combobox";
 import { X, Loader2, Save } from "lucide-react";
 
 const formatThirdLabel = (third) => {
@@ -299,36 +307,33 @@ export default function ProductForm({
 
                   <div className="space-y-2">
                     <Label>Troquel</Label>
-                    <Select
-                      value={form.troquel_id}
-                      onValueChange={(value) => {
-                        setForm((prev) => ({ ...prev, troquel_id: value }));
+                    <Combobox
+                      items={catalogs.troqueles}
+                      itemToStringValue={(troquel) => formatTroquelLabel(troquel)}
+                      value={selectedTroquel ?? null}
+                      onValueChange={(troquel) => {
+                        if (troquel) {
+                          setForm((prev) => ({ ...prev, troquel_id: String(troquel.id) }));
+                        } else {
+                          setForm((prev) => ({ ...prev, troquel_id: "" }));
+                        }
                         if (errors.troquel_id) {
                           setErrors((prev) => ({ ...prev, troquel_id: "" }));
                         }
                       }}
                     >
-                      <SelectTrigger className="h-9 w-full">
-                        <SelectValue placeholder="Selecciona un troquel">
-                          {selectedTroquel
-                            ? formatTroquelLabel(selectedTroquel)
-                            : null}
-                        </SelectValue>
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectGroup>
-                          <SelectLabel>Troqueles disponibles</SelectLabel>
-                          {catalogs.troqueles.map((troquel) => (
-                            <SelectItem
-                              key={troquel.id}
-                              value={String(troquel.id)}
-                            >
+                      <ComboboxInput placeholder="Buscar troquel..." showClear />
+                      <ComboboxContent>
+                        <ComboboxEmpty>No se encontró ningún troquel.</ComboboxEmpty>
+                        <ComboboxList>
+                          {(troquel) => (
+                            <ComboboxItem key={troquel.id} value={formatTroquelLabel(troquel)}>
                               {formatTroquelLabel(troquel)}
-                            </SelectItem>
-                          ))}
-                        </SelectGroup>
-                      </SelectContent>
-                    </Select>
+                            </ComboboxItem>
+                          )}
+                        </ComboboxList>
+                      </ComboboxContent>
+                    </Combobox>
                     {errors.troquel_id && (
                       <p className="text-xs text-red-500">
                         {errors.troquel_id}
@@ -343,36 +348,33 @@ export default function ProductForm({
                         Este producto quedará asociado al cliente actual.
                       </div>
                     ) : (
-                      <Select
-                        value={form.third_id}
-                        onValueChange={(value) => {
-                          setForm((prev) => ({ ...prev, third_id: value }));
+                      <Combobox
+                        items={catalogs.thirds}
+                        itemToStringValue={(third) => formatThirdLabel(third)}
+                        value={selectedThird ?? null}
+                        onValueChange={(third) => {
+                          if (third) {
+                            setForm((prev) => ({ ...prev, third_id: String(third.id) }));
+                          } else {
+                            setForm((prev) => ({ ...prev, third_id: "" }));
+                          }
                           if (errors.third_id) {
                             setErrors((prev) => ({ ...prev, third_id: "" }));
                           }
                         }}
                       >
-                        <SelectTrigger className="h-9 w-full">
-                          <SelectValue placeholder="Selecciona un tercero">
-                            {selectedThird
-                              ? formatThirdLabel(selectedThird)
-                              : null}
-                          </SelectValue>
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectGroup>
-                            <SelectLabel>Terceros disponibles</SelectLabel>
-                            {catalogs.thirds.map((third) => (
-                              <SelectItem
-                                key={third.id}
-                                value={String(third.id)}
-                              >
+                        <ComboboxInput placeholder="Buscar tercero..." showClear />
+                        <ComboboxContent>
+                          <ComboboxEmpty>No se encontró ningún tercero.</ComboboxEmpty>
+                          <ComboboxList>
+                            {(third) => (
+                              <ComboboxItem key={third.id} value={formatThirdLabel(third)}>
                                 {formatThirdLabel(third)}
-                              </SelectItem>
-                            ))}
-                          </SelectGroup>
-                        </SelectContent>
-                      </Select>
+                              </ComboboxItem>
+                            )}
+                          </ComboboxList>
+                        </ComboboxContent>
+                      </Combobox>
                     )}
                     {errors.third_id && (
                       <p className="text-xs text-red-500">{errors.third_id}</p>

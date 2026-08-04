@@ -148,6 +148,22 @@ const OrderDetail = () => {
     ? activeProcess.process_state !== "PENDIENTE"
     : false;
 
+  const processMachineryIds = useMemo(() => {
+    const machineries = activeProcess?.process?.machineries || [];
+    return new Set(
+      machineries
+        .filter((pm) => pm.machinery_id != null)
+        .map((pm) => String(pm.machinery_id)),
+    );
+  }, [activeProcess]);
+
+  const availableMachinery = useMemo(() => {
+    if (processMachineryIds.size === 0) return catalogs.machinery;
+    return catalogs.machinery.filter((m) =>
+      processMachineryIds.has(String(m.id)),
+    );
+  }, [catalogs.machinery, processMachineryIds]);
+
   const activeProcessIndex = useMemo(
     () => processes.findIndex((process) => process.id === activeProcess?.id),
     [processes, activeProcess],
@@ -318,7 +334,7 @@ const OrderDetail = () => {
       const payload = {
         machinery_id: startPayload.machinery_id
           ? Number(startPayload.machinery_id)
-          : undefined,
+          : null,
         observations: startPayload.observations || undefined,
         field_values: mapFieldValues(startPayload.field_values),
       };
@@ -493,6 +509,14 @@ const OrderDetail = () => {
             </p>
             <p className="mt-1 font-semibold text-slate-900">
               {order.amount_sheets}
+            </p>
+          </div>
+          <div className="rounded-2xl bg-white p-4 shadow-sm">
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+              Pliegos adicionales
+            </p>
+            <p className="mt-1 font-semibold text-slate-900">
+              {order.amount_sheets_additional || 0}
             </p>
           </div>
           <div className="rounded-2xl bg-white p-4 shadow-sm">
@@ -716,7 +740,7 @@ const OrderDetail = () => {
                                     <SelectLabel>
                                       Maquinaria disponible
                                     </SelectLabel>
-                                    {catalogs.machinery.map((m) => (
+                                    {availableMachinery.map((m) => (
                                       <SelectItem
                                         key={m.id}
                                         value={String(m.id)}

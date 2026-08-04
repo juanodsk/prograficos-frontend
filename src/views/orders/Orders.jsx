@@ -488,7 +488,7 @@ const Orders = () => {
                           Terminar
                         </Button>
                       )}
-                      {canDeleteOrder && (
+                      {!isFinishedOrder(order) && canDeleteOrder && (
                         <Button
                           size="sm"
                           variant="outline"
@@ -569,7 +569,7 @@ const Orders = () => {
                                   Terminar
                                 </Button>
                               )}
-                              {canDeleteOrder && (
+                              {!isFinishedOrder(order) && canDeleteOrder && (
                                 <Button
                                   size="sm"
                                   variant="outline"

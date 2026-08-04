@@ -199,7 +199,10 @@ const ProductionBoard = () => {
     };
   }, [loadOrders]);
 
-  const visibleOrders = useMemo(() => [...orders], [orders]);
+  const visibleOrders = useMemo(
+    () => [...orders].sort((a, b) => b.id - a.id),
+    [orders],
+  );
 
   if (loading) {
     return (
