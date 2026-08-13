@@ -167,7 +167,9 @@ const OrderForm = () => {
       const formats = Array.from(
         new Map(
           measures
-            .filter((measure) => measure.format?.id)
+            .filter(
+              (measure) => measure.format?.id && measure.format?.is_active,
+            )
             .map((measure) => [measure.format.id, measure.format]),
         ).values(),
       ).sort((a, b) =>
@@ -807,8 +809,8 @@ const OrderForm = () => {
                         expectedQuantity != null ? String(expectedQuantity) : ""
                       }
                       placeholder="Se calcula automáticamente"
-                      readOnly
-                      className="bg-slate-50 text-slate-600"
+                      readonly
+                      className="bg-transparent text-green-700 font-bold border-0 focus:none"
                     />
                   </div>
 

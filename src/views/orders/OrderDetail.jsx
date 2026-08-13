@@ -51,6 +51,29 @@ const formatMeasureLabel = (measure) => {
   return formatName ? `${formatName} · ${size}` : size;
 };
 
+const parseSheetDivisionsFromFormatName = (value) => {
+  const normalizedValue = value?.trim();
+  if (!normalizedValue) return null;
+
+  const fractionMatch = normalizedValue.match(/1\s*\/\s*(\d+)/i);
+  if (!fractionMatch) return null;
+
+  const parsedDivisions = Number(fractionMatch[1]);
+  return Number.isFinite(parsedDivisions) && parsedDivisions > 0
+    ? parsedDivisions
+    : null;
+};
+
+const resolveSheetDivisions = (format) => {
+  const configuredDivisions = Number(format?.sheet_divisions);
+
+  if (Number.isInteger(configuredDivisions) && configuredDivisions > 0) {
+    return configuredDivisions;
+  }
+
+  return parseSheetDivisionsFromFormatName(format?.name) || 1;
+};
+
 const getOrderClientLabel = (order) =>
   order?.product?.third?.company_name ||
   order?.product?.third?.name ||
@@ -177,6 +200,21 @@ const OrderDetail = () => {
   const sharedMeasureDisplay = sharedMeasure
     ? formatMeasureLabel(sharedMeasure)
     : "Aun no definida";
+
+  const unitsPerSheet = useMemo(() => {
+    const divisions = resolveSheetDivisions(order?.measure?.format);
+    const cavities = Number(order?.cavities);
+    return (
+      divisions * (Number.isFinite(cavities) && cavities > 0 ? cavities : 1)
+    );
+  }, [order?.measure?.format, order?.cavities]);
+
+  const expectedQuantity = useMemo(() => {
+    const base = Number(order?.total_estimated);
+    if (!Number.isFinite(base) || base <= 0) return null;
+    const additionalSheets = Number(order?.amount_sheets_additional) || 0;
+    return base + unitsPerSheet * additionalSheets;
+  }, [order?.total_estimated, order?.amount_sheets_additional, unitsPerSheet]);
 
   const startBlockedByPreviousProcess =
     activeProcess?.process_state === "PENDIENTE" &&
@@ -446,7 +484,18 @@ const OrderDetail = () => {
           </div>
         </div>
 
-        <div className="grid gap-4 border-b border-slate-200 bg-slate-50 p-5 md:grid-cols-2 xl:grid-cols-4">
+        <div
+          id="summary-order-detail"
+          className="grid gap-4 border-b border-slate-200 bg-slate-50 p-5 md:grid-cols-2 xl:grid-cols-4"
+        >
+          <div className="rounded-2xl bg-white p-4 shadow-sm">
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+              Cantidad requerida
+            </p>
+            <p className="mt-1 font-semibold text-green-700">
+              {order.total_estimated}
+            </p>
+          </div>
           <div className="rounded-2xl bg-white p-4 shadow-sm">
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
               Fecha
@@ -476,7 +525,10 @@ const OrderDetail = () => {
               Codigo troquel
             </p>
             <p className="mt-1 font-semibold text-slate-900">
-              {formatTroquelLabel(order.troquel, `Troquel #${order.troquel_id}`)}
+              {formatTroquelLabel(
+                order.troquel,
+                `Troquel #${order.troquel_id}`,
+              )}
             </p>
           </div>
           <div className="rounded-2xl bg-white p-4 shadow-sm">
@@ -515,8 +567,16 @@ const OrderDetail = () => {
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
               Pliegos adicionales
             </p>
-            <p className="mt-1 font-semibold text-slate-900">
+            <p className="mt-1 font-semibold text-blue-900">
               {order.amount_sheets_additional || 0}
+            </p>
+          </div>
+          <div className="rounded-2xl bg-white p-4 shadow-sm">
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+              Cantidad esperada
+            </p>
+            <p className="mt-1 font-semibold text-slate-900">
+              {expectedQuantity != null ? expectedQuantity : "-"}
             </p>
           </div>
           <div className="rounded-2xl bg-white p-4 shadow-sm">
