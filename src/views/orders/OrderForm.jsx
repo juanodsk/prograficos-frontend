@@ -108,6 +108,105 @@ const normalizePositiveInteger = (value) => {
   return Math.ceil(normalizedValue);
 };
 
+const renderProcessFieldInput = (field, value, onChange, disabled) => {
+  const fieldId = `process-field-${field.id}`;
+
+  const baseInputClasses =
+    "w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm outline-none transition focus:border-[#13529a] focus:ring-2 focus:ring-[#13529a]/20 disabled:bg-slate-100 disabled:text-slate-400";
+
+  switch (field.field_type) {
+    case "TEXTAREA":
+      return (
+        <textarea
+          id={fieldId}
+          rows={3}
+          className={baseInputClasses}
+          value={value || ""}
+          disabled={disabled}
+          onChange={(event) => onChange(event.target.value)}
+        />
+      );
+    case "NUMBER":
+      return (
+        <input
+          id={fieldId}
+          type="number"
+          className={baseInputClasses}
+          value={value || ""}
+          disabled={disabled}
+          onChange={(event) => onChange(event.target.value)}
+        />
+      );
+    case "BOOLEAN":
+      return (
+        <label className="flex items-center gap-2 text-sm text-slate-700">
+          <input
+            id={fieldId}
+            type="checkbox"
+            className="h-4 w-4 rounded border-slate-300 text-[#13529a] focus:ring-[#13529a]"
+            checked={value === "true" || value === true}
+            disabled={disabled}
+            onChange={(event) => onChange(event.target.checked ? "true" : "false")}
+          />
+          {value === "true" || value === true ? "Sí" : "No"}
+        </label>
+      );
+    case "DATE":
+      return (
+        <input
+          id={fieldId}
+          type="date"
+          className={baseInputClasses}
+          value={value || ""}
+          disabled={disabled}
+          onChange={(event) => onChange(event.target.value)}
+        />
+      );
+    case "TIME":
+      return (
+        <input
+          id={fieldId}
+          type="time"
+          className={baseInputClasses}
+          value={value || ""}
+          disabled={disabled}
+          onChange={(event) => onChange(event.target.value)}
+        />
+      );
+    case "SELECT": {
+      const options = Array.isArray(field.options) ? field.options : [];
+      return (
+        <select
+          id={fieldId}
+          className={baseInputClasses}
+          value={value || ""}
+          disabled={disabled}
+          onChange={(event) => onChange(event.target.value)}
+        >
+          <option value="">Seleccione...</option>
+          {options.map((option, index) => (
+            <option key={index} value={option}>
+              {option}
+            </option>
+          ))}
+        </select>
+      );
+    }
+    case "TEXT":
+    default:
+      return (
+        <input
+          id={fieldId}
+          type="text"
+          className={baseInputClasses}
+          value={value || ""}
+          disabled={disabled}
+          onChange={(event) => onChange(event.target.value)}
+        />
+      );
+  }
+};
+
 const OrderForm = () => {
   const navigate = useNavigate();
   const { id } = useParams();
@@ -139,6 +238,7 @@ const OrderForm = () => {
     product_id: "",
     processes: [],
   });
+  const [processFieldValues, setProcessFieldValues] = useState({});
 
   useEffect(() => {
     loadData();
@@ -224,8 +324,20 @@ const OrderForm = () => {
               String(detail.process_id),
             ) || [],
         });
+
+        const prefillFieldValues = {};
+        (order.detail_production_orders || []).forEach((detail) => {
+          (detail.field_values || []).forEach((fieldValue) => {
+            if (fieldValue.field_definition_id != null) {
+              prefillFieldValues[fieldValue.field_definition_id] =
+                fieldValue.value;
+            }
+          });
+        });
+        setProcessFieldValues(prefillFieldValues);
       } else {
         setIsOrderLocked(false);
+        setProcessFieldValues({});
       }
     } catch {
       toast.error("Error al cargar la información de la orden");
@@ -503,6 +615,12 @@ const OrderForm = () => {
       troquel_id: Number(form.troquel_id),
       product_id: Number(form.product_id),
       processes: form.processes.map(Number),
+      field_values: Object.entries(processFieldValues)
+        .filter(([, value]) => value != null && String(value) !== "")
+        .map(([fieldDefinitionId, value]) => ({
+          field_definition_id: Number(fieldDefinitionId),
+          value: String(value),
+        })),
     };
 
     try {
@@ -1020,15 +1138,30 @@ const OrderForm = () => {
                       {process.category}
                     </p>
 
-                    <div className="mt-3 flex flex-wrap gap-2">
+                    <div className="mt-3 space-y-3">
                       {(process.field_definitions || []).length > 0 ? (
                         process.field_definitions.map((field) => (
-                          <span
-                            key={field.id}
-                            className="rounded-full bg-white px-2.5 py-1 text-xs text-slate-600"
-                          >
-                            {field.label}
-                          </span>
+                          <div key={field.id}>
+                            <label
+                              htmlFor={`process-field-${field.id}`}
+                              className="mb-1 block text-xs font-semibold text-slate-700"
+                            >
+                              {field.label}
+                              {field.is_required ? (
+                                <span className="text-red-500"> *</span>
+                              ) : null}
+                            </label>
+                            {renderProcessFieldInput(
+                              field,
+                              processFieldValues[field.id],
+                              (newValue) =>
+                                setProcessFieldValues((prev) => ({
+                                  ...prev,
+                                  [field.id]: newValue,
+                                })),
+                              false,
+                            )}
+                          </div>
                         ))
                       ) : (
                         <span className="text-xs text-slate-400">
