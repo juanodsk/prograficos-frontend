@@ -400,6 +400,36 @@ const OrderDetail = () => {
       );
       return;
     }
+
+    if (!startPayload.machinery_id) {
+      toast.error("Debes seleccionar una maquinaria antes de iniciar el proceso");
+      return;
+    }
+
+    // Todos los campos que se diligencian en el detalle son obligatorios;
+    // solo las observaciones son opcionales. Los BOOLEAN siempre tienen valor.
+    const detailFields = (activeProcess.process?.field_definitions || []).filter(
+      (field) =>
+        !field.deleted_at &&
+        !isOperatorSignatureField(field) &&
+        field.diligenciar_en_detalle,
+    );
+
+    const missingFields = detailFields.filter((field) => {
+      if (field.field_type === "BOOLEAN") return false;
+      const value = startPayload.field_values[field.id];
+      return value == null || String(value).trim() === "";
+    });
+
+    if (missingFields.length > 0) {
+      toast.error(
+        `Completa los campos obligatorios: ${missingFields
+          .map((field) => field.label)
+          .join(", ")}`,
+      );
+      return;
+    }
+
     try {
       setSubmittingAction("start");
       const payload = {
@@ -431,13 +461,8 @@ const OrderDetail = () => {
 
     const damaged = Number(finishPayload.quantity_damaged || 0);
 
-    if (receivedQuantity != null && damaged > receivedQuantity) {
-      toast.error(
-        "La cantidad dañada no puede ser mayor a la cantidad recibida",
-      );
-      return;
-    }
-
+    // La cantidad dañada ya se sanea y se limita a la recibida en el input,
+    // por lo que aquí no se revalida al hacer click.
     // quantity_delivered se guarda como el remanente: recibida - dañada.
     const delivered =
       receivedQuantity != null
@@ -650,6 +675,7 @@ const OrderDetail = () => {
             );
             const defs = (process.process?.field_definitions || []).filter(
               (field) =>
+                !field.deleted_at &&
                 !isOperatorSignatureField(field) &&
                 field.diligenciar_en_detalle,
             );
@@ -661,6 +687,7 @@ const OrderDetail = () => {
               process.process?.field_definitions || []
             ).filter(
               (field) =>
+                !field.deleted_at &&
                 !isOperatorSignatureField(field) &&
                 !field.diligenciar_en_detalle,
             );
@@ -904,8 +931,7 @@ const OrderDetail = () => {
                             {defs.map((field) => (
                               <div key={field.id} className="space-y-2">
                                 <Label>
-                                  {field.label}
-                                  {field.is_required ? " *" : ""}
+                                  {field.label} *
                                 </Label>
                                 {dynamicInput(
                                   field,
@@ -989,16 +1015,41 @@ const OrderDetail = () => {
                               <div className="space-y-2">
                                 <Label>Cantidad dañada</Label>
                                 <Input
-                                  type="number"
-                                  min="0"
+                                  type="text"
+                                  inputMode="numeric"
                                   disabled={!canFinishActiveProcess}
                                   value={finishPayload.quantity_damaged}
-                                  onChange={(e) =>
+                                  onChange={(e) => {
+                                    const raw = e.target.value;
+                                    if (raw === "") {
+                                      setFinishPayload((p) => ({
+                                        ...p,
+                                        quantity_damaged: "",
+                                      }));
+                                      return;
+                                    }
+                                    if (!/^\d+$/.test(raw)) {
+                                      toast.error(
+                                        "La cantidad dañada debe ser numérica (solo números enteros).",
+                                      );
+                                      setFinishPayload((p) => ({
+                                        ...p,
+                                        quantity_damaged: "",
+                                      }));
+                                      return;
+                                    }
+                                    let next = raw;
+                                    if (
+                                      receivedQuantity != null &&
+                                      Number(next) > receivedQuantity
+                                    ) {
+                                      next = String(receivedQuantity);
+                                    }
                                     setFinishPayload((p) => ({
                                       ...p,
-                                      quantity_damaged: e.target.value,
-                                    }))
-                                  }
+                                      quantity_damaged: next,
+                                    }));
+                                  }}
                                 />
                               </div>
                               <div className="space-y-2">
