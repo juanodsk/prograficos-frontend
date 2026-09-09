@@ -103,8 +103,18 @@ export default function ThirdForm({ isOpen, onClose, onSuccess, thirdId }) {
       newErrors.person_type = "Selecciona el tipo de persona";
     if (!form.document_type)
       newErrors.document_type = "Selecciona el tipo de documento";
-    if (!form.document_number.trim())
+    const documentNumber = form.document_number.trim();
+    if (!documentNumber) {
       newErrors.document_number = "El número de documento es requerido";
+    } else if (!/^\d+$/.test(documentNumber)) {
+      newErrors.document_number =
+        "El número de documento debe ser numérico (solo dígitos)";
+    } else if (documentNumber.length <= 6) {
+      newErrors.document_number =
+        "El número de documento debe tener más de 6 dígitos";
+    } else if (!/[1-9]/.test(documentNumber)) {
+      newErrors.document_number = "El número de documento debe ser positivo";
+    }
 
     setErrors(newErrors);
 
@@ -428,6 +438,7 @@ export default function ThirdForm({ isOpen, onClose, onSuccess, thirdId }) {
                         name="document_number"
                         value={form.document_number}
                         onChange={handleChange}
+                        inputMode="numeric"
                         placeholder="Ej: 900123456"
                         className="h-9 text-sm"
                       />

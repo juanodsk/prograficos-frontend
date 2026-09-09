@@ -73,6 +73,7 @@ const createFieldDraft = (index = 0, field = {}) => {
     keyMessage: "",
     field_type: field.field_type || "TEXT",
     is_required: Boolean(field.is_required),
+    diligenciar_en_detalle: Boolean(field.diligenciar_en_detalle),
     sort_order: field.sort_order ?? index + 1,
     options: Array.isArray(field.options)
       ? field.options.join(", ")
@@ -196,9 +197,12 @@ const ProcessesForm = ({ isOpen, onClose, onSuccess, processId }) => {
       return;
     }
 
-    machineryService.getAll({ onlyActive: true }).then((res) => {
-      setMachineryList(res?.data || []);
-    }).catch(() => {});
+    machineryService
+      .getAll({ onlyActive: true })
+      .then((res) => {
+        setMachineryList(res?.data || []);
+      })
+      .catch(() => {});
 
     if (isEditing) {
       loadProcess();
@@ -439,8 +443,7 @@ const ProcessesForm = ({ isOpen, onClose, onSuccess, processId }) => {
       nextErrors.field_definitions =
         "Todos los campos configurables deben tener una clave válida";
     } else if (invalidKeyFormatField) {
-      nextErrors.field_definitions =
-        fieldKeyValidationMessage;
+      nextErrors.field_definitions = fieldKeyValidationMessage;
     } else if (hasDuplicateKeys) {
       nextErrors.field_definitions =
         "No puedes repetir claves entre campos configurables";
@@ -462,6 +465,7 @@ const ProcessesForm = ({ isOpen, onClose, onSuccess, processId }) => {
         label: field.label.trim(),
         field_type: field.field_type,
         is_required: Boolean(field.is_required),
+        diligenciar_en_detalle: Boolean(field.diligenciar_en_detalle),
         sort_order: index + 1,
         options:
           field.field_type === "SELECT" && field.options.trim()
@@ -618,7 +622,9 @@ const ProcessesForm = ({ isOpen, onClose, onSuccess, processId }) => {
                 <Label>Maquinaria disponible</Label>
                 <div className="max-h-48 overflow-y-auto rounded-lg border border-gray-200 p-3">
                   {machineryList.length === 0 ? (
-                    <p className="text-sm text-gray-400">Cargando maquinarias...</p>
+                    <p className="text-sm text-gray-400">
+                      Cargando maquinarias...
+                    </p>
                   ) : (
                     <div className="grid grid-cols-2 gap-2">
                       {machineryList.map((m) => {
@@ -639,7 +645,9 @@ const ProcessesForm = ({ isOpen, onClose, onSuccess, processId }) => {
                                 setForm((prev) => ({
                                   ...prev,
                                   machinery_ids: checked
-                                    ? prev.machinery_ids.filter((id) => id !== m.id)
+                                    ? prev.machinery_ids.filter(
+                                        (id) => id !== m.id,
+                                      )
                                     : [...prev.machinery_ids, m.id],
                                 }))
                               }
@@ -743,7 +751,7 @@ const ProcessesForm = ({ isOpen, onClose, onSuccess, processId }) => {
                         </Button>
                       </div>
 
-                      <div className="grid gap-4 lg:grid-cols-[minmax(0,1.6fr)_minmax(180px,0.8fr)_minmax(180px,0.8fr)_120px]">
+                      <div className="grid gap-4 lg:grid-cols-[minmax(0,1.6fr)_minmax(180px,0.8fr)_minmax(180px,0.8fr)_minmax(150px,0.8fr)_120px]">
                         <div className="space-y-2">
                           <Label>Etiqueta</Label>
                           <Input
@@ -866,6 +874,7 @@ const ProcessesForm = ({ isOpen, onClose, onSuccess, processId }) => {
                           <Label>Obligatorio</Label>
                           <Select
                             value={field.is_required ? "si" : "no"}
+                            disabled={field.diligenciar_en_detalle}
                             onValueChange={(value) =>
                               updateField(index, "is_required", value === "si")
                             }
@@ -880,6 +889,30 @@ const ProcessesForm = ({ isOpen, onClose, onSuccess, processId }) => {
                               <SelectItem value="no">No</SelectItem>
                             </SelectContent>
                           </Select>
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Diligenciar en detalle</Label>
+                          <div className="flex h-10 items-center">
+                            <label className="flex cursor-pointer items-center gap-2 text-sm text-slate-700">
+                              <input
+                                type="checkbox"
+                                className="h-4 w-4 rounded border-slate-300 text-[#13529a] focus:ring-[#13529a]"
+                                checked={Boolean(field.diligenciar_en_detalle)}
+                                onChange={(event) =>
+                                  setFieldState(index, (prevField) => ({
+                                    ...prevField,
+                                    diligenciar_en_detalle: Boolean(
+                                      event.target.checked,
+                                    ),
+                                    is_required: event.target.checked
+                                      ? false
+                                      : prevField.is_required,
+                                  }))
+                                }
+                              />
+                              Al iniciar proceso
+                            </label>
+                          </div>
                         </div>
                         <div className="space-y-2">
                           <Label>Posición del campo</Label>

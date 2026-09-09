@@ -108,11 +108,19 @@ const normalizePositiveInteger = (value) => {
   return Math.ceil(normalizedValue);
 };
 
-const renderProcessFieldInput = (field, value, onChange, disabled) => {
+const sanitizeNonNegativeInteger = (value) => {
+  const digits = String(value ?? "").replace(/[^\d]/g, "");
+  return digits === "" ? "" : String(parseInt(digits, 10));
+};
+
+const renderProcessFieldInput = (field, value, onChange, disabled, hasError) => {
   const fieldId = `process-field-${field.id}`;
 
-  const baseInputClasses =
-    "w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm outline-none transition focus:border-[#13529a] focus:ring-2 focus:ring-[#13529a]/20 disabled:bg-slate-100 disabled:text-slate-400";
+  const borderClass = hasError
+    ? "border-red-400 focus:border-red-500 focus:ring-red-500/20"
+    : "border-slate-300 focus:border-[#13529a] focus:ring-[#13529a]/20";
+
+  const baseInputClasses = `w-full rounded-lg border ${borderClass} bg-white px-3 py-2 text-sm text-slate-900 shadow-sm outline-none transition disabled:bg-slate-100 disabled:text-slate-400`;
 
   switch (field.field_type) {
     case "TEXTAREA":
@@ -131,10 +139,14 @@ const renderProcessFieldInput = (field, value, onChange, disabled) => {
         <input
           id={fieldId}
           type="number"
+          min="0"
+          step="1"
           className={baseInputClasses}
           value={value || ""}
           disabled={disabled}
-          onChange={(event) => onChange(event.target.value)}
+          onChange={(event) =>
+            onChange(sanitizeNonNegativeInteger(event.target.value))
+          }
         />
       );
     case "BOOLEAN":
@@ -387,8 +399,27 @@ const OrderForm = () => {
     if (!form.product_id) nextErrors.product_id = "Selecciona un producto";
     if (!form.processes.length)
       nextErrors.processes = "Selecciona al menos un proceso";
+
+    const missingProcessFields = [];
+    selectedProcesses.forEach((process) => {
+      (process.field_definitions || [])
+        .filter((field) => !field.diligenciar_en_detalle)
+        .forEach((field) => {
+          if (!field.is_required) return;
+          const value = processFieldValues[field.id];
+          if (value == null || String(value).trim() === "") {
+            nextErrors[`processField_${field.id}`] =
+              "Este campo es obligatorio";
+            missingProcessFields.push(`${process.name}: ${field.label}`);
+          }
+        });
+    });
+
     setErrors(nextErrors);
-    return Object.keys(nextErrors).length === 0;
+    return {
+      valid: Object.keys(nextErrors).length === 0,
+      missingProcessFields,
+    };
   };
 
   const selectedProcesses = useMemo(
@@ -602,7 +633,17 @@ const OrderForm = () => {
       toast.error("La orden ya tiene procesos iniciados y no se puede editar");
       return;
     }
-    if (!validate()) return;
+    const validation = validate();
+    if (!validation.valid) {
+      if (validation.missingProcessFields.length) {
+        toast.error(
+          `Faltan campos del proceso por diligenciar: ${validation.missingProcessFields.join(", ")}`,
+        );
+      } else {
+        toast.error("Revisa los campos marcados antes de guardar");
+      }
+      return;
+    }
 
     const payload = {
       calculation_mode: form.calculation_mode,
@@ -1139,30 +1180,50 @@ const OrderForm = () => {
                     </p>
 
                     <div className="mt-3 space-y-3">
-                      {(process.field_definitions || []).length > 0 ? (
-                        process.field_definitions.map((field) => (
-                          <div key={field.id}>
-                            <label
-                              htmlFor={`process-field-${field.id}`}
-                              className="mb-1 block text-xs font-semibold text-slate-700"
-                            >
-                              {field.label}
-                              {field.is_required ? (
-                                <span className="text-red-500"> *</span>
-                              ) : null}
-                            </label>
-                            {renderProcessFieldInput(
-                              field,
-                              processFieldValues[field.id],
-                              (newValue) =>
-                                setProcessFieldValues((prev) => ({
-                                  ...prev,
-                                  [field.id]: newValue,
-                                })),
-                              false,
-                            )}
-                          </div>
-                        ))
+                      {(process.field_definitions || []).filter(
+                        (field) => !field.diligenciar_en_detalle,
+                      ).length > 0 ? (
+                        process.field_definitions
+                          .filter((field) => !field.diligenciar_en_detalle)
+                          .map((field) => {
+                          const fieldErrorKey = `processField_${field.id}`;
+                          return (
+                            <div key={field.id}>
+                              <label
+                                htmlFor={`process-field-${field.id}`}
+                                className="mb-1 block text-xs font-semibold text-slate-700"
+                              >
+                                {field.label}
+                                {field.is_required ? (
+                                  <span className="text-red-500"> *</span>
+                                ) : null}
+                              </label>
+                              {renderProcessFieldInput(
+                                field,
+                                processFieldValues[field.id],
+                                (newValue) => {
+                                  setProcessFieldValues((prev) => ({
+                                    ...prev,
+                                    [field.id]: newValue,
+                                  }));
+                                  if (errors[fieldErrorKey]) {
+                                    setErrors((prev) => ({
+                                      ...prev,
+                                      [fieldErrorKey]: "",
+                                    }));
+                                  }
+                                },
+                                false,
+                                Boolean(errors[fieldErrorKey]),
+                              )}
+                              {errors[fieldErrorKey] && (
+                                <p className="mt-1 text-xs text-red-500">
+                                  {errors[fieldErrorKey]}
+                                </p>
+                              )}
+                            </div>
+                          );
+                        })
                       ) : (
                         <span className="text-xs text-slate-400">
                           Sin campos configurables

@@ -66,6 +66,32 @@ const getOrderClientLabel = (order) =>
   order?.product?.third?.name ||
   "Sin cliente";
 
+const PROCESS_STATE_LABEL = {
+  PENDIENTE: "Pendiente",
+  EN_PROCESO: "En proceso",
+  TERMINADO: "Terminado",
+};
+
+// Proceso "actual" = primer proceso que aún no está TERMINADO (el que está en
+// curso o el siguiente pendiente). Los detalles llegan ordenados por
+// process.order desde el backend. Si todos están TERMINADO, la orden terminó.
+const getCurrentProcess = (order) => {
+  const details = order?.detail_production_orders;
+  if (!Array.isArray(details) || details.length === 0) return null;
+
+  const current = details.find(
+    (detail) => detail.process_state !== "TERMINADO",
+  );
+
+  if (!current) return { done: true };
+
+  return {
+    done: false,
+    name: current.process?.name || "Sin proceso",
+    state: current.process_state,
+  };
+};
+
 const Orders = () => {
   const navigate = useNavigate();
   const { user: currentUser } = useAuthStore();
@@ -199,7 +225,7 @@ const Orders = () => {
           </div>
           <div className="flex-1 space-y-1">
             <p className="text-sm font-semibold text-slate-900">
-              Marcar orden como terminada
+              ¿Marcar orden como terminada?
             </p>
             <p className="text-sm text-slate-500">
               La orden pasar&aacute; a estado{" "}
@@ -438,7 +464,7 @@ const Orders = () => {
                       </div>
                       <div className="rounded-xl bg-white p-3">
                         <p className="text-xs uppercase tracking-wide text-slate-400">
-                          Hojas
+                          Pliegos
                         </p>
                         <p className="mt-1 font-semibold text-slate-900">
                           {order.amount_sheets}
@@ -452,6 +478,33 @@ const Orders = () => {
                           {order.total_estimated?.toLocaleString("es-CO")}{" "}
                           unidades
                         </p>
+                      </div>
+                      <div className="rounded-xl bg-white p-3">
+                        <p className="text-xs uppercase tracking-wide text-slate-400">
+                          Proceso actual
+                        </p>
+                        {(() => {
+                          const current = getCurrentProcess(order);
+                          if (!current)
+                            return (
+                              <p className="mt-1 font-semibold text-slate-400">
+                                —
+                              </p>
+                            );
+                          if (current.done)
+                            return (
+                              <p className="mt-1 font-semibold text-emerald-600">
+                                Todos completados
+                              </p>
+                            );
+                          return (
+                            <>
+                              <p className="mt-1 font-semibold text-slate-900">
+                                {current.name}
+                              </p>
+                            </>
+                          );
+                        })()}
                       </div>
                     </div>
 
@@ -513,9 +566,10 @@ const Orders = () => {
                         <TableHead>Producto</TableHead>
                         <TableHead>Cliente</TableHead>
                         <TableHead>Creación</TableHead>
-                        <TableHead>Hojas</TableHead>
+                        <TableHead>Pliegos</TableHead>
                         <TableHead>Unidades</TableHead>
                         <TableHead>Estado</TableHead>
+                        <TableHead>Proceso Actual</TableHead>
                         <TableHead className="text-right">Acciones</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -534,6 +588,28 @@ const Orders = () => {
                           </TableCell>
                           <TableCell>
                             <StatusBadge status={order.order_status} />
+                          </TableCell>
+                          <TableCell>
+                            {(() => {
+                              const current = getCurrentProcess(order);
+                              if (!current)
+                                return (
+                                  <span className="text-slate-400">—</span>
+                                );
+                              if (current.done)
+                                return (
+                                  <span className="text-sm font-medium text-emerald-600">
+                                    Todos completados
+                                  </span>
+                                );
+                              return (
+                                <div className="flex flex-col">
+                                  <span className="font-medium text-slate-800">
+                                    {current.name}
+                                  </span>
+                                </div>
+                              );
+                            })()}
                           </TableCell>
                           <TableCell>
                             <div className="flex flex-wrap justify-end gap-2">
