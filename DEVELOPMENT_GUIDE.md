@@ -25,10 +25,13 @@ Las palabras **DEBE**, **NO DEBE** y **DEBERÍA** se usan con sentido normativo.
 | Enrutamiento | `src/router/index.jsx` | Declarar rutas, redirecciones y guards por rol |
 | Layout | `src/components/layout` | Shell autenticado: sidebar, navbar y outlet |
 | Vistas | `src/views` | Orquestar casos de uso y estado de pantalla |
-| Componentes comunes | `src/components/common` | Piezas reutilizables propias del negocio |
+| Componentes comunes | `src/components/common` | Piezas reutilizables propias del negocio (`ConfirmDialog`, `StatusBadge`, `ServerPagination`, `Seo`) |
+| Tabla de datos | `src/components/data-table` | `DataTable` reutilizable para listados |
 | Primitivas UI | `src/components/ui` | Componentes shadcn/Base UI sin lógica de dominio |
-| Servicios | `src/services` | Traducir operaciones del dominio a HTTP |
+| Servicios | `src/services` | Traducir operaciones del dominio a HTTP (uno por recurso) |
 | Cliente HTTP | `src/services/api.js` | URL base, cookies e interceptores globales |
+| Tiempo real | `src/services/socket.service.js` | Cliente Socket.IO para eventos de producción |
+| Constantes | `src/constants` | Catálogos compartidos por la UI (`machineryTypes`, `thirds`) |
 | Estado global | `src/store/authStore.js` | Sesión y usuario compartidos/persistidos |
 | Estilos y tokens | `src/index.css` | Tailwind, fuente, tema claro/oscuro y variables CSS |
 
@@ -89,6 +92,8 @@ Decisiones:
 
 `src/App.jsx`, `src/App.css`, `src/assets/react.svg` y `public/vite.svg` provienen del template. No deben usarse como ejemplo de arquitectura. Pueden eliminarse en una tarea de limpieza independiente después de comprobar que no existen referencias.
 
+El módulo `product_customer` (servicio, vistas y su redirección de router) fue eliminado el 2026-09-08 por ser código muerto: apuntaba a endpoints `/product_customers/*` que el backend ya no expone. Nota: `buildProductCustomerWhere` en el backend NO es parte de eso; es un filtro vivo de productos por cliente.
+
 ## 4. Nomenclatura
 
 | Elemento | Regla | Ejemplo |
@@ -105,13 +110,13 @@ Decisiones:
 | Callback prop | Prefijo `on` | `onClose`, `onSuccess` |
 | Constante de módulo | Nombre descriptivo; mayúsculas si es inmutable global | `ROLE_CONFIG`, `menuItems` local |
 | Rol/estado de API | `UPPER_SNAKE_CASE` según backend | `SUPERVISOR`, `EN_PROCESO` |
-| Ruta web | Español, minúsculas, plural y kebab-case | `/ordenes`, `/admin/tipos-de-papel` |
+| Ruta web | Español, minúsculas, plural y kebab-case | `/ordenes`, `/configuracion/tipos-de-papel` |
 
 Notas de compatibilidad:
 
 - `orders.service.js` no sigue la convención singular. Si se renombra, el cambio debe actualizar todas las importaciones en el mismo commit.
 - `surename` parece una grafía heredada del contrato del backend. No se cambia unilateralmente a `surname`; se puede mapear en el límite HTTP cuando el backend acuerde la migración.
-- `/admin/medidad` y `/admin/tipos_de_papel` no cumplen la convención. Las rutas definitivas deberían ser `/admin/medidas` y `/admin/tipos-de-papel`, con una redirección temporal si ya existen enlaces externos.
+- Las rutas de configuración viven bajo el prefijo `/configuracion/*` (por ejemplo `/configuracion/usuarios`, `/configuracion/terceros`, `/configuracion/medidas`). Algunas todavía usan `snake_case` (`/configuracion/tipos_papel`); la convención objetivo es `kebab-case` (`/configuracion/tipos-de-papel`), con redirección temporal si ya existen enlaces externos.
 
 ## 5. Importaciones y módulos
 
@@ -188,22 +193,29 @@ export const ROUTES = Object.freeze({
   LOGIN: "/login",
   DASHBOARD: "/dashboard",
   ORDERS: "/ordenes",
-  ORDER_CREATE: "/ordenes/nueva",
-  USERS: "/admin/usuarios",
+  ORDER_CREATE: "/ordenes/crear",
+  USERS: "/configuracion/usuarios",
 });
+
+// Nota: hoy los paths están hardcodeados en `router/index.jsx` y `Sidebar.jsx`.
+// Todavía NO existe esta constante `ROUTES`; centralizarla sigue siendo deuda pendiente.
 ```
 
 No se debe registrar una vista vacía solo para que el enlace “funcione”. Una funcionalidad incompleta se oculta mediante una bandera explícita o no se publica en el menú.
 
 ### 7.3 Matriz de navegación actual
 
+Las rutas de configuración están agrupadas bajo `/configuracion/*` (usuarios, terceros, productos, troqueles, medidas, formatos, maquinarias, tipos_papel, procesos) y las de operación bajo `/ordenes/*` (incluye `/ordenes/auditoria`, `/ordenes/crear`, `/ordenes/:id`, `/ordenes/:id/editar` y `/ordenes/monitor`).
+
 | Módulo | ADMIN | SUPERVISOR | EMPLOYEE | USER |
 | --- | :---: | :---: | :---: | :---: |
 | Dashboard | Sí | Sí | Sí | Sí |
-| Órdenes | Sí | Sí | Sí | No |
-| Usuarios | Sí | Sí | No | No |
-| Procesos (menú pendiente) | Sí | No | No | No |
-| Otros catálogos del menú | Sí | Sí | No | No |
+| Órdenes (`/ordenes/*`) | Sí | Sí | Sí | No |
+| Configuración › Usuarios | Sí | Sí | No | No |
+| Configuración › Procesos | Sí | Sí | No | No |
+| Configuración › Otros catálogos | Sí | Sí | No | No |
+
+> El rol `USER` no tiene navegación de catálogos ni órdenes en el frontend actual (solo Dashboard), aunque el backend le permite iniciar/finalizar procesos vía `/order-processes/*`.
 
 ## 8. Comunicación con el backend
 
@@ -453,16 +465,16 @@ Este inventario describe el estado encontrado; no implica que los puntos estén 
 
 | Prioridad | Hallazgo | Evidencia/impacto | Acción sugerida |
 | --- | --- | --- | --- |
-| P0 | Enlaces sin ruta | El sidebar publica siete paths no registrados | Ocultar módulos pendientes o implementar ruta, vista y permisos completos |
-| P0 | URLs rotas de órdenes | Los botones usan `/orders/...`; la aplicación registra `/ordenes` | Definir constantes y crear rutas españolas coherentes |
-| P0 | Configuración local versionada | `.env` está en Git y `.env.example` no | Ignorar/desindexar `.env`, versionar el ejemplo y rotar cualquier secreto si existiera |
-| P1 | Lint en rojo | 8 errores y 1 warning al ejecutar `npm run lint` | Resolver variables no usadas, exports de Fast Refresh, globals de Vite config y dependencias del efecto |
+| ~~P0~~ Resuelto | Enlaces sin ruta | El `Sidebar` y `router/index.jsx` ya concuerdan (rutas `/configuracion/*` y `/ordenes/*`) | Sin acción; mantener sincronizados al agregar módulos |
+| ~~P0~~ Resuelto | URLs rotas de órdenes | Los enlaces ya usan `/ordenes/*` (crear, :id, editar, monitor, auditoria) | Sin acción; pendiente centralizar en constante `ROUTES` |
+| P0 | Falta `.env.example` | `.env` ya NO está trackeado (bien), pero `.env.example` no existe y `.gitignore` lo ignora | Crear `.env.example` con `VITE_API_URL` y quitar `.env.example` del `.gitignore` |
+| P1 | Lint en rojo | 66 errores y 23 advertencias al ejecutar `npm run lint` (medido con Node 20; la mayoría son reglas nuevas de `react-hooks` v7 y globals de `vite.config.js`) | Configurar globals de Node para archivos de config, resolver `set-state-in-effect` y dependencias de efectos |
 | P1 | Sesión persistida sin revalidación | Existe `authService.profile`, pero el arranque confía en `localStorage` | Añadir bootstrap de sesión con estado `checking` antes de renderizar guards |
 | P1 | Permisos y rutas duplicados | Router y `menuItems` mantienen roles por separado | Centralizar metadatos de navegación y permisos |
 | P1 | Accesibilidad de modales/acciones | Hay modales manuales y botones de icono sin nombre accesible | Adoptar `Dialog`, foco completo y `aria-label` |
 | P1 | Responsividad limitada | Sidebar fijo y grillas de formulario de dos columnas | Implementar drawer móvil y breakpoints de formularios |
 | P2 | Respuestas API inconsistentes | Las vistas consumen `data`, `data.data` y `data.data.user` | Normalizar dentro de servicios |
-| P2 | Bundle monolítico | Build produce un chunk JS de ~563 kB | Lazy-load por ruta y analizar dependencias |
+| P2 | Bundle monolítico | Build produce un chunk JS de ~978 kB (gzip ~290 kB) | Lazy-load por ruta y analizar dependencias |
 | P2 | Docker orientado a desarrollo | Usa `npm install` y ejecuta Vite dev server | Crear build multietapa reproducible y servidor de estáticos |
 | P2 | Componentes/vistas extensos | Sidebar, Users y UserForm concentran varias responsabilidades | Extraer configuración, tabla, formulario y hooks por dominio |
 | P2 | Colores y animaciones duplicados | Azul hexadecimal y `<style>` se repiten | Crear tokens y animaciones globales |
@@ -472,10 +484,12 @@ Este inventario describe el estado encontrado; no implica que los puntos estén 
 
 ### Línea base de verificación
 
-Al momento de redactar esta guía:
+Última medición (2026-09-08, con Node 20):
 
-- `npm run build`: correcto con advertencia de tamaño de chunk.
-- `npm run lint`: 8 errores y 1 advertencia.
+- `npm run lint`: 89 problemas (66 errores, 23 advertencias).
+- `npm run build`: correcto, con advertencia de tamaño de chunk. El chunk principal es ~978 kB (gzip ~290 kB); superó el umbral de 500 kB.
 - Pruebas: no hay comando configurado.
+
+Importante: el tooling requiere **Node 18+** (el `node` por defecto del entorno es v12 y falla). Usar `nvm use 20` antes de `lint`/`build`/`dev`.
 
 Actualizar esta sección cuando la línea base cambie; no conservar cifras históricas como si fueran el estado actual.
