@@ -305,6 +305,8 @@ const Orders = () => {
     },
   ];
 
+  const isFinishedTab = activeTab === "finished";
+
   return (
     <div className="space-y-6">
       <div className="rounded-3xl border border-slate-200 bg-[linear-gradient(135deg,#0f3f7a_0%,#13529a_55%,#2b6cb0_100%)] px-6 py-7 text-white shadow-sm">
@@ -476,36 +478,58 @@ const Orders = () => {
                         </p>
                         <p className="mt-1 font-semibold text-slate-900">
                           {order.total_estimated?.toLocaleString("es-CO")}{" "}
-                          unidades
                         </p>
                       </div>
-                      <div className="rounded-xl bg-white p-3">
-                        <p className="text-xs uppercase tracking-wide text-slate-400">
-                          Proceso actual
-                        </p>
-                        {(() => {
-                          const current = getCurrentProcess(order);
-                          if (!current)
+                      {isFinishedTab ? (
+                        <>
+                          <div className="rounded-xl bg-white p-3">
+                            <p className="text-xs uppercase tracking-wide text-slate-400">
+                              Entregado
+                            </p>
+                            <p className="mt-1 font-semibold text-slate-900">
+                              {order.total_delivered != null
+                                ? order.total_delivered.toLocaleString("es-CO")
+                                : "—"}
+                            </p>
+                          </div>
+                          <div className="rounded-xl bg-white p-3">
+                            <p className="text-xs uppercase tracking-wide text-slate-400">
+                              Dañadas
+                            </p>
+                            <p className="mt-1 font-semibold text-slate-900">
+                              {order.total_damaged != null
+                                ? order.total_damaged.toLocaleString("es-CO")
+                                : "—"}
+                            </p>
+                          </div>
+                        </>
+                      ) : (
+                        <div className="rounded-xl bg-white p-3">
+                          <p className="text-xs uppercase tracking-wide text-slate-400">
+                            Proceso actual
+                          </p>
+                          {(() => {
+                            const current = getCurrentProcess(order);
+                            if (!current)
+                              return (
+                                <p className="mt-1 font-semibold text-slate-400">
+                                  —
+                                </p>
+                              );
+                            if (current.done)
+                              return (
+                                <p className="mt-1 font-semibold text-emerald-600">
+                                  Todos completados
+                                </p>
+                              );
                             return (
-                              <p className="mt-1 font-semibold text-slate-400">
-                                —
-                              </p>
-                            );
-                          if (current.done)
-                            return (
-                              <p className="mt-1 font-semibold text-emerald-600">
-                                Todos completados
-                              </p>
-                            );
-                          return (
-                            <>
                               <p className="mt-1 font-semibold text-slate-900">
                                 {current.name}
                               </p>
-                            </>
-                          );
-                        })()}
-                      </div>
+                            );
+                          })()}
+                        </div>
+                      )}
                     </div>
 
                     <div className="mt-5 flex flex-wrap justify-end gap-2">
@@ -569,7 +593,14 @@ const Orders = () => {
                         <TableHead>Pliegos</TableHead>
                         <TableHead>Unidades</TableHead>
                         <TableHead>Estado</TableHead>
-                        <TableHead>Proceso Actual</TableHead>
+                        {isFinishedTab ? (
+                          <>
+                            <TableHead>Entregado</TableHead>
+                            <TableHead>Dañadas</TableHead>
+                          </>
+                        ) : (
+                          <TableHead>Proceso Actual</TableHead>
+                        )}
                         <TableHead className="text-right">Acciones</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -589,28 +620,45 @@ const Orders = () => {
                           <TableCell>
                             <StatusBadge status={order.order_status} />
                           </TableCell>
-                          <TableCell>
-                            {(() => {
-                              const current = getCurrentProcess(order);
-                              if (!current)
+                          {isFinishedTab ? (
+                            <>
+                              <TableCell className="font-medium text-slate-800">
+                                {order.total_delivered != null
+                                  ? order.total_delivered.toLocaleString(
+                                      "es-CO",
+                                    )
+                                  : "—"}
+                              </TableCell>
+                              <TableCell className="font-medium text-red-700 text-center">
+                                {order.total_damaged != null
+                                  ? order.total_damaged.toLocaleString("es-CO")
+                                  : "—"}
+                              </TableCell>
+                            </>
+                          ) : (
+                            <TableCell>
+                              {(() => {
+                                const current = getCurrentProcess(order);
+                                if (!current)
+                                  return (
+                                    <span className="text-slate-400">—</span>
+                                  );
+                                if (current.done)
+                                  return (
+                                    <span className="text-sm font-medium text-emerald-600">
+                                      Todos completados
+                                    </span>
+                                  );
                                 return (
-                                  <span className="text-slate-400">—</span>
+                                  <div className="flex flex-col">
+                                    <span className="font-medium text-slate-800">
+                                      {current.name}
+                                    </span>
+                                  </div>
                                 );
-                              if (current.done)
-                                return (
-                                  <span className="text-sm font-medium text-emerald-600">
-                                    Todos completados
-                                  </span>
-                                );
-                              return (
-                                <div className="flex flex-col">
-                                  <span className="font-medium text-slate-800">
-                                    {current.name}
-                                  </span>
-                                </div>
-                              );
-                            })()}
-                          </TableCell>
+                              })()}
+                            </TableCell>
+                          )}
                           <TableCell>
                             <div className="flex flex-wrap justify-end gap-2">
                               <Button
