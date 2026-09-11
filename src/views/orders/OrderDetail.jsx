@@ -51,6 +51,29 @@ const formatMeasureLabel = (measure) => {
   return formatName ? `${formatName} · ${size}` : size;
 };
 
+const parseSheetDivisionsFromFormatName = (value) => {
+  const normalizedValue = value?.trim();
+  if (!normalizedValue) return null;
+
+  const fractionMatch = normalizedValue.match(/1\s*\/\s*(\d+)/i);
+  if (!fractionMatch) return null;
+
+  const parsedDivisions = Number(fractionMatch[1]);
+  return Number.isFinite(parsedDivisions) && parsedDivisions > 0
+    ? parsedDivisions
+    : null;
+};
+
+const resolveSheetDivisions = (format) => {
+  const configuredDivisions = Number(format?.sheet_divisions);
+
+  if (Number.isInteger(configuredDivisions) && configuredDivisions > 0) {
+    return configuredDivisions;
+  }
+
+  return parseSheetDivisionsFromFormatName(format?.name) || 1;
+};
+
 const getOrderClientLabel = (order) =>
   order?.product?.third?.company_name ||
   order?.product?.third?.name ||
@@ -148,6 +171,22 @@ const OrderDetail = () => {
     ? activeProcess.process_state !== "PENDIENTE"
     : false;
 
+  const processMachineryIds = useMemo(() => {
+    const machineries = activeProcess?.process?.machineries || [];
+    return new Set(
+      machineries
+        .filter((pm) => pm.machinery_id != null)
+        .map((pm) => String(pm.machinery_id)),
+    );
+  }, [activeProcess]);
+
+  const availableMachinery = useMemo(() => {
+    if (processMachineryIds.size === 0) return catalogs.machinery;
+    return catalogs.machinery.filter((m) =>
+      processMachineryIds.has(String(m.id)),
+    );
+  }, [catalogs.machinery, processMachineryIds]);
+
   const activeProcessIndex = useMemo(
     () => processes.findIndex((process) => process.id === activeProcess?.id),
     [processes, activeProcess],
@@ -162,12 +201,47 @@ const OrderDetail = () => {
     ? formatMeasureLabel(sharedMeasure)
     : "Aun no definida";
 
+  const unitsPerSheet = useMemo(() => {
+    const divisions = resolveSheetDivisions(order?.measure?.format);
+    const cavities = Number(order?.cavities);
+    return (
+      divisions * (Number.isFinite(cavities) && cavities > 0 ? cavities : 1)
+    );
+  }, [order?.measure?.format, order?.cavities]);
+
+  const expectedQuantity = useMemo(() => {
+    const base = Number(order?.total_estimated);
+    if (!Number.isFinite(base) || base <= 0) return null;
+    const additionalSheets = Number(order?.amount_sheets_additional) || 0;
+    return base + unitsPerSheet * additionalSheets;
+  }, [order?.total_estimated, order?.amount_sheets_additional, unitsPerSheet]);
+
+  // Cantidad recibida (solo lectura): el primer proceso recibe la cantidad
+  // esperada de la orden; cada proceso siguiente recibe lo entregado
+  // (quantity_delivered) por el proceso anterior.
+  const receivedQuantity = useMemo(() => {
+    if (!activeProcess) return null;
+    if (activeProcessIndex === 0) return expectedQuantity;
+    const previousDelivered = Number(previousProcess?.quantity_delivered);
+    return Number.isFinite(previousDelivered) ? previousDelivered : null;
+  }, [activeProcess, activeProcessIndex, previousProcess, expectedQuantity]);
+
   const startBlockedByPreviousProcess =
     activeProcess?.process_state === "PENDIENTE" &&
     previousProcess &&
     previousProcess.process_state !== "TERMINADO";
 
   const canFinishActiveProcess = activeProcess?.process_state === "EN_PROCESO";
+
+  // Cantidad restante = recibida - dañada. Es lo que se guardará como
+  // quantity_delivered al finalizar el proceso.
+  const remainingQuantity =
+    receivedQuantity != null
+      ? Math.max(
+          0,
+          receivedQuantity - Number(finishPayload.quantity_damaged || 0),
+        )
+      : null;
 
   useEffect(() => {
     if (!activeProcess) return;
@@ -223,6 +297,11 @@ const OrderDetail = () => {
   };
   const toggleExpanded = (processId) =>
     setExpandedProcessId((prev) => (prev === processId ? null : processId));
+
+  const sanitizeNonNegativeInteger = (rawValue) => {
+    const digits = String(rawValue ?? "").replace(/[^\d]/g, "");
+    return digits === "" ? "" : String(parseInt(digits, 10));
+  };
 
   const dynamicInput = (field, value, onChange, disabled = false) => {
     if (field.field_type === "BOOLEAN") {
@@ -293,8 +372,16 @@ const OrderDetail = () => {
       <Input
         disabled={disabled}
         type={type}
+        min={field.field_type === "NUMBER" ? "0" : undefined}
+        step={field.field_type === "NUMBER" ? "1" : undefined}
         value={value}
-        onChange={(e) => onChange(e.target.value)}
+        onChange={(e) =>
+          onChange(
+            field.field_type === "NUMBER"
+              ? sanitizeNonNegativeInteger(e.target.value)
+              : e.target.value,
+          )
+        }
       />
     );
   };
@@ -313,12 +400,42 @@ const OrderDetail = () => {
       );
       return;
     }
+
+    if (!startPayload.machinery_id) {
+      toast.error("Debes seleccionar una maquinaria antes de iniciar el proceso");
+      return;
+    }
+
+    // Todos los campos que se diligencian en el detalle son obligatorios;
+    // solo las observaciones son opcionales. Los BOOLEAN siempre tienen valor.
+    const detailFields = (activeProcess.process?.field_definitions || []).filter(
+      (field) =>
+        !field.deleted_at &&
+        !isOperatorSignatureField(field) &&
+        field.diligenciar_en_detalle,
+    );
+
+    const missingFields = detailFields.filter((field) => {
+      if (field.field_type === "BOOLEAN") return false;
+      const value = startPayload.field_values[field.id];
+      return value == null || String(value).trim() === "";
+    });
+
+    if (missingFields.length > 0) {
+      toast.error(
+        `Completa los campos obligatorios: ${missingFields
+          .map((field) => field.label)
+          .join(", ")}`,
+      );
+      return;
+    }
+
     try {
       setSubmittingAction("start");
       const payload = {
         machinery_id: startPayload.machinery_id
           ? Number(startPayload.machinery_id)
-          : undefined,
+          : null,
         observations: startPayload.observations || undefined,
         field_values: mapFieldValues(startPayload.field_values),
       };
@@ -341,11 +458,22 @@ const OrderDetail = () => {
       toast.error("Debes iniciar el proceso antes de poder finalizarlo");
       return;
     }
+
+    const damaged = Number(finishPayload.quantity_damaged || 0);
+
+    // La cantidad dañada ya se sanea y se limita a la recibida en el input,
+    // por lo que aquí no se revalida al hacer click.
+    // quantity_delivered se guarda como el remanente: recibida - dañada.
+    const delivered =
+      receivedQuantity != null
+        ? Math.max(0, receivedQuantity - damaged)
+        : Number(finishPayload.quantity_delivered || 0);
+
     try {
       setSubmittingAction("finish");
       await orderProcessesService.finish(activeProcess.id, {
-        quantity_delivered: Number(finishPayload.quantity_delivered || 0),
-        quantity_damaged: Number(finishPayload.quantity_damaged || 0),
+        quantity_delivered: delivered,
+        quantity_damaged: damaged,
       });
       toast.success("Proceso finalizado exitosamente");
       await loadData(true);
@@ -430,7 +558,18 @@ const OrderDetail = () => {
           </div>
         </div>
 
-        <div className="grid gap-4 border-b border-slate-200 bg-slate-50 p-5 md:grid-cols-2 xl:grid-cols-4">
+        <div
+          id="summary-order-detail"
+          className="grid gap-4 border-b border-slate-200 bg-slate-50 p-5 md:grid-cols-2 xl:grid-cols-4"
+        >
+          <div className="rounded-2xl bg-white p-4 shadow-sm">
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+              Cantidad requerida
+            </p>
+            <p className="mt-1 font-semibold text-green-700">
+              {order.total_estimated}
+            </p>
+          </div>
           <div className="rounded-2xl bg-white p-4 shadow-sm">
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
               Fecha
@@ -460,7 +599,10 @@ const OrderDetail = () => {
               Codigo troquel
             </p>
             <p className="mt-1 font-semibold text-slate-900">
-              {formatTroquelLabel(order.troquel, `Troquel #${order.troquel_id}`)}
+              {formatTroquelLabel(
+                order.troquel,
+                `Troquel #${order.troquel_id}`,
+              )}
             </p>
           </div>
           <div className="rounded-2xl bg-white p-4 shadow-sm">
@@ -497,6 +639,22 @@ const OrderDetail = () => {
           </div>
           <div className="rounded-2xl bg-white p-4 shadow-sm">
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+              Pliegos adicionales
+            </p>
+            <p className="mt-1 font-semibold text-blue-900">
+              {order.amount_sheets_additional || 0}
+            </p>
+          </div>
+          <div className="rounded-2xl bg-white p-4 shadow-sm">
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+              Cantidad esperada
+            </p>
+            <p className="mt-1 font-semibold text-slate-900">
+              {expectedQuantity != null ? expectedQuantity : "-"}
+            </p>
+          </div>
+          <div className="rounded-2xl bg-white p-4 shadow-sm">
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
               Formato y tamaño
             </p>
             <p className="mt-1 font-semibold text-slate-900">
@@ -516,9 +674,24 @@ const OrderDetail = () => {
               ]),
             );
             const defs = (process.process?.field_definitions || []).filter(
-              (field) => !isOperatorSignatureField(field),
+              (field) =>
+                !field.deleted_at &&
+                !isOperatorSignatureField(field) &&
+                field.diligenciar_en_detalle,
             );
             const filledDefs = defs.filter((field) => {
+              const value = storedValues.get(field.id);
+              return value != null && value !== "";
+            });
+            const orderFields = (
+              process.process?.field_definitions || []
+            ).filter(
+              (field) =>
+                !field.deleted_at &&
+                !isOperatorSignatureField(field) &&
+                !field.diligenciar_en_detalle,
+            );
+            const orderFilledFields = orderFields.filter((field) => {
               const value = storedValues.get(field.id);
               return value != null && value !== "";
             });
@@ -614,7 +787,7 @@ const OrderDetail = () => {
                         </div>
                         <div className="rounded-xl bg-white p-4">
                           <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-                            Unidades entregadas
+                            Unidades realizadas
                           </p>
                           <p className="mt-1 font-semibold text-slate-900">
                             {process.quantity_delivered ?? 0}
@@ -692,6 +865,33 @@ const OrderDetail = () => {
                                 {sharedMeasureDisplay}
                               </p>
                             </div>
+                            {orderFilledFields.length > 0 && (
+                              <div className="space-y-3 rounded-xl border border-slate-200 bg-slate-50/70 p-4">
+                                <div className="mb-1">
+                                  <h4 className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                                    Datos diligenciados al crear la orden
+                                  </h4>
+                                  <p className="text-[11px] text-slate-400">
+                                    Referencia para el operario.
+                                  </p>
+                                </div>
+                                <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                                  {orderFilledFields.map((field) => (
+                                    <div key={field.id} className="space-y-2">
+                                      <Label className="text-slate-500">
+                                        {field.label}
+                                      </Label>
+                                      {dynamicInput(
+                                        field,
+                                        storedValues.get(field.id) || "",
+                                        () => {},
+                                        true,
+                                      )}
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
                             <div className="space-y-2">
                               <Label>Maquinaria</Label>
                               <Select
@@ -716,7 +916,7 @@ const OrderDetail = () => {
                                     <SelectLabel>
                                       Maquinaria disponible
                                     </SelectLabel>
-                                    {catalogs.machinery.map((m) => (
+                                    {availableMachinery.map((m) => (
                                       <SelectItem
                                         key={m.id}
                                         value={String(m.id)}
@@ -731,8 +931,7 @@ const OrderDetail = () => {
                             {defs.map((field) => (
                               <div key={field.id} className="space-y-2">
                                 <Label>
-                                  {field.label}
-                                  {field.is_required ? " *" : ""}
+                                  {field.label} *
                                 </Label>
                                 {dynamicInput(
                                   field,
@@ -800,38 +999,69 @@ const OrderDetail = () => {
                                   : "Debes iniciar el proceso antes de poder finalizarlo."}
                               </div>
                             )}
-                            <div className="grid gap-4 sm:grid-cols-2">
+                            <div
+                              name="quantitiesFinished"
+                              className="grid gap-4 sm:grid-cols-3"
+                            >
                               <div className="space-y-2">
-                                <Label>Cantidad entregada</Label>
+                                <Label>Cantidad recibida</Label>
                                 <Input
                                   type="number"
-                                  min="0"
-                                  disabled={!canFinishActiveProcess}
-                                  value={finishPayload.quantity_delivered}
-                                  onChange={(e) =>
-                                    setFinishPayload((p) => ({
-                                      ...p,
-                                      quantity_delivered: e.target.value,
-                                    }))
-                                  }
+                                  readOnly
+                                  disabled
+                                  value={receivedQuantity ?? ""}
                                 />
                               </div>
                               <div className="space-y-2">
                                 <Label>Cantidad dañada</Label>
                                 <Input
-                                  type="number"
-                                  min="0"
+                                  type="text"
+                                  inputMode="numeric"
                                   disabled={!canFinishActiveProcess}
                                   value={finishPayload.quantity_damaged}
-                                  onChange={(e) =>
+                                  onChange={(e) => {
+                                    const raw = e.target.value;
+                                    if (raw === "") {
+                                      setFinishPayload((p) => ({
+                                        ...p,
+                                        quantity_damaged: "",
+                                      }));
+                                      return;
+                                    }
+                                    if (!/^\d+$/.test(raw)) {
+                                      toast.error(
+                                        "La cantidad dañada debe ser numérica (solo números enteros).",
+                                      );
+                                      setFinishPayload((p) => ({
+                                        ...p,
+                                        quantity_damaged: "",
+                                      }));
+                                      return;
+                                    }
+                                    let next = raw;
+                                    if (
+                                      receivedQuantity != null &&
+                                      Number(next) > receivedQuantity
+                                    ) {
+                                      next = String(receivedQuantity);
+                                    }
                                     setFinishPayload((p) => ({
                                       ...p,
-                                      quantity_damaged: e.target.value,
-                                    }))
-                                  }
+                                      quantity_damaged: next,
+                                    }));
+                                  }}
                                 />
                               </div>
-                              <div className="sm:col-span-2">
+                              <div className="space-y-2">
+                                <Label>Cantidad restante</Label>
+                                <Input
+                                  type="number"
+                                  readOnly
+                                  disabled
+                                  value={remainingQuantity ?? ""}
+                                />
+                              </div>
+                              <div className="sm:col-span-3">
                                 <Button
                                   onClick={submitFinish}
                                   disabled={

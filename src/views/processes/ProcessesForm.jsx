@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import processesService from "@/services/processes.service";
+import machineryService from "@/services/machinery.service";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -72,6 +73,7 @@ const createFieldDraft = (index = 0, field = {}) => {
     keyMessage: "",
     field_type: field.field_type || "TEXT",
     is_required: Boolean(field.is_required),
+    diligenciar_en_detalle: Boolean(field.diligenciar_en_detalle),
     sort_order: field.sort_order ?? index + 1,
     options: Array.isArray(field.options)
       ? field.options.join(", ")
@@ -83,6 +85,7 @@ const createInitialFormState = () => ({
   name: "",
   category: "OTRO",
   is_active: true,
+  machinery_ids: [],
   field_definitions: [],
 });
 
@@ -137,6 +140,7 @@ const ProcessesForm = ({ isOpen, onClose, onSuccess, processId }) => {
   const [fetching, setFetching] = useState(false);
   const [errors, setErrors] = useState({});
   const [form, setForm] = useState(createInitialFormState);
+  const [machineryList, setMachineryList] = useState([]);
 
   const setFieldState = (index, updater) => {
     setForm((prev) => ({
@@ -167,6 +171,9 @@ const ProcessesForm = ({ isOpen, onClose, onSuccess, processId }) => {
         name: process?.name || "",
         category: process?.category || "OTRO",
         is_active: process?.is_active ?? true,
+        machinery_ids: (process?.machineries || [])
+          .filter((pm) => pm.machinery_id != null)
+          .map((pm) => pm.machinery.id),
         field_definitions:
           process?.field_definitions?.length > 0
             ? process.field_definitions.map((field, index) =>
@@ -186,8 +193,16 @@ const ProcessesForm = ({ isOpen, onClose, onSuccess, processId }) => {
     if (!isOpen) {
       setForm(createInitialFormState());
       setErrors({});
+      setMachineryList([]);
       return;
     }
+
+    machineryService
+      .getAll({ onlyActive: true })
+      .then((res) => {
+        setMachineryList(res?.data || []);
+      })
+      .catch(() => {});
 
     if (isEditing) {
       loadProcess();
@@ -428,8 +443,7 @@ const ProcessesForm = ({ isOpen, onClose, onSuccess, processId }) => {
       nextErrors.field_definitions =
         "Todos los campos configurables deben tener una clave válida";
     } else if (invalidKeyFormatField) {
-      nextErrors.field_definitions =
-        fieldKeyValidationMessage;
+      nextErrors.field_definitions = fieldKeyValidationMessage;
     } else if (hasDuplicateKeys) {
       nextErrors.field_definitions =
         "No puedes repetir claves entre campos configurables";
@@ -451,6 +465,7 @@ const ProcessesForm = ({ isOpen, onClose, onSuccess, processId }) => {
         label: field.label.trim(),
         field_type: field.field_type,
         is_required: Boolean(field.is_required),
+        diligenciar_en_detalle: Boolean(field.diligenciar_en_detalle),
         sort_order: index + 1,
         options:
           field.field_type === "SELECT" && field.options.trim()
@@ -497,6 +512,7 @@ const ProcessesForm = ({ isOpen, onClose, onSuccess, processId }) => {
       name: form.name.trim(),
       category: form.category,
       is_active: form.is_active,
+      machinery_ids: form.machinery_ids.map(Number),
       field_definitions: normalizeFieldDefinitions(),
     };
 
@@ -603,6 +619,53 @@ const ProcessesForm = ({ isOpen, onClose, onSuccess, processId }) => {
               </div>
 
               <div className="space-y-2">
+                <Label>Maquinaria disponible</Label>
+                <div className="max-h-48 overflow-y-auto rounded-lg border border-gray-200 p-3">
+                  {machineryList.length === 0 ? (
+                    <p className="text-sm text-gray-400">
+                      Cargando maquinarias...
+                    </p>
+                  ) : (
+                    <div className="grid grid-cols-2 gap-2">
+                      {machineryList.map((m) => {
+                        const checked = form.machinery_ids.includes(m.id);
+                        return (
+                          <label
+                            key={m.id}
+                            className={`flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 text-sm transition-colors ${
+                              checked
+                                ? "border-[#13529a] bg-blue-50 text-[#13529a]"
+                                : "border-gray-200 text-gray-700 hover:border-gray-300"
+                            }`}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={checked}
+                              onChange={() =>
+                                setForm((prev) => ({
+                                  ...prev,
+                                  machinery_ids: checked
+                                    ? prev.machinery_ids.filter(
+                                        (id) => id !== m.id,
+                                      )
+                                    : [...prev.machinery_ids, m.id],
+                                }))
+                              }
+                              className="h-4 w-4 rounded border-gray-300 text-[#13529a] focus:ring-[#13529a]"
+                            />
+                            <span className="truncate">{m.name}</span>
+                            <span className="ml-auto shrink-0 text-xs text-gray-400">
+                              {m.reference}
+                            </span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="space-y-2">
                 <Label>Estado</Label>
                 <div className="flex items-center gap-2">
                   <button
@@ -688,7 +751,7 @@ const ProcessesForm = ({ isOpen, onClose, onSuccess, processId }) => {
                         </Button>
                       </div>
 
-                      <div className="grid gap-4 lg:grid-cols-[minmax(0,1.6fr)_minmax(180px,0.8fr)_minmax(180px,0.8fr)_120px]">
+                      <div className="grid gap-4 lg:grid-cols-[minmax(0,1.6fr)_minmax(180px,0.8fr)_minmax(180px,0.8fr)_minmax(150px,0.8fr)_120px]">
                         <div className="space-y-2">
                           <Label>Etiqueta</Label>
                           <Input
@@ -811,6 +874,7 @@ const ProcessesForm = ({ isOpen, onClose, onSuccess, processId }) => {
                           <Label>Obligatorio</Label>
                           <Select
                             value={field.is_required ? "si" : "no"}
+                            disabled={field.diligenciar_en_detalle}
                             onValueChange={(value) =>
                               updateField(index, "is_required", value === "si")
                             }
@@ -825,6 +889,30 @@ const ProcessesForm = ({ isOpen, onClose, onSuccess, processId }) => {
                               <SelectItem value="no">No</SelectItem>
                             </SelectContent>
                           </Select>
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Diligenciar en detalle</Label>
+                          <div className="flex h-10 items-center">
+                            <label className="flex cursor-pointer items-center gap-2 text-sm text-slate-700">
+                              <input
+                                type="checkbox"
+                                className="h-4 w-4 rounded border-slate-300 text-[#13529a] focus:ring-[#13529a]"
+                                checked={Boolean(field.diligenciar_en_detalle)}
+                                onChange={(event) =>
+                                  setFieldState(index, (prevField) => ({
+                                    ...prevField,
+                                    diligenciar_en_detalle: Boolean(
+                                      event.target.checked,
+                                    ),
+                                    is_required: event.target.checked
+                                      ? false
+                                      : prevField.is_required,
+                                  }))
+                                }
+                              />
+                              Al iniciar proceso
+                            </label>
+                          </div>
                         </div>
                         <div className="space-y-2">
                           <Label>Posición del campo</Label>

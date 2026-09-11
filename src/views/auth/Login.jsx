@@ -13,7 +13,7 @@ import {
   CardTitle,
   CardDescription,
 } from "@/components/ui/card";
-import { Eye, EyeOff, Loader2 } from "lucide-react";
+import { Eye, EyeOff, Loader2, ChevronLeft } from "lucide-react";
 
 const Login = () => {
   const navigate = useNavigate();
@@ -58,7 +58,7 @@ const Login = () => {
   };
 
   return (
-    <div className="min-h-screen bg-linear-to-br from-[#13529a] to-[#0f3f77] flex items-center justify-center p-6">
+    <div className="min-h-screen bg-linear-to-br from-[#13529a] to-[#0f3f77] flex flex-col items-center justify-center p-6">
       <Card className="w-full max-w-md shadow-2xl border-0 rounded-2xl">
         <CardHeader className="text-center space-y-2">
           <CardTitle className="flex justify-center">
@@ -149,6 +149,14 @@ const Login = () => {
           </CardDescription>
         </CardContent>
       </Card>
+      <a
+        style={{ backgroundColor: "#acd24d" }}
+        href="/"
+        className="inline-flex items-center rounded p-2 mt-6 text-center text-sm text-white/80 hover:text-white transition-colors"
+      >
+        <ChevronLeft />
+        <span>Regresar al sitio web</span>
+      </a>
     </div>
   );
 };

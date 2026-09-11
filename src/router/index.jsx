@@ -89,10 +89,6 @@ const router = createBrowserRouter([
         element: <PaperTypes />,
       },
       {
-        path: "/configuracion/productos_clientes",
-        element: <Navigate to="/configuracion/productos" replace />,
-      },
-      {
         path: "/configuracion/procesos",
         element: <Processes />,
       },

@@ -20,6 +20,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Combobox,
+  ComboboxContent,
+  ComboboxEmpty,
+  ComboboxInput,
+  ComboboxItem,
+  ComboboxList,
+} from "@/components/ui/combobox";
+
 import { Checkbox } from "@/components/ui/checkbox";
 import { ArrowLeft, Loader2, Save } from "lucide-react";
 
@@ -99,6 +108,117 @@ const normalizePositiveInteger = (value) => {
   return Math.ceil(normalizedValue);
 };
 
+const sanitizeNonNegativeInteger = (value) => {
+  const digits = String(value ?? "").replace(/[^\d]/g, "");
+  return digits === "" ? "" : String(parseInt(digits, 10));
+};
+
+const renderProcessFieldInput = (field, value, onChange, disabled, hasError) => {
+  const fieldId = `process-field-${field.id}`;
+
+  const borderClass = hasError
+    ? "border-red-400 focus:border-red-500 focus:ring-red-500/20"
+    : "border-slate-300 focus:border-[#13529a] focus:ring-[#13529a]/20";
+
+  const baseInputClasses = `w-full rounded-lg border ${borderClass} bg-white px-3 py-2 text-sm text-slate-900 shadow-sm outline-none transition disabled:bg-slate-100 disabled:text-slate-400`;
+
+  switch (field.field_type) {
+    case "TEXTAREA":
+      return (
+        <textarea
+          id={fieldId}
+          rows={3}
+          className={baseInputClasses}
+          value={value || ""}
+          disabled={disabled}
+          onChange={(event) => onChange(event.target.value)}
+        />
+      );
+    case "NUMBER":
+      return (
+        <input
+          id={fieldId}
+          type="number"
+          min="0"
+          step="1"
+          className={baseInputClasses}
+          value={value || ""}
+          disabled={disabled}
+          onChange={(event) =>
+            onChange(sanitizeNonNegativeInteger(event.target.value))
+          }
+        />
+      );
+    case "BOOLEAN":
+      return (
+        <label className="flex items-center gap-2 text-sm text-slate-700">
+          <input
+            id={fieldId}
+            type="checkbox"
+            className="h-4 w-4 rounded border-slate-300 text-[#13529a] focus:ring-[#13529a]"
+            checked={value === "true" || value === true}
+            disabled={disabled}
+            onChange={(event) => onChange(event.target.checked ? "true" : "false")}
+          />
+          {value === "true" || value === true ? "Sí" : "No"}
+        </label>
+      );
+    case "DATE":
+      return (
+        <input
+          id={fieldId}
+          type="date"
+          className={baseInputClasses}
+          value={value || ""}
+          disabled={disabled}
+          onChange={(event) => onChange(event.target.value)}
+        />
+      );
+    case "TIME":
+      return (
+        <input
+          id={fieldId}
+          type="time"
+          className={baseInputClasses}
+          value={value || ""}
+          disabled={disabled}
+          onChange={(event) => onChange(event.target.value)}
+        />
+      );
+    case "SELECT": {
+      const options = Array.isArray(field.options) ? field.options : [];
+      return (
+        <select
+          id={fieldId}
+          className={baseInputClasses}
+          value={value || ""}
+          disabled={disabled}
+          onChange={(event) => onChange(event.target.value)}
+        >
+          <option value="">Seleccione...</option>
+          {options.map((option, index) => (
+            <option key={index} value={option}>
+              {option}
+            </option>
+          ))}
+        </select>
+      );
+    }
+    case "TEXT":
+    default:
+      return (
+        <input
+          id={fieldId}
+          type="text"
+          className={baseInputClasses}
+          value={value || ""}
+          disabled={disabled}
+          onChange={(event) => onChange(event.target.value)}
+        />
+      );
+  }
+};
+
 const OrderForm = () => {
   const navigate = useNavigate();
   const { id } = useParams();
@@ -119,6 +239,7 @@ const OrderForm = () => {
   const [form, setForm] = useState({
     calculation_mode: "TOTAL_REQUIRED",
     amount_sheets: "",
+    amount_sheets_additional: "0",
     cavities: "1",
     total_estimated: "",
     format_id: "",
@@ -129,6 +250,7 @@ const OrderForm = () => {
     product_id: "",
     processes: [],
   });
+  const [processFieldValues, setProcessFieldValues] = useState({});
 
   useEffect(() => {
     loadData();
@@ -157,7 +279,9 @@ const OrderForm = () => {
       const formats = Array.from(
         new Map(
           measures
-            .filter((measure) => measure.format?.id)
+            .filter(
+              (measure) => measure.format?.id && measure.format?.is_active,
+            )
             .map((measure) => [measure.format.id, measure.format]),
         ).values(),
       ).sort((a, b) =>
@@ -189,6 +313,10 @@ const OrderForm = () => {
         setForm({
           calculation_mode: "TOTAL_REQUIRED",
           amount_sheets: order.amount_sheets ? String(order.amount_sheets) : "",
+          amount_sheets_additional:
+            order.amount_sheets_additional != null
+              ? String(order.amount_sheets_additional)
+              : "0",
           cavities: order.cavities ? String(order.cavities) : "1",
           total_estimated: order.total_estimated
             ? String(order.total_estimated)
@@ -208,8 +336,20 @@ const OrderForm = () => {
               String(detail.process_id),
             ) || [],
         });
+
+        const prefillFieldValues = {};
+        (order.detail_production_orders || []).forEach((detail) => {
+          (detail.field_values || []).forEach((fieldValue) => {
+            if (fieldValue.field_definition_id != null) {
+              prefillFieldValues[fieldValue.field_definition_id] =
+                fieldValue.value;
+            }
+          });
+        });
+        setProcessFieldValues(prefillFieldValues);
       } else {
         setIsOrderLocked(false);
+        setProcessFieldValues({});
       }
     } catch {
       toast.error("Error al cargar la información de la orden");
@@ -259,8 +399,27 @@ const OrderForm = () => {
     if (!form.product_id) nextErrors.product_id = "Selecciona un producto";
     if (!form.processes.length)
       nextErrors.processes = "Selecciona al menos un proceso";
+
+    const missingProcessFields = [];
+    selectedProcesses.forEach((process) => {
+      (process.field_definitions || [])
+        .filter((field) => !field.diligenciar_en_detalle)
+        .forEach((field) => {
+          if (!field.is_required) return;
+          const value = processFieldValues[field.id];
+          if (value == null || String(value).trim() === "") {
+            nextErrors[`processField_${field.id}`] =
+              "Este campo es obligatorio";
+            missingProcessFields.push(`${process.name}: ${field.label}`);
+          }
+        });
+    });
+
     setErrors(nextErrors);
-    return Object.keys(nextErrors).length === 0;
+    return {
+      valid: Object.keys(nextErrors).length === 0,
+      missingProcessFields,
+    };
   };
 
   const selectedProcesses = useMemo(
@@ -321,6 +480,13 @@ const OrderForm = () => {
     if (!selectedMeasure || !cavities) return 0;
     return sheetDivisions * cavities;
   }, [form.cavities, selectedMeasure, sheetDivisions]);
+
+  const expectedQuantity = useMemo(() => {
+    const base = normalizePositiveInteger(form.total_estimated);
+    if (base === null) return null;
+    const additionalSheets = Number(form.amount_sheets_additional) || 0;
+    return base + unitsPerSheet * additionalSheets;
+  }, [form.total_estimated, form.amount_sheets_additional, unitsPerSheet]);
 
   const availableMeasures = useMemo(() => {
     if (!form.format_id) return [];
@@ -457,17 +623,32 @@ const OrderForm = () => {
     }
   };
 
+  const handleAmountSheetsAdditionalChange = (value) => {
+    setField("amount_sheets_additional", value.replace(/\D/g, ""));
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (isOrderLocked) {
       toast.error("La orden ya tiene procesos iniciados y no se puede editar");
       return;
     }
-    if (!validate()) return;
+    const validation = validate();
+    if (!validation.valid) {
+      if (validation.missingProcessFields.length) {
+        toast.error(
+          `Faltan campos del proceso por diligenciar: ${validation.missingProcessFields.join(", ")}`,
+        );
+      } else {
+        toast.error("Revisa los campos marcados antes de guardar");
+      }
+      return;
+    }
 
     const payload = {
       calculation_mode: form.calculation_mode,
       amount_sheets: Number(form.amount_sheets),
+      amount_sheets_additional: Number(form.amount_sheets_additional) || 0,
       cavities: Number(form.cavities),
       total_estimated: Number(form.total_estimated),
       measure_id: Number(form.measure_id),
@@ -475,6 +656,12 @@ const OrderForm = () => {
       troquel_id: Number(form.troquel_id),
       product_id: Number(form.product_id),
       processes: form.processes.map(Number),
+      field_values: Object.entries(processFieldValues)
+        .filter(([, value]) => value != null && String(value) !== "")
+        .map(([fieldDefinitionId, value]) => ({
+          field_definition_id: Number(fieldDefinitionId),
+          value: String(value),
+        })),
     };
 
     try {
@@ -553,33 +740,36 @@ const OrderForm = () => {
                 <div className="grid gap-5 md:grid-cols-2">
                   <div className="space-y-2">
                     <Label>Cliente</Label>
-                    <Select
-                      value={form.third_id}
-                      disabled={isOrderLocked}
-                      onValueChange={(value) => {
-                        setField("third_id", value);
-                        setField("product_id", "");
-                        setField("troquel_id", "");
+                    <Combobox
+                      items={catalogs.thirds}
+                      itemToStringValue={(third) => formatThirdLabel(third)}
+                      value={selectedThird ?? null}
+                      onValueChange={(third) => {
+                        if (third) {
+                          setField("third_id", String(third.id));
+                          setField("product_id", "");
+                          setField("troquel_id", "");
+                        }
                       }}
+                      disabled={isOrderLocked}
                     >
-                      <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Selecciona un cliente">
-                          {selectedThird
-                            ? formatThirdLabel(selectedThird)
-                            : null}
-                        </SelectValue>
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectGroup>
-                          <SelectLabel>Clientes</SelectLabel>
-                          {catalogs.thirds.map((third) => (
-                            <SelectItem key={third.id} value={String(third.id)}>
+                      <ComboboxInput
+                        placeholder="Buscar cliente..."
+                        showClear
+                      />
+                      <ComboboxContent>
+                        <ComboboxEmpty>
+                          No se encontró ningún cliente.
+                        </ComboboxEmpty>
+                        <ComboboxList>
+                          {(third) => (
+                            <ComboboxItem key={third.id} value={third.id}>
                               {formatThirdLabel(third)}
-                            </SelectItem>
-                          ))}
-                        </SelectGroup>
-                      </SelectContent>
-                    </Select>
+                            </ComboboxItem>
+                          )}
+                        </ComboboxList>
+                      </ComboboxContent>
+                    </Combobox>
                     {errors.third_id && (
                       <p className="text-xs text-red-500">{errors.third_id}</p>
                     )}
@@ -621,11 +811,11 @@ const OrderForm = () => {
                   </div>
 
                   <div className="space-y-2">
-                    <Label>Total requerido</Label>
+                    <Label>Cantidad requerida</Label>
                     <Input
                       type="number"
                       min="1"
-                      placeholder="Ej: 1000 unidades"
+                      placeholder="Ej: 3000"
                       value={form.total_estimated}
                       disabled={
                         isOrderLocked ||
@@ -643,31 +833,6 @@ const OrderForm = () => {
                     {errors.total_estimated && (
                       <p className="text-xs text-red-500">
                         {errors.total_estimated}
-                      </p>
-                    )}
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label>Pliegos requeridos</Label>
-                    <Input
-                      type="number"
-                      min="1"
-                      placeholder="Ej: 500"
-                      value={form.amount_sheets}
-                      disabled={
-                        isOrderLocked ||
-                        form.calculation_mode === "TOTAL_REQUIRED"
-                      }
-                      onChange={(e) => handleAmountSheetsChange(e.target.value)}
-                    />
-                    <p className="text-xs text-slate-500">
-                      {form.calculation_mode === "SHEETS_REQUIRED"
-                        ? "Ingresa la cantidad de pliegos y calculamos el total."
-                        : "Se calcula automáticamente según el total requerido."}
-                    </p>
-                    {errors.amount_sheets && (
-                      <p className="text-xs text-red-500">
-                        {errors.amount_sheets}
                       </p>
                     )}
                   </div>
@@ -744,6 +909,71 @@ const OrderForm = () => {
                   </div>
 
                   <div className="space-y-2">
+                    <Label>Cavidades</Label>
+                    <Input
+                      type="number"
+                      min="1"
+                      placeholder="Ej: 2"
+                      value={form.cavities}
+                      disabled={isOrderLocked}
+                      onChange={(e) => setField("cavities", e.target.value)}
+                    />
+                    {errors.cavities && (
+                      <p className="text-xs text-red-500">{errors.cavities}</p>
+                    )}
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Pliegos requeridos</Label>
+                    <Input
+                      type="number"
+                      min="1"
+                      placeholder="Ej: 500"
+                      value={form.amount_sheets}
+                      disabled={
+                        isOrderLocked ||
+                        form.calculation_mode === "TOTAL_REQUIRED"
+                      }
+                      onChange={(e) => handleAmountSheetsChange(e.target.value)}
+                    />
+                    <p className="text-xs text-slate-500">
+                      {form.calculation_mode === "SHEETS_REQUIRED"
+                        ? "Ingresa la cantidad de pliegos y calculamos el total."
+                        : "Se calcula automáticamente según el total requerido."}
+                    </p>
+                    {errors.amount_sheets && (
+                      <p className="text-xs text-red-500">
+                        {errors.amount_sheets}
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Pliegos adicionales</Label>
+                    <Input
+                      type="number"
+                      min="0"
+                      placeholder="Ej: 100"
+                      value={form.amount_sheets_additional}
+                      disabled={isOrderLocked}
+                      onChange={(e) =>
+                        handleAmountSheetsAdditionalChange(e.target.value)
+                      }
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Cantidad esperada</Label>
+                    <Input
+                      value={
+                        expectedQuantity != null ? String(expectedQuantity) : ""
+                      }
+                      placeholder="Se calcula automáticamente"
+                      readonly
+                      className="bg-transparent text-green-700 font-bold border-0 focus:none"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
                     <Label>Troquel asignado</Label>
                     <Input
                       value={
@@ -758,21 +988,6 @@ const OrderForm = () => {
                       <p className="text-xs text-red-500">
                         {errors.troquel_id}
                       </p>
-                    )}
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label>Cavidades</Label>
-                    <Input
-                      type="number"
-                      min="1"
-                      placeholder="Ej: 2"
-                      value={form.cavities}
-                      disabled={isOrderLocked}
-                      onChange={(e) => setField("cavities", e.target.value)}
-                    />
-                    {errors.cavities && (
-                      <p className="text-xs text-red-500">{errors.cavities}</p>
                     )}
                   </div>
 
@@ -964,16 +1179,51 @@ const OrderForm = () => {
                       {process.category}
                     </p>
 
-                    <div className="mt-3 flex flex-wrap gap-2">
-                      {(process.field_definitions || []).length > 0 ? (
-                        process.field_definitions.map((field) => (
-                          <span
-                            key={field.id}
-                            className="rounded-full bg-white px-2.5 py-1 text-xs text-slate-600"
-                          >
-                            {field.label}
-                          </span>
-                        ))
+                    <div className="mt-3 space-y-3">
+                      {(process.field_definitions || []).filter(
+                        (field) => !field.diligenciar_en_detalle,
+                      ).length > 0 ? (
+                        process.field_definitions
+                          .filter((field) => !field.diligenciar_en_detalle)
+                          .map((field) => {
+                          const fieldErrorKey = `processField_${field.id}`;
+                          return (
+                            <div key={field.id}>
+                              <label
+                                htmlFor={`process-field-${field.id}`}
+                                className="mb-1 block text-xs font-semibold text-slate-700"
+                              >
+                                {field.label}
+                                {field.is_required ? (
+                                  <span className="text-red-500"> *</span>
+                                ) : null}
+                              </label>
+                              {renderProcessFieldInput(
+                                field,
+                                processFieldValues[field.id],
+                                (newValue) => {
+                                  setProcessFieldValues((prev) => ({
+                                    ...prev,
+                                    [field.id]: newValue,
+                                  }));
+                                  if (errors[fieldErrorKey]) {
+                                    setErrors((prev) => ({
+                                      ...prev,
+                                      [fieldErrorKey]: "",
+                                    }));
+                                  }
+                                },
+                                false,
+                                Boolean(errors[fieldErrorKey]),
+                              )}
+                              {errors[fieldErrorKey] && (
+                                <p className="mt-1 text-xs text-red-500">
+                                  {errors[fieldErrorKey]}
+                                </p>
+                              )}
+                            </div>
+                          );
+                        })
                       ) : (
                         <span className="text-xs text-slate-400">
                           Sin campos configurables
