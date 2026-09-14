@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import troquelesService from "../../services/troqueles.service";
 import { Button } from "@/components/ui/button";
@@ -11,7 +11,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { X, Loader2, Save, ChevronDown } from "lucide-react";
+import { X, Loader2, Save, ChevronDown, ImagePlus } from "lucide-react";
+import TroquelImages from "./TroquelImages";
 import { format } from "date-fns";
 import { Calendar } from "@/components/ui/calendar";
 import {
@@ -46,7 +47,6 @@ export default function TroquelFormModal({
   troquelId,
 }) {
   const isEditing = !!troquelId;
-  const fileInputRef = useRef(null);
 
   const [loading, setLoading] = useState(false);
   const [fetching, setFetching] = useState(false);
@@ -56,7 +56,6 @@ export default function TroquelFormModal({
     code: "",
     elaboration_date: new Date(),
     size: "SMALL",
-    file_name: "",
     is_active: true,
   });
 
@@ -70,12 +69,10 @@ export default function TroquelFormModal({
       code: "",
       elaboration_date: new Date(),
       size: "SMALL",
-      file_name: "",
       is_active: true,
     });
     setErrors({});
     setCalendarOpen(false);
-    if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
   const fetchTroquel = async () => {
@@ -88,7 +85,6 @@ export default function TroquelFormModal({
         code: t.code || "",
         elaboration_date: new Date(t.elaboration_date),
         size: t.size || "SMALL",
-        file_name: t.file_name || "",
         is_active: t.is_active ?? true,
       });
     } catch {
@@ -117,15 +113,6 @@ export default function TroquelFormModal({
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleFileChange = (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setForm((prev) => ({ ...prev, file_name: file.name }));
-    if (errors.file) {
-      setErrors((prev) => ({ ...prev, file: "" }));
-    }
-  };
-
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!validate()) return;
@@ -133,25 +120,19 @@ export default function TroquelFormModal({
     try {
       setLoading(true);
 
-      const formData = new FormData();
-      formData.append("code", form.code.trim());
-      formData.append("elaboration_date", form.elaboration_date.toISOString());
-      formData.append("size", form.size);
-      formData.append("is_active", form.is_active);
-      if (fileInputRef.current?.files?.[0]) {
-        formData.append("file", fileInputRef.current.files[0]);
-      }
+      const payload = {
+        code: form.code.trim(),
+        elaboration_date: form.elaboration_date.toISOString(),
+        size: form.size,
+        is_active: form.is_active,
+      };
 
       let result;
       if (isEditing) {
-        result = await troquelesService.update(troquelId, formData, {
-          headers: { "Content-Type": "multipart/form-data" },
-        });
+        result = await troquelesService.update(troquelId, payload);
         toast.success("Troquel actualizado");
       } else {
-        result = await troquelesService.create(formData, {
-          headers: { "Content-Type": "multipart/form-data" },
-        });
+        result = await troquelesService.create(payload);
         toast.success("Troquel creado");
       }
 
@@ -208,12 +189,9 @@ export default function TroquelFormModal({
             </div>
           ) : (
             <form onSubmit={handleSubmit} className="space-y-5">
-              <div className="grid gap-5 xl:grid-cols-[240px_minmax(0,1fr)]">
+              <div className="space-y-5">
                 <aside className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                  <h3 className="text-sm font-semibold text-slate-900">
-                    Resumen del troquel
-                  </h3>
-                  <div className="mt-4 space-y-3 text-sm">
+                  <div className="flex flex-col gap-4 text-sm sm:flex-row sm:items-center sm:justify-between">
                     <div>
                       <p className="text-xs uppercase tracking-wide text-slate-400">
                         Código
@@ -228,7 +206,8 @@ export default function TroquelFormModal({
                       </p>
                       <span
                         className={`mt-1 inline-flex rounded-full px-2 py-1 text-xs font-semibold ${
-                          sizeBadgeClass[form.size] || "bg-gray-100 text-gray-800"
+                          sizeBadgeClass[form.size] ||
+                          "bg-gray-100 text-gray-800"
                         }`}
                       >
                         {sizeLabels[form.size] || form.size}
@@ -275,13 +254,49 @@ export default function TroquelFormModal({
                   </div>
                 </aside>
 
-                <div className="grid gap-4 md:grid-cols-2">
-                  <div className="space-y-1">
-                    <Label className="text-xs">Código del Troquel</Label>
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
+                  <div className="w-full min-w-0 flex-1 space-y-1">
+                    <Label className="text-xs">
+                      Tamaño
+                      {isEditing && (
+                        <span className="ml-1 text-slate-400">(fijo)</span>
+                      )}
+                    </Label>
+                    <Select
+                      value={form.size}
+                      onValueChange={(value) =>
+                        setForm((prev) => ({ ...prev, size: value }))
+                      }
+                      disabled={isEditing}
+                    >
+                      <SelectTrigger className="h-9 text-sm w-full">
+                        <SelectValue placeholder="Selecciona tamaño">
+                          {sizeLabels[form.size] || form.size}
+                        </SelectValue>
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="SMALL">Pequeño</SelectItem>
+                        <SelectItem value="MEDIUM">Mediano</SelectItem>
+                        <SelectItem value="LARGE">Grande</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    {errors.size && (
+                      <p className="text-xs text-red-500">{errors.size}</p>
+                    )}
+                  </div>
+
+                  <div className="w-full min-w-0 flex-1 space-y-1">
+                    <Label className="text-xs">
+                      Código del Troquel
+                      {isEditing && (
+                        <span className="ml-1 text-slate-400">(fijo)</span>
+                      )}
+                    </Label>
                     <Input
                       name="code"
                       placeholder="Ej: BOX_01"
                       value={form.code}
+                      disabled={isEditing}
                       onChange={(e) => {
                         const nextCode = sanitizeTroquelCodeInput(
                           e.target.value,
@@ -297,17 +312,17 @@ export default function TroquelFormModal({
                         }
                       }}
                       pattern={troquelCodeInputPattern}
-                      className="h-9 text-sm"
+                      className="h-9 w-full text-sm"
                     />
                     {errors.code && (
                       <p className="text-xs text-red-500">{errors.code}</p>
                     )}
                   </div>
 
-                  <div className="space-y-1">
+                  <div className="w-full min-w-0 flex-1 space-y-1">
                     <Label className="text-xs">Fecha de Elaboración</Label>
                     <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
-                      <PopoverTrigger>
+                      <PopoverTrigger className="w-full">
                         <div
                           className="flex h-9 w-full cursor-pointer items-center justify-between rounded-md border border-input bg-background px-3 text-sm text-foreground shadow-sm hover:bg-accent hover:text-accent-foreground"
                           onClick={() => setCalendarOpen((prev) => !prev)}
@@ -344,51 +359,21 @@ export default function TroquelFormModal({
                       </p>
                     )}
                   </div>
-
-                  <div className="space-y-1">
-                    <Label className="text-xs">Tamaño</Label>
-                    <Select
-                      value={form.size}
-                      onValueChange={(value) =>
-                        setForm((prev) => ({ ...prev, size: value }))
-                      }
-                    >
-                      <SelectTrigger className="h-9 text-sm w-full">
-                        <SelectValue placeholder="Selecciona tamaño">
-                          {sizeLabels[form.size] || form.size}
-                        </SelectValue>
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="SMALL">Pequeño</SelectItem>
-                        <SelectItem value="MEDIUM">Mediano</SelectItem>
-                        <SelectItem value="LARGE">Grande</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    {errors.size && (
-                      <p className="text-xs text-red-500">{errors.size}</p>
-                    )}
-                  </div>
-
-                  <div className="space-y-1 md:col-span-2">
-                    <Label className="text-xs">
-                      Archivo de Troquel (opcional)
-                    </Label>
-                    <Input
-                      type="file"
-                      ref={fileInputRef}
-                      onChange={handleFileChange}
-                      className="h-9 text-sm"
-                    />
-                    {form.file_name && (
-                      <p className="mt-1 break-all text-xs text-gray-500">
-                        {form.file_name}
-                      </p>
-                    )}
-                    {errors.file && (
-                      <p className="text-xs text-red-500">{errors.file}</p>
-                    )}
-                  </div>
                 </div>
+              </div>
+
+              <div className="rounded-2xl border border-slate-200 p-4">
+                {isEditing ? (
+                  <TroquelImages troquelId={troquelId} />
+                ) : (
+                  <div className="flex items-center gap-2 text-xs text-slate-400">
+                    <ImagePlus size={16} />
+                    <span>
+                      Guarda el troquel primero para poder agregar imágenes de
+                      referencia.
+                    </span>
+                  </div>
+                )}
               </div>
 
               <div className="flex flex-col gap-3 border-t pt-4 sm:flex-row">

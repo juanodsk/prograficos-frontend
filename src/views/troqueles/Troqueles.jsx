@@ -3,6 +3,7 @@ import { toast } from "sonner";
 import troquelesService from "../../services/troqueles.service";
 import ConfirmDialog from "../../components/common/ConfirmDialog";
 import TroquelForm from "../troqueles/TroquelForm";
+import TroquelImagesViewer from "./TroquelImagesViewer";
 import TroquelView from "./TroquelView";
 import DataTable from "../../components/data-table/DataTable";
 import { useAuthStore } from "../../store/authStore";
@@ -10,7 +11,7 @@ import usePersistedTableState from "../../hooks/usePersistedTableState";
 
 import { Button } from "@/components/ui/button";
 import { formatTroquelCode } from "@/lib/troquel";
-import { Plus, Pencil, Trash2, Loader2, ScanEye, Download } from "lucide-react";
+import { Plus, Pencil, Trash2, Loader2, ScanEye, Images } from "lucide-react";
 
 const defaultMeta = {
   page: 1,
@@ -62,6 +63,11 @@ const Troqueles = () => {
   const [formModal, setFormModal] = useState({
     isOpen: false,
     troquelId: null,
+  });
+  const [imagesViewer, setImagesViewer] = useState({
+    open: false,
+    troquelId: null,
+    code: "",
   });
   const [confirmDialog, setConfirmDialog] = useState({
     isOpen: false,
@@ -126,7 +132,7 @@ const Troqueles = () => {
     setConfirmDialog({
       isOpen: true,
       troquelId: troquel.id,
-      troquelName: troquel.name || troquel.file_name,
+      troquelName: troquel.name || formatTroquelCode(troquel),
       loading: false,
     });
   };
@@ -156,17 +162,13 @@ const Troqueles = () => {
     }
   };
 
-  // ───────────── DESCARGAR ARCHIVO ─────────────
-  const handleDownload = async (troquel) => {
-    if (!troquel.file) return;
-    try {
-      const link = document.createElement("a");
-      link.href = `data:application/octet-stream;base64,${troquel.file}`;
-      link.download = troquel.file_name || "archivo.troquel";
-      link.click();
-    } catch {
-      toast.error("Error al descargar el archivo");
-    }
+  // ───────────── VER IMÁGENES (R2) ─────────────
+  const handleViewImages = (troquel) => {
+    setImagesViewer({
+      open: true,
+      troquelId: troquel.id,
+      code: formatTroquelCode(troquel) || "Troquel",
+    });
   };
 
   // ───────────── COLUMNAS ─────────────
@@ -200,21 +202,20 @@ const Troqueles = () => {
           : "N/A",
     },
     {
-      key: "file",
-      label: "Archivo",
-      sortKey: "file",
+      key: "images",
+      label: "Imágenes",
       render: (row) =>
-        row.file ? (
+        row.total_images > 0 ? (
           <Button
             size="sm"
             variant="outline"
-            onClick={() => handleDownload(row)}
+            onClick={() => handleViewImages(row)}
             className="cursor-pointer"
           >
-            <Download size={14} className="mr-1 " /> {row.file_name}
+            <Images size={14} className="mr-1" /> Ver
           </Button>
         ) : (
-          <span className="text-gray-400">Sin archivo</span>
+          <span className="italic text-gray-700">Sin imagen</span>
         ),
     },
     {
@@ -341,6 +342,15 @@ const Troqueles = () => {
         onClose={handleCloseForm}
         onSuccess={handleFormSuccess}
         troquelId={formModal.troquelId}
+      />
+
+      <TroquelImagesViewer
+        open={imagesViewer.open}
+        troquelId={imagesViewer.troquelId}
+        title={`Imágenes · ${imagesViewer.code}`}
+        onClose={() =>
+          setImagesViewer({ open: false, troquelId: null, code: "" })
+        }
       />
 
       {/* Confirm dialog */}

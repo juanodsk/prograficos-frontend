@@ -21,6 +21,22 @@ const troquelesService = {
     const { data } = await api.delete(`/troqueles/${id}`);
     return data;
   },
+
+  // ── Imágenes de referencia (R2) ──
+  getImages: async (id) => {
+    const { data } = await api.get(`/troqueles/${id}/images`);
+    return data;
+  },
+  uploadImages: async (id, formData) => {
+    const { data } = await api.post(`/troqueles/${id}/images`, formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
+    return data;
+  },
+  deleteImage: async (id, imageId) => {
+    const { data } = await api.delete(`/troqueles/${id}/images/${imageId}`);
+    return data;
+  },
 };
 
 export default troquelesService;

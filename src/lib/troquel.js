@@ -26,5 +26,5 @@ export const formatTroquelLabel = (
   fallback = "Troquel sin código",
 ) => {
   if (!troquel) return fallback;
-  return formatTroquelCode(troquel) || troquel.file_name || `Troquel #${troquel.id}`;
+  return formatTroquelCode(troquel) || `Troquel #${troquel.id}`;
 };
