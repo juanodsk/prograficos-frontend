@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import thirdsService from "../../services/thirds.service";
 import ProductForm from "../products/ProductForm";
 import ProductView from "../products/ProductView";
+import TroquelImagesViewer from "../troqueles/TroquelImagesViewer";
 import DataTable from "../../components/data-table/DataTable";
 import {
   Loader2,
@@ -61,6 +62,11 @@ const ThirdView = ({ isOpen, onClose, thirdId }) => {
   const [productView, setProductView] = useState({
     isOpen: false,
     productId: null,
+  });
+  const [imagesViewer, setImagesViewer] = useState({
+    open: false,
+    troquelId: null,
+    code: "",
   });
 
   const fetchThird = useCallback(async () => {
@@ -149,7 +155,7 @@ const ThirdView = ({ isOpen, onClose, thirdId }) => {
         troquel_code: formatTroquelLabel(product.troquel),
         troquel_size: product.troquel?.size || "",
         troquel_size_label: formatTroquelSize(product.troquel?.size),
-        troquel_file_name: product.troquel?.file_name || "Sin archivo",
+        troquel_id: product.troquel?.id || null,
         is_active: product.is_active,
       })),
     [products],
@@ -166,8 +172,27 @@ const ThirdView = ({ isOpen, onClose, thirdId }) => {
     },
    
     {
-      key: "troquel_file_name",
-      label: "Archivo",
+      key: "troquel_images",
+      label: "Imágenes",
+      render: (row) =>
+        row.troquel_id ? (
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() =>
+              setImagesViewer({
+                open: true,
+                troquelId: row.troquel_id,
+                code: row.troquel_code,
+              })
+            }
+            className="cursor-pointer"
+          >
+            Ver
+          </Button>
+        ) : (
+          <span className="text-gray-400">Sin troquel</span>
+        ),
     },
     {
       key: "is_active",
@@ -390,6 +415,15 @@ const ThirdView = ({ isOpen, onClose, thirdId }) => {
         isOpen={productView.isOpen}
         onClose={() => setProductView({ isOpen: false, productId: null })}
         productId={productView.productId}
+      />
+
+      <TroquelImagesViewer
+        open={imagesViewer.open}
+        troquelId={imagesViewer.troquelId}
+        title={`Imágenes · ${imagesViewer.code}`}
+        onClose={() =>
+          setImagesViewer({ open: false, troquelId: null, code: "" })
+        }
       />
 
       <style>{`

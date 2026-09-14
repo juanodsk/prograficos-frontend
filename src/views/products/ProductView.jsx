@@ -8,7 +8,7 @@ import {
   Package,
   Building2,
   Scissors,
-  FileText,
+  Images,
   CalendarDays,
   Ruler,
   Mail,
@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { formatTroquelLabel } from "@/lib/troquel";
+import TroquelImagesViewer from "../troqueles/TroquelImagesViewer";
 
 const formatThirdLabel = (third) => {
   if (!third) return "Tercero sin asignar";
@@ -42,6 +43,7 @@ const formatTroquelSize = (size) => sizeConfig[size]?.label || size || "Sin tama
 const ProductView = ({ isOpen, onClose, productId }) => {
   const [loading, setLoading] = useState(false);
   const [product, setProduct] = useState(null);
+  const [imagesViewerOpen, setImagesViewerOpen] = useState(false);
 
   useEffect(() => {
     if (!productId || !isOpen) return;
@@ -208,12 +210,22 @@ const ProductView = ({ isOpen, onClose, productId }) => {
                 </div>
 
                 <div className="flex items-center gap-3 rounded-lg border p-3 transition-colors hover:bg-gray-50">
-                  <FileText size={16} className="shrink-0 text-[#13529a]" />
-                  <div>
-                    <p className="text-xs text-gray-500">Archivo asociado</p>
-                    <p className="break-all text-sm font-medium text-gray-900">
-                      {product.troquel?.file_name || "Sin archivo"}
-                    </p>
+                  <Images size={16} className="shrink-0 text-[#13529a]" />
+                  <div className="flex-1">
+                    <p className="text-xs text-gray-500">Imágenes del troquel</p>
+                    {product.troquel?.id ? (
+                      <button
+                        type="button"
+                        onClick={() => setImagesViewerOpen(true)}
+                        className="cursor-pointer text-sm font-medium text-[#13529a] hover:underline"
+                      >
+                        Ver imágenes
+                      </button>
+                    ) : (
+                      <p className="text-sm font-medium text-gray-400">
+                        Sin troquel
+                      </p>
+                    )}
                   </div>
                 </div>
 
@@ -294,6 +306,13 @@ const ProductView = ({ isOpen, onClose, productId }) => {
         }
         .animate-in { animation: animateIn 0.18s ease-out forwards; }
       `}</style>
+
+      <TroquelImagesViewer
+        open={imagesViewerOpen}
+        troquelId={product?.troquel?.id}
+        title={`Imágenes · ${formatTroquelLabel(product?.troquel)}`}
+        onClose={() => setImagesViewerOpen(false)}
+      />
     </div>
   );
 };
