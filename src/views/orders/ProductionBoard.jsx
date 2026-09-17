@@ -514,7 +514,8 @@ const ProductionBoard = () => {
                             Pliegos
                           </p>
                           <p className="mt-2 text-[clamp(1.2rem,0.95vw,1.55rem)] font-bold leading-tight text-slate-200">
-                            {order.amount_sheets ?? 0}
+                            {(order.amount_sheets ?? 0) +
+                              (order.amount_sheets_additional ?? 0)}
                           </p>
                           <p className="mt-2 text-[clamp(0.95rem,0.74vw,1.05rem)] text-slate-300">
                             {currentDetail?.process?.category || "Sin categoría"}
