@@ -21,6 +21,7 @@ import {
 import {
   CheckCircle,
   Eye,
+  BookOpenCheck,
   LayoutGrid,
   Loader2,
   Pencil,
@@ -119,6 +120,8 @@ const Orders = () => {
   const canDeleteOrder = ["ADMIN", "SUPERVISOR"].includes(currentUser?.role);
   const canCreate = ["ADMIN", "SUPERVISOR"].includes(currentUser?.role);
   const canEdit = ["ADMIN", "SUPERVISOR"].includes(currentUser?.role);
+  // OPERATOR (y USER) no pueden terminar órdenes: se les oculta el botón.
+  const canFinishOrder = ["ADMIN", "SUPERVISOR"].includes(currentUser?.role);
 
   const fetchOrders = useCallback(
     async ({
@@ -539,8 +542,8 @@ const Orders = () => {
                         onClick={() => navigate(`/ordenes/${order.id}`)}
                         className="cursor-pointer"
                       >
-                        <Eye size={16} className="mr-2" />
-                        Ver detalle
+                        <BookOpenCheck size={16} className="mr-2" />
+                        Avance
                       </Button>
                       {canEdit && (
                         <Button
@@ -555,7 +558,7 @@ const Orders = () => {
                           Editar
                         </Button>
                       )}
-                      {!isFinishedOrder(order) && (
+                      {!isFinishedOrder(order) && canFinishOrder && (
                         <Button
                           size="sm"
                           onClick={() => handleFinish(order.id)}
@@ -601,7 +604,7 @@ const Orders = () => {
                         ) : (
                           <TableHead>Proceso Actual</TableHead>
                         )}
-                        <TableHead className="text-right">Acciones</TableHead>
+                        <TableHead className="text-center">Acciones</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -667,8 +670,8 @@ const Orders = () => {
                                 onClick={() => navigate(`/ordenes/${order.id}`)}
                                 className="cursor-pointer"
                               >
-                                <Eye size={16} className="mr-2" />
-                                Ver
+                                <BookOpenCheck size={16} className="mr-2" />
+                                Avance
                               </Button>
                               {canEdit && (
                                 <Button
@@ -683,7 +686,7 @@ const Orders = () => {
                                   Editar
                                 </Button>
                               )}
-                              {!isFinishedOrder(order) && (
+                              {!isFinishedOrder(order) && canFinishOrder && (
                                 <Button
                                   size="sm"
                                   onClick={() => handleFinish(order.id)}
