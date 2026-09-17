@@ -97,6 +97,7 @@ const OrderDetail = () => {
   const [expandedProcessId, setExpandedProcessId] = useState(null);
   const [startPayload, setStartPayload] = useState({
     machinery_id: "",
+    operator_user_id: "",
     observations: "",
     field_values: {},
   });
@@ -106,7 +107,7 @@ const OrderDetail = () => {
   });
   const [submittingAction, setSubmittingAction] = useState("");
 
-  const canOperate = ["ADMIN", "SUPERVISOR", "EMPLOYEE", "USER"].includes(
+  const canOperate = ["ADMIN", "SUPERVISOR", "OPERATOR", "USER"].includes(
     user?.role,
   );
 
@@ -187,6 +188,14 @@ const OrderDetail = () => {
     );
   }, [catalogs.machinery, processMachineryIds]);
 
+  // Operarios de la maquinaria seleccionada (dropdown dependiente).
+  const selectedMachineryOperators = useMemo(() => {
+    const machine = catalogs.machinery.find(
+      (m) => String(m.id) === startPayload.machinery_id,
+    );
+    return (machine?.operators || []).map((o) => o.user).filter(Boolean);
+  }, [catalogs.machinery, startPayload.machinery_id]);
+
   const activeProcessIndex = useMemo(
     () => processes.findIndex((process) => process.id === activeProcess?.id),
     [processes, activeProcess],
@@ -257,6 +266,9 @@ const OrderDetail = () => {
       machinery_id: activeProcess.machinery_id
         ? String(activeProcess.machinery_id)
         : "",
+      operator_user_id: activeProcess.user_id
+        ? String(activeProcess.user_id)
+        : "",
       observations: activeProcess.observations || "",
       field_values: values,
     });
@@ -279,6 +291,10 @@ const OrderDetail = () => {
   const machineLabel = (id) => {
     const machinery = catalogs.machinery.find((m) => String(m.id) === id);
     return formatMachineryLabel(machinery);
+  };
+  const operatorLabel = (id) => {
+    const op = selectedMachineryOperators.find((o) => String(o.id) === id);
+    return op ? `${op.name} ${op.surename}`.trim() : null;
   };
   const mapFieldValues = (fieldValues) =>
     Object.entries(fieldValues)
@@ -406,6 +422,14 @@ const OrderDetail = () => {
       return;
     }
 
+    if (
+      selectedMachineryOperators.length > 0 &&
+      !startPayload.operator_user_id
+    ) {
+      toast.error("Debes seleccionar el operario que trabajará el proceso");
+      return;
+    }
+
     // Todos los campos que se diligencian en el detalle son obligatorios;
     // solo las observaciones son opcionales. Los BOOLEAN siempre tienen valor.
     const detailFields = (activeProcess.process?.field_definitions || []).filter(
@@ -436,6 +460,9 @@ const OrderDetail = () => {
         machinery_id: startPayload.machinery_id
           ? Number(startPayload.machinery_id)
           : null,
+        operator_user_id: startPayload.operator_user_id
+          ? Number(startPayload.operator_user_id)
+          : undefined,
         observations: startPayload.observations || undefined,
         field_values: mapFieldValues(startPayload.field_values),
       };
@@ -901,6 +928,8 @@ const OrderDetail = () => {
                                   setStartPayload((p) => ({
                                     ...p,
                                     machinery_id: value,
+                                    // al cambiar la máquina, se limpia el operario
+                                    operator_user_id: "",
                                   }))
                                 }
                               >
@@ -922,6 +951,56 @@ const OrderDetail = () => {
                                         value={String(m.id)}
                                       >
                                         {formatMachineryLabel(m)}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectGroup>
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            <div className="space-y-2">
+                              <Label>Operario</Label>
+                              <Select
+                                value={startPayload.operator_user_id}
+                                disabled={
+                                  processInputLocked ||
+                                  !startPayload.machinery_id ||
+                                  selectedMachineryOperators.length === 0
+                                }
+                                onValueChange={(value) =>
+                                  setStartPayload((p) => ({
+                                    ...p,
+                                    operator_user_id: value,
+                                  }))
+                                }
+                              >
+                                <SelectTrigger className="w-full">
+                                  <SelectValue
+                                    placeholder={
+                                      !startPayload.machinery_id
+                                        ? "Primero selecciona una maquinaria"
+                                        : selectedMachineryOperators.length === 0
+                                          ? "Esta maquinaria no tiene operarios asignados"
+                                          : "Selecciona un operario"
+                                    }
+                                  >
+                                    {startPayload.operator_user_id
+                                      ? operatorLabel(
+                                          startPayload.operator_user_id,
+                                        )
+                                      : null}
+                                  </SelectValue>
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectGroup>
+                                    <SelectLabel>
+                                      Operarios de la maquinaria
+                                    </SelectLabel>
+                                    {selectedMachineryOperators.map((op) => (
+                                      <SelectItem
+                                        key={op.id}
+                                        value={String(op.id)}
+                                      >
+                                        {op.name} {op.surename}
                                       </SelectItem>
                                     ))}
                                   </SelectGroup>

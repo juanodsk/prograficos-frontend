@@ -97,7 +97,7 @@ const router = createBrowserRouter([
   // Rutas para operación de órdenes
   {
     path: "/",
-    element: <ProtectedRoute roles={["ADMIN", "SUPERVISOR", "EMPLOYEE"]} />,
+    element: <ProtectedRoute roles={["ADMIN", "SUPERVISOR", "OPERATOR"]} />,
     children: [
       { path: "ordenes", element: <Orders /> },
       { path: "ordenes/auditoria", element: <OrdersAudit /> },
@@ -110,7 +110,7 @@ const router = createBrowserRouter([
     path: "/",
     element: (
       <ProtectedRoute
-        roles={["ADMIN", "SUPERVISOR", "EMPLOYEE"]}
+        roles={["ADMIN", "SUPERVISOR", "OPERATOR"]}
         withoutShell
       />
     ),

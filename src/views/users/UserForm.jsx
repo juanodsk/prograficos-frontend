@@ -5,6 +5,7 @@ import { useAuthStore } from "../../store/authStore";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Select,
   SelectContent,
@@ -17,7 +18,7 @@ import { X, Loader2, Save, User } from "lucide-react";
 const roles = [
   { value: "ADMIN", label: "Administrador" },
   { value: "SUPERVISOR", label: "Supervisor" },
-  { value: "EMPLOYEE", label: "Empleado" },
+  { value: "OPERATOR", label: "Operario" },
   { value: "USER", label: "Usuario" },
 ];
 
@@ -36,6 +37,7 @@ export default function UserForm({ isOpen, onClose, onSuccess, userId }) {
     role: "USER",
     avatar: "",
     is_active: true,
+    operates_machinery: false,
   });
 
   useEffect(() => {
@@ -56,6 +58,7 @@ export default function UserForm({ isOpen, onClose, onSuccess, userId }) {
       role: "USER",
       avatar: "",
       is_active: true,
+      operates_machinery: false,
     });
     setErrors({});
   };
@@ -73,6 +76,7 @@ export default function UserForm({ isOpen, onClose, onSuccess, userId }) {
         role: u.role || "USER",
         avatar: u.avatar || "",
         is_active: u.is_active ?? true,
+        operates_machinery: u.operates_machinery ?? false,
       });
     } catch {
       toast.error("Error al cargar el usuario");
@@ -305,7 +309,9 @@ export default function UserForm({ isOpen, onClose, onSuccess, userId }) {
                         className="h-9 text-sm"
                       />
                       {errors.surename && (
-                        <p className="text-xs text-red-500">{errors.surename}</p>
+                        <p className="text-xs text-red-500">
+                          {errors.surename}
+                        </p>
                       )}
                     </div>
 
@@ -357,6 +363,28 @@ export default function UserForm({ isOpen, onClose, onSuccess, userId }) {
                         className="h-9 text-sm"
                       />
                     </div>
+                  </div>
+
+                  <div className="space-y-1">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setForm((prev) => ({
+                          ...prev,
+                          operates_machinery: !prev.operates_machinery,
+                        }))
+                      }
+                      className="flex cursor-pointer items-center gap-2"
+                    >
+                      <Checkbox
+                        checked={form.operates_machinery}
+                        className="pointer-events-none"
+                        tabIndex={-1}
+                      />
+                      <span className="text-sm text-gray-700">
+                        Opera maquinaria
+                      </span>
+                    </button>
                   </div>
                 </div>
               </div>

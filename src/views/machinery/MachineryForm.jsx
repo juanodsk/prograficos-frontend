@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import machineryService from "@/services/machinery.service";
+import userService from "@/services/user.service";
+import OperatorMultiSelect from "./OperatorMultiSelect";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -33,10 +35,12 @@ export default function MachineryForm({
   const [checkingReference, setCheckingReference] = useState(false);
   const [errors, setErrors] = useState({});
   const [referenceWarning, setReferenceWarning] = useState("");
+  const [operators, setOperators] = useState([]);
   const [form, setForm] = useState({
     name: "",
     reference: "",
     type: "",
+    operator_ids: [],
     is_active: true,
   });
 
@@ -45,6 +49,8 @@ export default function MachineryForm({
       resetForm();
       return;
     }
+
+    loadOperators();
 
     if (machineryId) {
       fetchMachinery();
@@ -56,11 +62,21 @@ export default function MachineryForm({
       name: "",
       reference: "",
       type: "",
+      operator_ids: [],
       is_active: true,
     });
     setErrors({});
     setReferenceWarning("");
     setCheckingReference(false);
+  };
+
+  const loadOperators = async () => {
+    try {
+      const response = await userService.getOperators();
+      setOperators(response?.data || []);
+    } catch {
+      toast.error("No se pudieron cargar los operarios");
+    }
   };
 
   const fetchMachinery = async () => {
@@ -73,6 +89,7 @@ export default function MachineryForm({
         name: machinery.name || "",
         reference: machinery.reference || "",
         type: machinery.type || "",
+        operator_ids: (machinery.operators || []).map((item) => item.user_id),
         is_active: machinery.is_active ?? true,
       });
     } catch {
@@ -178,6 +195,7 @@ export default function MachineryForm({
         name: form.name.trim(),
         reference: form.reference.trim(),
         type: form.type,
+        operator_ids: form.operator_ids,
         is_active: form.is_active,
       };
 
@@ -262,6 +280,33 @@ export default function MachineryForm({
             </div>
           ) : (
             <form onSubmit={handleSubmit} className="space-y-5">
+              <div className="space-y-1">
+                <Label className="text-xs">Estado</Label>
+                <div className="flex h-9 items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setForm((prev) => ({
+                        ...prev,
+                        is_active: !prev.is_active,
+                      }))
+                    }
+                    className={`relative inline-flex h-6 w-11 cursor-pointer items-center rounded-full transition-colors duration-200 focus:outline-none ${
+                      form.is_active ? "bg-[#13529a]" : "bg-gray-300"
+                    }`}
+                  >
+                    <span
+                      className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform duration-200 ${
+                        form.is_active ? "translate-x-6" : "translate-x-1"
+                      }`}
+                    />
+                  </button>
+                  <span className="text-sm text-gray-700">
+                    {form.is_active ? "Activa" : "Inactiva"}
+                  </span>
+                </div>
+              </div>
+
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div className="space-y-1">
                   <Label className="text-xs">Nombre</Label>
@@ -294,14 +339,10 @@ export default function MachineryForm({
                     </p>
                   )}
                   {referenceWarning && (
-                    <p className="text-xs text-amber-600">
-                      {referenceWarning}
-                    </p>
+                    <p className="text-xs text-amber-600">{referenceWarning}</p>
                   )}
                   {errors.reference && (
-                    <p className="text-xs text-red-500">
-                      {errors.reference}
-                    </p>
+                    <p className="text-xs text-red-500">{errors.reference}</p>
                   )}
                 </div>
               </div>
@@ -340,30 +381,17 @@ export default function MachineryForm({
                 </div>
 
                 <div className="space-y-1">
-                  <Label className="text-xs">Estado</Label>
-                  <div className="flex h-9 items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setForm((prev) => ({
-                          ...prev,
-                          is_active: !prev.is_active,
-                        }))
-                      }
-                      className={`relative inline-flex h-6 w-11 cursor-pointer items-center rounded-full transition-colors duration-200 focus:outline-none ${
-                        form.is_active ? "bg-[#13529a]" : "bg-gray-300"
-                      }`}
-                    >
-                      <span
-                        className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform duration-200 ${
-                          form.is_active ? "translate-x-6" : "translate-x-1"
-                        }`}
-                      />
-                    </button>
-                    <span className="text-sm text-gray-700">
-                      {form.is_active ? "Activa" : "Inactiva"}
-                    </span>
-                  </div>
+                  <Label className="text-xs">
+                    Operarios asignados (opcional)
+                  </Label>
+                  <OperatorMultiSelect
+                    operators={operators}
+                    value={form.operator_ids}
+                    onChange={(ids) =>
+                      setForm((prev) => ({ ...prev, operator_ids: ids }))
+                    }
+                    useBadge={false}
+                  />
                 </div>
               </div>
 

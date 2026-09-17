@@ -6,7 +6,7 @@ import { toast } from "sonner";
 const roleLabels = {
   ADMIN: "Administrador",
   SUPERVISOR: "Supervisor",
-  EMPLOYEE: "Empleado",
+  OPERATOR: "Operario",
   USER: "Usuario",
 };
 

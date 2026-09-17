@@ -33,8 +33,8 @@ const roleConfig = {
     icon: UserCog,
     className: "bg-blue-100 text-[#13529a] border-blue-200",
   },
-  EMPLOYEE: {
-    label: "EMPLEADO",
+  OPERATOR: {
+    label: "OPERARIO",
     icon: HardHat,
     className: "bg-green-100 text-green-700 border-green-200",
   },

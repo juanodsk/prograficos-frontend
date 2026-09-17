@@ -79,11 +79,11 @@ const Machinery = () => {
     try {
       const response = await machineryService.delete(confirmDialog.machineryId);
       await fetchMachinery();
-      toast.success(response?.message || "Maquinaria desactivada exitosamente");
+      toast.success(response?.message || "Maquinaria eliminada exitosamente");
       handleCloseDialog();
     } catch (error) {
       toast.error(
-        error?.response?.data?.message || "No se pudo desactivar la maquinaria",
+        error?.response?.data?.message || "No se pudo eliminar la maquinaria",
       );
       setConfirmDialog((prev) => ({ ...prev, loading: false }));
     }

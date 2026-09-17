@@ -31,6 +31,14 @@ const formatThirdLabel = (third) => {
   return third.company_name || third.name || `Tercero #${third.id}`;
 };
 
+// El precio (Decimal) puede llegar como "15000" o "15000.00": lo mostramos como
+// entero de pesos (COP sin decimales) en el input.
+const toPesoInput = (value) => {
+  if (value === null || value === undefined || value === "") return "";
+  const n = Math.trunc(Number(value));
+  return Number.isFinite(n) ? String(n) : "";
+};
+
 export default function ProductForm({
   isOpen,
   onClose,
@@ -49,6 +57,7 @@ export default function ProductForm({
     name: "",
     troquel_id: "",
     third_id: "",
+    sale_price: "",
     is_active: true,
   });
 
@@ -70,6 +79,7 @@ export default function ProductForm({
       name: "",
       troquel_id: "",
       third_id: defaultThirdId ? String(defaultThirdId) : "",
+      sale_price: "",
       is_active: true,
     });
     setErrors({});
@@ -111,6 +121,7 @@ export default function ProductForm({
           : defaultThirdId
             ? String(defaultThirdId)
             : "",
+        sale_price: toPesoInput(product?.sale_price),
         is_active: product?.is_active ?? true,
       });
     } catch {
@@ -170,6 +181,7 @@ export default function ProductForm({
         name: form.name.trim() || null,
         troquel_id: Number(form.troquel_id),
         third_id: Number(form.third_id),
+        sale_price: form.sale_price === "" ? null : Number(form.sale_price),
         is_active: form.is_active,
       };
 
@@ -379,6 +391,26 @@ export default function ProductForm({
                     {errors.third_id && (
                       <p className="text-xs text-red-500">{errors.third_id}</p>
                     )}
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Precio de venta (opcional)</Label>
+                    <div className="flex items-center">
+                      <span className="flex h-9 min-w-9 items-center justify-center rounded-l-md border border-r-0 border-slate-300 bg-slate-100 px-3 text-sm font-semibold text-slate-700">
+                        $
+                      </span>
+                      <Input
+                        type="text"
+                        inputMode="numeric"
+                        placeholder="Ej: 15000"
+                        value={form.sale_price}
+                        onChange={(e) => {
+                          const digits = e.target.value.replace(/\D/g, "");
+                          setForm((prev) => ({ ...prev, sale_price: digits }));
+                        }}
+                        className="h-9 rounded-l-none border-slate-300 text-sm"
+                      />
+                    </div>
                   </div>
                 </div>
               </div>
