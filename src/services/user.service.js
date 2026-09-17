@@ -21,6 +21,10 @@ const userService = {
     const { data } = await api.get(`/users/${id}`);
     return data;
   },
+  getOperators: async () => {
+    const { data } = await api.get("/users/operators");
+    return data;
+  },
 };
 
 export default userService;
