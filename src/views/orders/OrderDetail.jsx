@@ -106,7 +106,7 @@ const OrderDetail = () => {
   });
   const [submittingAction, setSubmittingAction] = useState("");
 
-  const canOperate = ["ADMIN", "SUPERVISOR", "EMPLOYEE", "USER"].includes(
+  const canOperate = ["ADMIN", "SUPERVISOR", "OPERATOR", "USER"].includes(
     user?.role,
   );
 

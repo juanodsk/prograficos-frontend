@@ -31,19 +31,19 @@ const menuItems = [
     label: "Dashboard",
     path: "/dashboard",
     icon: LayoutDashboard,
-    roles: ["ADMIN", "SUPERVISOR", "EMPLOYEE", "USER"],
+    roles: ["ADMIN", "SUPERVISOR", "OPERATOR", "USER"],
   },
   {
     label: "Órdenes",
     path: "/ordenes",
     icon: ClipboardList,
-    roles: ["ADMIN", "SUPERVISOR", "EMPLOYEE", "USER"],
+    roles: ["ADMIN", "SUPERVISOR", "OPERATOR", "USER"],
   },
   {
     label: "Monitor Planta",
     path: "/ordenes/monitor",
     icon: Factory,
-    roles: ["ADMIN", "SUPERVISOR", "EMPLOYEE", "USER"],
+    roles: ["ADMIN", "SUPERVISOR", "OPERATOR", "USER"],
   },
 
   {
@@ -55,7 +55,7 @@ const menuItems = [
         label: "Auditoría",
         path: "/ordenes/auditoria",
         icon: ScrollText,
-        roles: ["ADMIN", "SUPERVISOR", "EMPLOYEE", "USER"],
+        roles: ["ADMIN", "SUPERVISOR", "OPERATOR", "USER"],
       },
     ],
   },

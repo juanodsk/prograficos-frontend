@@ -17,7 +17,7 @@ import { X, Loader2, Save, User } from "lucide-react";
 const roles = [
   { value: "ADMIN", label: "Administrador" },
   { value: "SUPERVISOR", label: "Supervisor" },
-  { value: "EMPLOYEE", label: "Empleado" },
+  { value: "OPERATOR", label: "Operario" },
   { value: "USER", label: "Usuario" },
 ];
 
