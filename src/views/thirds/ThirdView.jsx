@@ -20,6 +20,7 @@ import {
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { formatTroquelLabel } from "@/lib/troquel";
+import { formatCOP } from "@/lib/currency";
 import {
   getDocumentTypeLabel,
   getPersonTypeLabel,
@@ -156,6 +157,7 @@ const ThirdView = ({ isOpen, onClose, thirdId }) => {
         troquel_size: product.troquel?.size || "",
         troquel_size_label: formatTroquelSize(product.troquel?.size),
         troquel_id: product.troquel?.id || null,
+        sale_price: product.sale_price,
         is_active: product.is_active,
       })),
     [products],
@@ -170,7 +172,13 @@ const ThirdView = ({ isOpen, onClose, thirdId }) => {
       key: "troquel_code",
       label: "Código de troquel",
     },
-   
+    {
+      key: "sale_price",
+      label: "Precio",
+      render: (row) => (
+        <span className="text-blue-900">{formatCOP(row.sale_price)}</span>
+      ),
+    },
     {
       key: "troquel_images",
       label: "Imágenes",

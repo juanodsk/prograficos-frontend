@@ -13,9 +13,11 @@ import {
   Ruler,
   Mail,
   Hash,
+  DollarSign,
 } from "lucide-react";
 import { toast } from "sonner";
 import { formatTroquelLabel } from "@/lib/troquel";
+import { formatCOP } from "@/lib/currency";
 import TroquelImagesViewer from "../troqueles/TroquelImagesViewer";
 
 const formatThirdLabel = (third) => {
@@ -38,7 +40,8 @@ const sizeConfig = {
   },
 };
 
-const formatTroquelSize = (size) => sizeConfig[size]?.label || size || "Sin tamaño";
+const formatTroquelSize = (size) =>
+  sizeConfig[size]?.label || size || "Sin tamaño";
 
 const ProductView = ({ isOpen, onClose, productId }) => {
   const [loading, setLoading] = useState(false);
@@ -122,20 +125,6 @@ const ProductView = ({ isOpen, onClose, productId }) => {
                   <p className="text-sm text-gray-500">
                     {formatTroquelLabel(product.troquel)}
                   </p>
-                  <span
-                    className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-medium ${
-                      product.is_active
-                        ? "bg-green-100 text-green-700"
-                        : "bg-red-100 text-red-600"
-                    }`}
-                  >
-                    {product.is_active ? (
-                      <CheckCircle2 size={12} />
-                    ) : (
-                      <XCircle size={12} />
-                    )}
-                    {product.is_active ? "Activo" : "Inactivo"}
-                  </span>
                 </div>
 
                 <div className="mt-5 space-y-3 border-t border-slate-200 pt-4">
@@ -158,6 +147,20 @@ const ProductView = ({ isOpen, onClose, productId }) => {
                       }`}
                     >
                       {formatTroquelSize(product.troquel?.size)}
+                    </span>
+                  </div>
+                  <div>
+                    <p className="text-xs uppercase tracking-wide text-slate-400">
+                      ESTADO
+                    </p>
+                    <span
+                      className={`mt-1 inline-flex rounded-full px-2 py-1 text-xs font-medium ${
+                        product.is_active
+                          ? "bg-green-100 text-green-700"
+                          : "bg-red-100 text-red-600"
+                      }`}
+                    >
+                      {product.is_active ? "Activo" : "Inactivo"}
                     </span>
                   </div>
                 </div>
@@ -212,7 +215,9 @@ const ProductView = ({ isOpen, onClose, productId }) => {
                 <div className="flex items-center gap-3 rounded-lg border p-3 transition-colors hover:bg-gray-50">
                   <Images size={16} className="shrink-0 text-[#13529a]" />
                   <div className="flex-1">
-                    <p className="text-xs text-gray-500">Imágenes del troquel</p>
+                    <p className="text-xs text-gray-500">
+                      Imágenes del troquel
+                    </p>
                     {product.troquel?.id ? (
                       <button
                         type="button"
@@ -230,12 +235,11 @@ const ProductView = ({ isOpen, onClose, productId }) => {
                 </div>
 
                 <div className="flex items-center gap-3 rounded-lg border p-3 transition-colors hover:bg-gray-50">
-                  <CalendarDays
-                    size={16}
-                    className="shrink-0 text-[#13529a]"
-                  />
+                  <CalendarDays size={16} className="shrink-0 text-[#13529a]" />
                   <div>
-                    <p className="text-xs text-gray-500">Fecha de elaboración</p>
+                    <p className="text-xs text-gray-500">
+                      Fecha de elaboración
+                    </p>
                     <p className="text-sm font-medium text-gray-900">
                       {product.troquel?.elaboration_date
                         ? new Date(
@@ -266,26 +270,12 @@ const ProductView = ({ isOpen, onClose, productId }) => {
                   </div>
                 </div>
 
-                <div
-                  className={`flex items-center gap-3 rounded-lg border p-3 transition-colors sm:col-span-2 ${
-                    product.is_active
-                      ? "border-green-200 bg-green-50"
-                      : "border-red-200 bg-red-50"
-                  }`}
-                >
-                  {product.is_active ? (
-                    <CheckCircle2 size={16} className="shrink-0 text-green-600" />
-                  ) : (
-                    <XCircle size={16} className="shrink-0 text-red-500" />
-                  )}
+                <div className="flex items-center gap-3 rounded-lg border p-3 transition-colors hover:bg-gray-50">
+                  <DollarSign size={16} className="shrink-0 text-[#13529a]" />
                   <div>
-                    <p className="text-xs text-gray-500">Estado</p>
-                    <p
-                      className={`text-sm font-medium ${
-                        product.is_active ? "text-green-700" : "text-red-600"
-                      }`}
-                    >
-                      {product.is_active ? "Activo" : "Inactivo"}
+                    <p className="text-xs text-gray-500">Precio de venta</p>
+                    <p className="text-sm font-medium text-gray-700">
+                      {formatCOP(product.sale_price)}
                     </p>
                   </div>
                 </div>

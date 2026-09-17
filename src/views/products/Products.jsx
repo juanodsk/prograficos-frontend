@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Plus, Pencil, Trash2, Loader2, ScanEye } from "lucide-react";
 import usePersistedTableState from "../../hooks/usePersistedTableState";
 import { formatTroquelLabel } from "@/lib/troquel";
+import { formatCOP } from "@/lib/currency";
 
 const defaultMeta = {
   page: 1,
@@ -158,6 +159,13 @@ const Products = () => {
       key: "name",
       label: "Nombre",
       render: (row) => row.name || "Sin nombre",
+    },
+    {
+      key: "sale_price",
+      label: "Precio",
+      render: (row) => (
+        <span className="text-blue-900">{formatCOP(row.sale_price)}</span>
+      ),
     },
     {
       key: "third",
