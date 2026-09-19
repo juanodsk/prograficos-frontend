@@ -10,6 +10,13 @@ import { useAuthStore } from "../../store/authStore";
 import usePersistedTableState from "../../hooks/usePersistedTableState";
 
 import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { formatTroquelCode } from "@/lib/troquel";
 import { Plus, Pencil, Trash2, Loader2, ScanEye, Images } from "lucide-react";
 
@@ -22,11 +29,21 @@ const defaultMeta = {
 
 const defaultTableState = {
   search: "",
+  size: "",
   page: 1,
   pageSize: defaultMeta.pageSize,
   sortKey: "elaboration_date",
   sortDirection: "desc",
 };
+
+// Filtro por tamaño con "dot" de color (como las pestañas del Excel viejo).
+const SIZE_FILTER_OPTIONS = [
+  { value: "ALL", label: "Todos los tamaños", dot: "bg-slate-300" },
+  { value: "SMALL", label: "Pequeño", dot: "bg-blue-500" },
+  { value: "MEDIUM", label: "Mediano", dot: "bg-red-500" },
+  { value: "LARGE", label: "Grande", dot: "bg-green-500" },
+  { value: "EXTERNAL", label: "Externo", dot: "bg-purple-500" },
+];
 
 const sizeConfig = {
   SMALL: {
@@ -41,6 +58,10 @@ const sizeConfig = {
     label: "L",
     className: "bg-green-100 text-green-800",
   },
+  EXTERNAL: {
+    label: "E",
+    className: "bg-purple-100 text-purple-800",
+  },
 };
 
 const Troqueles = () => {
@@ -52,7 +73,14 @@ const Troqueles = () => {
     "config-troqueles",
     defaultTableState,
   );
-  const { search, page, pageSize, sortKey, sortDirection } = tableState;
+  const {
+    search,
+    size: sizeFilter,
+    page,
+    pageSize,
+    sortKey,
+    sortDirection,
+  } = tableState;
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [meta, setMeta] = useState(defaultMeta);
 
@@ -84,6 +112,7 @@ const Troqueles = () => {
         page,
         pageSize,
         search: debouncedSearch || undefined,
+        size: sizeFilter || undefined,
         sortBy: sortKey,
         sortDirection,
       });
@@ -99,7 +128,7 @@ const Troqueles = () => {
     } finally {
       setLoading(false);
     }
-  }, [debouncedSearch, page, pageSize, sortDirection, sortKey]);
+  }, [debouncedSearch, sizeFilter, page, pageSize, sortDirection, sortKey]);
 
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {
@@ -307,6 +336,34 @@ const Troqueles = () => {
             onSearchChange={(value) => {
               setTableState((prev) => ({ ...prev, search: value, page: 1 }));
             }}
+            toolbarExtra={
+              <Select
+                value={sizeFilter || "ALL"}
+                onValueChange={(value) =>
+                  setTableState((prev) => ({
+                    ...prev,
+                    size: value === "ALL" ? "" : value,
+                    page: 1,
+                  }))
+                }
+              >
+                <SelectTrigger className="h-9 w-[190px] cursor-pointer text-sm">
+                  <SelectValue placeholder="Filtrar por tamaño" />
+                </SelectTrigger>
+                <SelectContent>
+                  {SIZE_FILTER_OPTIONS.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      <span className="flex items-center gap-2">
+                        <span
+                          className={`inline-block h-2.5 w-2.5 rounded-full ${option.dot}`}
+                        />
+                        {option.label}
+                      </span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            }
             currentPage={meta.page}
             currentPageSize={meta.pageSize}
             total={meta.total}
@@ -360,7 +417,7 @@ const Troqueles = () => {
         onConfirm={handleConfirmDelete}
         loading={confirmDialog.loading}
         title="¿Eliminar troquel?"
-        description={`Estás a punto de eliminar "${confirmDialog.troquelName}". Esta acción es permanente y no se puede deshacer.`}
+        description={`Vas a eliminar "${confirmDialog.troquelName}". Si tiene productos asociados, se conservará su historial y dejará de mostrarse; si no tiene ninguno, se eliminará de forma permanente. Esta acción no se puede deshacer.`}
         confirmText="Sí, eliminar"
         cancelText="Cancelar"
         variant="danger"

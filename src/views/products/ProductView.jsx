@@ -38,6 +38,10 @@ const sizeConfig = {
     label: "Grande",
     className: "bg-green-100 text-green-800",
   },
+  EXTERNAL: {
+    label: "Externo",
+    className: "bg-purple-100 text-purple-800",
+  },
 };
 
 const formatTroquelSize = (size) =>

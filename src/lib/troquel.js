@@ -2,6 +2,7 @@ const sizePrefixMap = {
   SMALL: "S",
   MEDIUM: "M",
   LARGE: "L",
+  EXTERNAL: "E",
 };
 
 export const formatTroquelCode = (troquel) => {
