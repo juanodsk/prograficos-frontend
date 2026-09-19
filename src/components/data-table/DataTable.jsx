@@ -44,6 +44,7 @@ const DataTable = ({
   searchContainerClassName = "max-w-sm",
   searchInputClassName = "",
   toolbarClassName = "",
+  toolbarExtra = null,
 }) => {
   const readPersistedState = () => {
     if (typeof window === "undefined" || !storageKey || serverSide) {
@@ -214,26 +215,30 @@ const DataTable = ({
   return (
     <div className="space-y-4">
       <div className={`flex items-center justify-between flex-wrap gap-3 ${toolbarClassName}`}>
-        <div className={`relative w-full ${searchContainerClassName}`}>
-          <Search
-            size={16}
-            className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
-          />
+        <div className="flex flex-1 flex-wrap items-center gap-3">
+          <div className={`relative w-full ${searchContainerClassName}`}>
+            <Search
+              size={16}
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+            />
 
-          <Input
-            placeholder={searchPlaceholder}
-            className={`pl-9 ${searchInputClassName}`}
-            value={serverSide ? searchValue : search}
-            onChange={(e) => {
-              if (serverSide) {
-                onSearchChange?.(e.target.value);
-                return;
-              }
+            <Input
+              placeholder={searchPlaceholder}
+              className={`pl-9 ${searchInputClassName}`}
+              value={serverSide ? searchValue : search}
+              onChange={(e) => {
+                if (serverSide) {
+                  onSearchChange?.(e.target.value);
+                  return;
+                }
 
-              setSearch(e.target.value);
-              setClientPage(1);
-            }}
-          />
+                setSearch(e.target.value);
+                setClientPage(1);
+              }}
+            />
+          </div>
+
+          {toolbarExtra}
         </div>
 
         {showExport && (
