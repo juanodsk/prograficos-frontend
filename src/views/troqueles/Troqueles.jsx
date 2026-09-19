@@ -41,6 +41,10 @@ const sizeConfig = {
     label: "L",
     className: "bg-green-100 text-green-800",
   },
+  EXTERNAL: {
+    label: "E",
+    className: "bg-purple-100 text-purple-800",
+  },
 };
 
 const Troqueles = () => {
@@ -360,7 +364,7 @@ const Troqueles = () => {
         onConfirm={handleConfirmDelete}
         loading={confirmDialog.loading}
         title="¿Eliminar troquel?"
-        description={`Estás a punto de eliminar "${confirmDialog.troquelName}". Esta acción es permanente y no se puede deshacer.`}
+        description={`Vas a eliminar "${confirmDialog.troquelName}". Si tiene productos asociados, se conservará su historial y dejará de mostrarse; si no tiene ninguno, se eliminará de forma permanente. Esta acción no se puede deshacer.`}
         confirmText="Sí, eliminar"
         cancelText="Cancelar"
         variant="danger"

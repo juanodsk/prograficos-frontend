@@ -26,12 +26,14 @@ const sizeLabels = {
   SMALL: "Pequeño",
   MEDIUM: "Mediano",
   LARGE: "Grande",
+  EXTERNAL: "Externo",
 };
 
 const sizeBadgeClass = {
   SMALL: "bg-blue-100 text-blue-800",
   MEDIUM: "bg-red-100 text-red-800",
   LARGE: "bg-green-100 text-green-800",
+  EXTERNAL: "bg-purple-100 text-purple-800",
 };
 
 const troquelCodePattern = /^(?=.*[A-Za-z0-9])[A-Za-z0-9_]+$/;
@@ -256,18 +258,12 @@ export default function TroquelFormModal({
 
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
                   <div className="w-full min-w-0 flex-1 space-y-1">
-                    <Label className="text-xs">
-                      Tamaño
-                      {isEditing && (
-                        <span className="ml-1 text-slate-400">(fijo)</span>
-                      )}
-                    </Label>
+                    <Label className="text-xs">Tamaño</Label>
                     <Select
                       value={form.size}
                       onValueChange={(value) =>
                         setForm((prev) => ({ ...prev, size: value }))
                       }
-                      disabled={isEditing}
                     >
                       <SelectTrigger className="h-9 text-sm w-full">
                         <SelectValue placeholder="Selecciona tamaño">
@@ -278,6 +274,7 @@ export default function TroquelFormModal({
                         <SelectItem value="SMALL">Pequeño</SelectItem>
                         <SelectItem value="MEDIUM">Mediano</SelectItem>
                         <SelectItem value="LARGE">Grande</SelectItem>
+                        <SelectItem value="EXTERNAL">Externo</SelectItem>
                       </SelectContent>
                     </Select>
                     {errors.size && (
@@ -286,17 +283,11 @@ export default function TroquelFormModal({
                   </div>
 
                   <div className="w-full min-w-0 flex-1 space-y-1">
-                    <Label className="text-xs">
-                      Código del Troquel
-                      {isEditing && (
-                        <span className="ml-1 text-slate-400">(fijo)</span>
-                      )}
-                    </Label>
+                    <Label className="text-xs">Código del Troquel</Label>
                     <Input
                       name="code"
                       placeholder="Ej: BOX_01"
                       value={form.code}
-                      disabled={isEditing}
                       onChange={(e) => {
                         const nextCode = sanitizeTroquelCodeInput(
                           e.target.value,
