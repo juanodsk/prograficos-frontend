@@ -9,6 +9,13 @@ import DataTable from "../../components/data-table/DataTable";
 import ConfirmDialog from "../../components/common/ConfirmDialog";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Plus, Pencil, Trash2, Loader2, ScanEye } from "lucide-react";
 import usePersistedTableState from "../../hooks/usePersistedTableState";
 import { formatTroquelLabel } from "@/lib/troquel";
@@ -23,6 +30,7 @@ const defaultMeta = {
 
 const defaultTableState = {
   search: "",
+  third_id: "",
   page: 1,
   pageSize: defaultMeta.pageSize,
   sortKey: "third",
@@ -46,9 +54,31 @@ const Products = () => {
     "config-products",
     defaultTableState,
   );
-  const { search, page, pageSize, sortKey, sortDirection } = tableState;
+  const {
+    search,
+    third_id: thirdFilter,
+    page,
+    pageSize,
+    sortKey,
+    sortDirection,
+  } = tableState;
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [meta, setMeta] = useState(defaultMeta);
+  const [clients, setClients] = useState([]);
+
+  useEffect(() => {
+    productsService
+      .getClients()
+      .then((res) => setClients(res?.data || []))
+      .catch(() => {});
+  }, []);
+
+  const clientLabel = (id) => {
+    const client = clients.find((item) => String(item.id) === id);
+    return client
+      ? client.company_name || client.name || `Cliente #${client.id}`
+      : null;
+  };
 
   const [viewModal, setViewModal] = useState({
     isOpen: false,
@@ -75,6 +105,7 @@ const Products = () => {
         page,
         pageSize,
         search: debouncedSearch || undefined,
+        third_id: thirdFilter || undefined,
         sortBy: sortKey,
         sortDirection,
       });
@@ -90,7 +121,7 @@ const Products = () => {
     } finally {
       setLoading(false);
     }
-  }, [debouncedSearch, page, pageSize, sortDirection, sortKey]);
+  }, [debouncedSearch, thirdFilter, page, pageSize, sortDirection, sortKey]);
 
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {
@@ -260,7 +291,9 @@ const Products = () => {
       </div>
 
       <div className="rounded-xl border bg-white p-4 shadow-sm">
-        {loading ? (
+        {/* Spinner solo en carga inicial; en refetch (buscar/filtrar) se mantiene
+            el DataTable montado para no perder el foco del buscador. */}
+        {loading && products.length === 0 ? (
           <div className="flex items-center justify-center py-16">
             <Loader2 size={32} className="animate-spin text-[#13529a]" />
           </div>
@@ -274,6 +307,34 @@ const Products = () => {
             onSearchChange={(value) => {
               setTableState((prev) => ({ ...prev, search: value, page: 1 }));
             }}
+            toolbarExtra={
+              <Select
+                value={thirdFilter || "ALL"}
+                onValueChange={(value) =>
+                  setTableState((prev) => ({
+                    ...prev,
+                    third_id: value === "ALL" ? "" : value,
+                    page: 1,
+                  }))
+                }
+              >
+                <SelectTrigger className="h-9 w-[220px] cursor-pointer text-sm">
+                  <SelectValue placeholder="Filtrar por cliente">
+                    {thirdFilter ? clientLabel(thirdFilter) : null}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ALL">Todos los clientes</SelectItem>
+                  {clients.map((client) => (
+                    <SelectItem key={client.id} value={String(client.id)}>
+                      {client.company_name ||
+                        client.name ||
+                        `Cliente #${client.id}`}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            }
             currentPage={meta.page}
             currentPageSize={meta.pageSize}
             total={meta.total}
