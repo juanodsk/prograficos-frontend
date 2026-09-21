@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import userService from "../../services/user.service";
 import { Loader2, Mail, User, Shield, IdCard, X } from "lucide-react";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { toast } from "sonner";
 
 const roleLabels = {
@@ -90,19 +91,15 @@ const UserView = ({ isOpen, onClose, userId }) => {
             <div className="grid gap-5 lg:grid-cols-[300px_minmax(0,1fr)]">
               <aside className="overflow-hidden rounded-3xl bg-[linear-gradient(145deg,#0f3f7a_0%,#13529a_52%,#2b6cb0_100%)] p-6 text-white shadow-sm">
                 <div className="flex flex-col items-center text-center">
-                  <div className="flex h-24 w-24 items-center justify-center overflow-hidden rounded-full border-4 border-white/30 bg-white/15 shadow-lg backdrop-blur">
-                    {user.avatar ? (
-                      <img
-                        src={user.avatar}
-                        alt={user.name}
-                        className="h-full w-full object-cover"
-                      />
-                    ) : (
-                      <span className="text-3xl font-bold text-white">
-                        {initials}
-                      </span>
-                    )}
-                  </div>
+                  <Avatar className="h-24 w-24 border-4 border-white/30 shadow-lg">
+                    <AvatarImage
+                      src={user.avatar_url || user.avatar}
+                      alt={user.name}
+                    />
+                    <AvatarFallback className="bg-white/15 text-3xl font-bold text-white backdrop-blur">
+                      {initials}
+                    </AvatarFallback>
+                  </Avatar>
                   <h3 className="mt-4 text-xl font-semibold text-white">
                     {fullName}
                   </h3>

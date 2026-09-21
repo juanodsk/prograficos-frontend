@@ -25,6 +25,18 @@ const userService = {
     const { data } = await api.get("/users/operators");
     return data;
   },
+  uploadAvatar: async (id, file) => {
+    const formData = new FormData();
+    formData.append("avatar", file);
+    const { data } = await api.post(`/users/${id}/avatar`, formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
+    return data;
+  },
+  deleteAvatar: async (id) => {
+    const { data } = await api.delete(`/users/${id}/avatar`);
+    return data;
+  },
 };
 
 export default userService;
