@@ -104,6 +104,7 @@ const OrderDetail = () => {
   const [finishPayload, setFinishPayload] = useState({
     quantity_delivered: "",
     quantity_damaged: "",
+    end_observations: "",
   });
   const [submittingAction, setSubmittingAction] = useState("");
 
@@ -291,6 +292,7 @@ const OrderDetail = () => {
         activeProcess.quantity_damaged != null
           ? String(activeProcess.quantity_damaged)
           : "",
+      end_observations: activeProcess.end_observations || "",
     });
   }, [activeProcess]);
 
@@ -517,6 +519,9 @@ const OrderDetail = () => {
       await orderProcessesService.finish(activeProcess.id, {
         quantity_delivered: delivered,
         quantity_damaged: damaged,
+        end_observations: finishPayload.end_observations?.trim()
+          ? finishPayload.end_observations.trim()
+          : undefined,
       });
       toast.success("Proceso finalizado exitosamente");
       await loadData(true);
@@ -1157,6 +1162,19 @@ const OrderDetail = () => {
                                   readOnly
                                   disabled
                                   value={remainingQuantity ?? ""}
+                                />
+                              </div>
+                              <div className="space-y-2 sm:col-span-3">
+                                <Label>Observaciones</Label>
+                                <Input
+                                  disabled={!canFinishActiveProcess}
+                                  value={finishPayload.end_observations}
+                                  onChange={(e) =>
+                                    setFinishPayload((p) => ({
+                                      ...p,
+                                      end_observations: e.target.value,
+                                    }))
+                                  }
                                 />
                               </div>
                               <div className="sm:col-span-3">
