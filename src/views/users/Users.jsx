@@ -21,6 +21,7 @@ import {
   HardHat,
   ScanEye,
 } from "lucide-react";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 
 const roleConfig = {
   ADMIN: {
@@ -207,15 +208,12 @@ const Users = () => {
       label: "Avatar",
       sortable: false,
       render: (row) => (
-        <div className="w-8 h-8 rounded-full overflow-hidden">
-          {row?.avatar && (
-            <img
-              src={row.avatar}
-              alt={row.name}
-              className="w-full h-full object-cover"
-            />
-          )}
-        </div>
+        <Avatar className="h-8 w-8">
+          <AvatarImage src={row?.avatar_url || row?.avatar} alt={row?.name} />
+          <AvatarFallback className="bg-[#13529a]/10 text-[#13529a]">
+            <User size={16} />
+          </AvatarFallback>
+        </Avatar>
       ),
     },
     {

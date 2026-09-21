@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
+import AvatarUpload from "../../components/common/AvatarUpload";
 import {
   Select,
   SelectContent,
@@ -29,13 +30,17 @@ export default function UserForm({ isOpen, onClose, onSuccess, userId }) {
   const [loading, setLoading] = useState(false);
   const [fetching, setFetching] = useState(false);
   const [errors, setErrors] = useState({});
+  // avatarFile = imagen recortada pendiente de subir; avatarPreview = preview local.
+  const [avatarFile, setAvatarFile] = useState(null);
+  const [avatarPreview, setAvatarPreview] = useState(null);
+  const [removeAvatar, setRemoveAvatar] = useState(false);
   const [form, setForm] = useState({
     name: "",
     surename: "",
     email: "",
     password: "",
     role: "USER",
-    avatar: "",
+    avatar_url: "",
     is_active: true,
     operates_machinery: false,
   });
@@ -56,10 +61,13 @@ export default function UserForm({ isOpen, onClose, onSuccess, userId }) {
       email: "",
       password: "",
       role: "USER",
-      avatar: "",
+      avatar_url: "",
       is_active: true,
       operates_machinery: false,
     });
+    setAvatarFile(null);
+    setAvatarPreview(null);
+    setRemoveAvatar(false);
     setErrors({});
   };
 
@@ -74,10 +82,13 @@ export default function UserForm({ isOpen, onClose, onSuccess, userId }) {
         email: u.email || "",
         password: "",
         role: u.role || "USER",
-        avatar: u.avatar || "",
+        avatar_url: u.avatar_url || "",
         is_active: u.is_active ?? true,
         operates_machinery: u.operates_machinery ?? false,
       });
+      setAvatarFile(null);
+      setAvatarPreview(null);
+      setRemoveAvatar(false);
     } catch {
       toast.error("Error al cargar el usuario");
       onClose();
@@ -107,6 +118,7 @@ export default function UserForm({ isOpen, onClose, onSuccess, userId }) {
     try {
       setLoading(true);
       const payload = { ...form };
+      delete payload.avatar_url; // solo para mostrar; no se envía como dato
       if (isEditing && !payload.password) delete payload.password;
 
       if (currentUser?.role !== "ADMIN" && currentUser?.role !== "SUPERVISOR") {
@@ -116,12 +128,38 @@ export default function UserForm({ isOpen, onClose, onSuccess, userId }) {
       let result;
       if (isEditing) {
         result = await userService.updateUser(userId, payload);
-        toast.success("Usuario actualizado exitosamente");
       } else {
         result = await userService.createUser(payload);
-        toast.success("Usuario creado exitosamente");
       }
-      const savedUser = result?.data?.user || payload;
+      let savedUser = result?.data?.user || payload;
+      const targetId = savedUser?.id || userId;
+
+      // Foto: subir la nueva, o borrar la actual si el usuario la quitó.
+      if (avatarFile && targetId) {
+        try {
+          const avatarRes = await userService.uploadAvatar(targetId, avatarFile);
+          savedUser = { ...savedUser, avatar_url: avatarRes?.data?.avatar_url };
+        } catch (err) {
+          toast.error(
+            err?.response?.data?.message ||
+              "El usuario se guardó, pero no se pudo subir la foto",
+          );
+        }
+      } else if (removeAvatar && targetId) {
+        try {
+          await userService.deleteAvatar(targetId);
+          savedUser = { ...savedUser, avatar_url: null };
+        } catch (err) {
+          toast.error(
+            err?.response?.data?.message ||
+              "El usuario se guardó, pero no se pudo quitar la foto",
+          );
+        }
+      }
+
+      toast.success(
+        isEditing ? "Usuario actualizado exitosamente" : "Usuario creado exitosamente",
+      );
 
       if (isEditing && currentUser?.id === userId) {
         updateAuthUser(savedUser);
@@ -162,9 +200,9 @@ export default function UserForm({ isOpen, onClose, onSuccess, userId }) {
         <div className="flex items-center justify-between border-b px-4 py-4 sm:px-6">
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full bg-[#13529a]/10 text-[#13529a]">
-              {form.avatar ? (
+              {avatarPreview || form.avatar_url ? (
                 <img
-                  src={form.avatar}
+                  src={avatarPreview || form.avatar_url}
                   alt="avatar"
                   className="h-full w-full object-cover"
                   onError={(e) => {
@@ -205,20 +243,22 @@ export default function UserForm({ isOpen, onClose, onSuccess, userId }) {
               <div className="grid gap-5 xl:grid-cols-[260px_minmax(0,1fr)]">
                 <aside className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
                   <div className="flex flex-col items-center text-center">
-                    <div className="flex h-20 w-20 items-center justify-center overflow-hidden rounded-full bg-[#13529a]/10 text-[#13529a]">
-                      {form.avatar ? (
-                        <img
-                          src={form.avatar}
-                          alt="avatar"
-                          className="h-full w-full object-cover"
-                          onError={(e) => {
-                            e.target.style.display = "none";
-                          }}
-                        />
-                      ) : (
-                        <User size={28} />
-                      )}
-                    </div>
+                    <AvatarUpload
+                      previewUrl={
+                        avatarPreview || (removeAvatar ? "" : form.avatar_url)
+                      }
+                      disabled={loading}
+                      onChange={(file, preview) => {
+                        setAvatarFile(file);
+                        setAvatarPreview(preview);
+                        setRemoveAvatar(false);
+                      }}
+                      onRemove={() => {
+                        setAvatarFile(null);
+                        setAvatarPreview(null);
+                        setRemoveAvatar(true);
+                      }}
+                    />
                     <h3 className="mt-4 text-base font-semibold text-slate-900">
                       {form.name || "Nuevo"} {form.surename || "usuario"}
                     </h3>
@@ -349,19 +389,6 @@ export default function UserForm({ isOpen, onClose, onSuccess, userId }) {
                           {errors.password}
                         </p>
                       )}
-                    </div>
-                  </div>
-
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <div className="space-y-1 md:col-span-2">
-                      <Label className="text-xs">URL Avatar (opcional)</Label>
-                      <Input
-                        name="avatar"
-                        placeholder="https://..."
-                        value={form.avatar}
-                        onChange={handleChange}
-                        className="h-9 text-sm"
-                      />
                     </div>
                   </div>
 

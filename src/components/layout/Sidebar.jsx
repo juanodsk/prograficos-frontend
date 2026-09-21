@@ -4,6 +4,8 @@ import authService from "../../services/auth.service";
 import { toast } from "sonner";
 import { useState } from "react";
 import { resolveAvatarUrl } from "@/lib/avatar";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { User } from "lucide-react";
 import {
   LayoutDashboard,
   Package,
@@ -270,15 +272,12 @@ const Sidebar = ({ mobileOpen = false, onCloseMobile }) => {
     <div className="border-t p-3">
       {(isMobile || !collapsed) && (
         <div className="mb-1 flex items-center gap-3 px-3 py-2">
-          <div className="h-8 w-8 overflow-hidden rounded-full bg-[#13529a]/10">
-            {avatarUrl && (
-              <img
-                src={avatarUrl}
-                alt={user.name}
-                className="h-full w-full object-cover"
-              />
-            )}
-          </div>
+          <Avatar className="h-8 w-8">
+            <AvatarImage src={avatarUrl} alt={user?.name} />
+            <AvatarFallback className="bg-[#13529a]/10 text-[#13529a]">
+              <User size={16} />
+            </AvatarFallback>
+          </Avatar>
 
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-medium text-gray-900">
@@ -291,15 +290,12 @@ const Sidebar = ({ mobileOpen = false, onCloseMobile }) => {
 
       {!isMobile && collapsed && (
         <div className="mb-1 flex justify-center">
-          <div className="h-8 w-8 overflow-hidden rounded-full bg-[#13529a]/10">
-            {avatarUrl && (
-              <img
-                src={avatarUrl}
-                alt={user.name}
-                className="h-full w-full object-cover"
-              />
-            )}
-          </div>
+          <Avatar className="h-8 w-8">
+            <AvatarImage src={avatarUrl} alt={user?.name} />
+            <AvatarFallback className="bg-[#13529a]/10 text-[#13529a]">
+              <User size={16} />
+            </AvatarFallback>
+          </Avatar>
         </div>
       )}
 

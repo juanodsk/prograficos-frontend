@@ -1,6 +1,7 @@
 import { useAuthStore } from "../../store/authStore";
-import { Bell, Menu } from "lucide-react";
+import { Bell, Menu, User } from "lucide-react";
 import { resolveAvatarUrl } from "@/lib/avatar";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 
 const Navbar = ({ onOpenSidebar }) => {
   const { user } = useAuthStore();
@@ -39,15 +40,12 @@ const Navbar = ({ onOpenSidebar }) => {
             <span className="absolute right-1 top-1 h-2 w-2 rounded-full bg-red-500" />
           </button>
 
-          <div className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-full bg-white/10">
-            {avatarUrl && (
-              <img
-                src={avatarUrl}
-                alt={user.name}
-                className="h-full w-full object-cover"
-              />
-            )}
-          </div>
+          <Avatar className="h-8 w-8">
+            <AvatarImage src={avatarUrl} alt={user?.name} />
+            <AvatarFallback className="bg-white/10 text-white">
+              <User size={16} />
+            </AvatarFallback>
+          </Avatar>
         </div>
       </div>
     </header>
