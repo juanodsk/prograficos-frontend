@@ -235,12 +235,22 @@ const OrderDetail = () => {
     return Number.isFinite(previousDelivered) ? previousDelivered : null;
   }, [activeProcess, activeProcessIndex, previousProcess, expectedQuantity]);
 
+  // Opción A: se puede adelantar el proceso siguiente. Solo se bloquea el
+  // INICIO si el proceso anterior aún no ha comenzado (PENDIENTE).
   const startBlockedByPreviousProcess =
     activeProcess?.process_state === "PENDIENTE" &&
     previousProcess &&
+    previousProcess.process_state === "PENDIENTE";
+
+  // ...pero NO se puede FINALIZAR hasta que el anterior esté TERMINADO (así la
+  // cantidad recibida ya está definida).
+  const finishBlockedByPreviousProcess =
+    Boolean(previousProcess) &&
     previousProcess.process_state !== "TERMINADO";
 
-  const canFinishActiveProcess = activeProcess?.process_state === "EN_PROCESO";
+  const canFinishActiveProcess =
+    activeProcess?.process_state === "EN_PROCESO" &&
+    !finishBlockedByPreviousProcess;
 
   // Cantidad restante = recibida - dañada. Es lo que se guardará como
   // quantity_delivered al finalizar el proceso.
@@ -483,6 +493,12 @@ const OrderDetail = () => {
     if (!activeProcess) return;
     if (activeProcess.process_state !== "EN_PROCESO") {
       toast.error("Debes iniciar el proceso antes de poder finalizarlo");
+      return;
+    }
+    if (finishBlockedByPreviousProcess) {
+      toast.error(
+        `Debes terminar ${previousProcess?.process?.name || "el proceso anterior"} antes de finalizar este proceso`,
+      );
       return;
     }
 
@@ -1075,7 +1091,10 @@ const OrderDetail = () => {
                               <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
                                 {activeProcess?.process_state === "TERMINADO"
                                   ? "Este proceso ya fue finalizado."
-                                  : "Debes iniciar el proceso antes de poder finalizarlo."}
+                                  : activeProcess?.process_state === "EN_PROCESO" &&
+                                      finishBlockedByPreviousProcess
+                                    ? `Debes terminar ${previousProcess?.process?.name || "el proceso anterior"} para finalizar este (la cantidad recibida se toma de ahí).`
+                                    : "Debes iniciar el proceso antes de poder finalizarlo."}
                               </div>
                             )}
                             <div
