@@ -322,7 +322,9 @@ const Troqueles = () => {
 
       {/* Tabla */}
       <div className="bg-white rounded-xl border shadow-sm p-4">
-        {loading ? (
+        {/* Spinner solo en la carga inicial; en los refetch (buscar/filtrar) se
+            mantiene el DataTable montado para no perder el foco del buscador. */}
+        {loading && troqueles.length === 0 ? (
           <div className="flex items-center justify-center py-16">
             <Loader2 size={32} className="animate-spin text-[#13529a]" />
           </div>
@@ -348,7 +350,21 @@ const Troqueles = () => {
                 }
               >
                 <SelectTrigger className="h-9 w-[190px] cursor-pointer text-sm">
-                  <SelectValue placeholder="Filtrar por tamaño" />
+                  <SelectValue placeholder="Filtrar por tamaño">
+                    {(() => {
+                      const opt = SIZE_FILTER_OPTIONS.find(
+                        (o) => o.value === (sizeFilter || "ALL"),
+                      );
+                      return opt ? (
+                        <span className="flex items-center gap-2">
+                          <span
+                            className={`inline-block h-2.5 w-2.5 rounded-full ${opt.dot}`}
+                          />
+                          {opt.label}
+                        </span>
+                      ) : null;
+                    })()}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   {SIZE_FILTER_OPTIONS.map((option) => (
