@@ -7,7 +7,9 @@ import {
   Factory,
   RefreshCw,
   TimerReset,
+  User,
 } from "lucide-react";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import ordersService from "@/services/orders.service";
 import { connectSocket } from "@/services/socket.service";
 import ServerPagination from "@/components/common/ServerPagination";
@@ -207,30 +209,33 @@ const ProductionBoard = () => {
     }
   }, [soundEnabled, playChime]);
 
-  const loadOrders = useCallback(async (silent = false) => {
-    try {
-      if (silent) setRefreshing(true);
-      else setLoading(true);
+  const loadOrders = useCallback(
+    async (silent = false) => {
+      try {
+        if (silent) setRefreshing(true);
+        else setLoading(true);
 
-      const response = await ordersService.getBoard({
-        page,
-        pageSize: 10,
-      });
-      setOrders(response?.data || []);
-      setMeta(response?.meta || defaultMeta);
-      setSummary(response?.summary || defaultSummary);
-      setLastRefresh(new Date());
+        const response = await ordersService.getBoard({
+          page,
+          pageSize: 10,
+        });
+        setOrders(response?.data || []);
+        setMeta(response?.meta || defaultMeta);
+        setSummary(response?.summary || defaultSummary);
+        setLastRefresh(new Date());
 
-      if (response?.meta?.page && response.meta.page !== page) {
-        setPage(response.meta.page);
+        if (response?.meta?.page && response.meta.page !== page) {
+          setPage(response.meta.page);
+        }
+      } catch {
+        toast.error("No se pudo cargar el monitor de planta");
+      } finally {
+        setLoading(false);
+        setRefreshing(false);
       }
-    } catch {
-      toast.error("No se pudo cargar el monitor de planta");
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  }, [page]);
+    },
+    [page],
+  );
 
   useEffect(() => {
     loadOrders();
@@ -443,6 +448,13 @@ const ProductionBoard = () => {
 
                     <div className="flex min-w-0 flex-col justify-center border-r border-slate-800 px-6">
                       <p className="text-[11px] uppercase tracking-[0.18em] text-slate-500">
+                        Cantidad esperada
+                      </p>
+                      <p className="mt-1 text-[clamp(1.35rem,1vw,1.8rem)] font-black leading-none text-emerald-400">
+                        {order.total_expected ?? order.total_estimated ?? 0}
+                      </p>
+
+                      <p className="mt-4 text-[11px] uppercase tracking-[0.18em] text-slate-500">
                         Producto
                       </p>
                       <h3
@@ -477,16 +489,29 @@ const ProductionBoard = () => {
                       <p className="mt-4 text-[11px] uppercase tracking-[0.18em] text-slate-500">
                         Operario
                       </p>
-                      <p
-                        className="mt-2 text-[clamp(0.98rem,0.76vw,1.08rem)] text-slate-300"
-                        style={clampTwoLines}
-                      >
-                        {currentDetail?.user
-                          ? `${currentDetail.user.name} ${currentDetail.user.surename || ""}`.trim()
-                          : currentDetail?.process_state === "PENDIENTE"
-                            ? "Pendiente por iniciar"
-                            : "Sin operario"}
-                      </p>
+                      <div className="mt-2 flex items-center gap-2">
+                        {currentDetail?.user?.avatar_url && (
+                          <Avatar className="h-9 w-9 shrink-0 border border-slate-700">
+                            <AvatarImage
+                              src={currentDetail.user.avatar_url}
+                              alt="operario"
+                            />
+                            <AvatarFallback className="bg-slate-700 text-slate-200">
+                              <User size={16} />
+                            </AvatarFallback>
+                          </Avatar>
+                        )}
+                        <p
+                          className="text-[clamp(0.98rem,0.76vw,1.08rem)] text-slate-300"
+                          style={clampTwoLines}
+                        >
+                          {currentDetail?.user
+                            ? `${currentDetail.user.name} ${currentDetail.user.surename || ""}`.trim()
+                            : currentDetail?.process_state === "PENDIENTE"
+                              ? "Pendiente por iniciar"
+                              : "Sin operario"}
+                        </p>
+                      </div>
                     </div>
 
                     <div className="flex flex-col justify-center border-r border-slate-800 px-6">
@@ -511,14 +536,15 @@ const ProductionBoard = () => {
                       <div className="grid grid-cols-[1fr_160px] items-start gap-6">
                         <div>
                           <p className="text-[11px] uppercase tracking-[0.18em] text-slate-500">
-                            Pliegos
+                            Pliegos totales
                           </p>
                           <p className="mt-2 text-[clamp(1.2rem,0.95vw,1.55rem)] font-bold leading-tight text-slate-200">
                             {(order.amount_sheets ?? 0) +
                               (order.amount_sheets_additional ?? 0)}
                           </p>
                           <p className="mt-2 text-[clamp(0.95rem,0.74vw,1.05rem)] text-slate-300">
-                            {currentDetail?.process?.category || "Sin categoría"}
+                            {currentDetail?.process?.category ||
+                              "Sin categoría"}
                           </p>
                         </div>
 
