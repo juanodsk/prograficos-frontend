@@ -185,7 +185,7 @@ const ThirdView = ({ isOpen, onClose, thirdId }) => {
     },
     {
       key: "troquel_images",
-      label: "Imágenes",
+      label: "Imagen Troquel",
       render: (row) =>
         row.troquel_id ? (
           <Button
