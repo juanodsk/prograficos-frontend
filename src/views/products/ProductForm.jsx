@@ -71,6 +71,10 @@ export default function ProductForm({
 
     if (isEditing) {
       fetchProduct();
+    } else {
+      // Al abrir para crear, inicializa el form tomando el tercero actual
+      // (defaultThirdId ya está disponible cuando se abre desde ThirdView).
+      resetForm();
     }
   }, [isOpen, productId]);
 

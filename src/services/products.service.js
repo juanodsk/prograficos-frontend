@@ -19,6 +19,10 @@ const productsService = {
     });
     return data;
   },
+  getClients: async () => {
+    const { data } = await api.get("/products/customers");
+    return data;
+  },
   getById: async (id) => {
     const { data } = await api.get(`/products/${id}`);
     return data;

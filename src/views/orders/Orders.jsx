@@ -29,6 +29,9 @@ import {
   Rows3,
   Search,
   Trash2,
+  ArrowUp,
+  ArrowDown,
+  ArrowUpDown,
 } from "lucide-react";
 
 const defaultMeta = {
@@ -123,6 +126,20 @@ const Orders = () => {
   // OPERATOR (y USER) no pueden terminar órdenes: se les oculta el botón.
   const canFinishOrder = ["ADMIN", "SUPERVISOR"].includes(currentUser?.role);
 
+  const [sort, setSort] = useState({ sortBy: "date", sortDirection: "desc" });
+
+  const handleSort = (columnKey) => {
+    setSort((prev) =>
+      prev.sortBy === columnKey
+        ? {
+            sortBy: columnKey,
+            sortDirection: prev.sortDirection === "asc" ? "desc" : "asc",
+          }
+        : { sortBy: columnKey, sortDirection: "asc" },
+    );
+    setPageByTab((prev) => ({ ...prev, finished: 1 }));
+  };
+
   const fetchOrders = useCallback(
     async ({
       tab = activeTab,
@@ -137,6 +154,10 @@ const Orders = () => {
           page,
           pageSize: pageSizeValue,
           search: searchValue || undefined,
+          // El ordenamiento por columnas aplica solo al tab de Terminadas.
+          ...(tab === "finished"
+            ? { sortBy: sort.sortBy, sortDirection: sort.sortDirection }
+            : {}),
         });
 
         setOrders(response?.data || []);
@@ -156,7 +177,7 @@ const Orders = () => {
         setLoading(false);
       }
     },
-    [activeTab, debouncedSearch, pageByTab, pageSize],
+    [activeTab, debouncedSearch, pageByTab, pageSize, sort],
   );
 
   useEffect(() => {
@@ -309,6 +330,34 @@ const Orders = () => {
   ];
 
   const isFinishedTab = activeTab === "finished";
+
+  // Cabecera ordenable: solo en el tab de Terminadas y para columnas con sortKey.
+  const sortHead = (label, sortKey, extraClass = "") => {
+    if (!isFinishedTab || !sortKey) {
+      return <TableHead className={extraClass}>{label}</TableHead>;
+    }
+    const active = sort.sortBy === sortKey;
+    return (
+      <TableHead className={extraClass}>
+        <button
+          type="button"
+          onClick={() => handleSort(sortKey)}
+          className="flex cursor-pointer items-center gap-1 font-semibold hover:text-[#13529a]"
+        >
+          {label}
+          {active ? (
+            sort.sortDirection === "asc" ? (
+              <ArrowUp size={14} />
+            ) : (
+              <ArrowDown size={14} />
+            )
+          ) : (
+            <ArrowUpDown size={14} className="opacity-40" />
+          )}
+        </button>
+      </TableHead>
+    );
+  };
 
   return (
     <div className="space-y-6">
@@ -589,17 +638,17 @@ const Orders = () => {
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Orden</TableHead>
-                        <TableHead>Producto</TableHead>
-                        <TableHead>Cliente</TableHead>
-                        <TableHead>Creación</TableHead>
-                        <TableHead>Pliegos</TableHead>
-                        <TableHead>Unidades</TableHead>
+                        {sortHead("Orden", "id")}
+                        {sortHead("Producto", "product")}
+                        {sortHead("Cliente", "third")}
+                        {sortHead("Creación", "date")}
+                        {sortHead("Pliegos", "amount_sheets")}
+                        {sortHead("Unidades", "total_estimated")}
                         <TableHead>Estado</TableHead>
                         {isFinishedTab ? (
                           <>
-                            <TableHead>Entregado</TableHead>
-                            <TableHead>Dañadas</TableHead>
+                            {sortHead("Entregado", "total_delivered")}
+                            {sortHead("Dañadas", "total_damaged")}
                           </>
                         ) : (
                           <TableHead>Proceso Actual</TableHead>
