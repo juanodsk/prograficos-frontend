@@ -113,7 +113,13 @@ const sanitizeNonNegativeInteger = (value) => {
   return digits === "" ? "" : String(parseInt(digits, 10));
 };
 
-const renderProcessFieldInput = (field, value, onChange, disabled, hasError) => {
+const renderProcessFieldInput = (
+  field,
+  value,
+  onChange,
+  disabled,
+  hasError,
+) => {
   const fieldId = `process-field-${field.id}`;
 
   const borderClass = hasError
@@ -158,7 +164,9 @@ const renderProcessFieldInput = (field, value, onChange, disabled, hasError) => 
             className="h-4 w-4 rounded border-slate-300 text-[#13529a] focus:ring-[#13529a]"
             checked={value === "true" || value === true}
             disabled={disabled}
-            onChange={(event) => onChange(event.target.checked ? "true" : "false")}
+            onChange={(event) =>
+              onChange(event.target.checked ? "true" : "false")
+            }
           />
           {value === "true" || value === true ? "Sí" : "No"}
         </label>
@@ -401,19 +409,23 @@ const OrderForm = () => {
       nextErrors.processes = "Selecciona al menos un proceso";
 
     const missingProcessFields = [];
-    selectedProcesses.forEach((process) => {
-      (process.field_definitions || [])
-        .filter((field) => !field.diligenciar_en_detalle)
-        .forEach((field) => {
-          if (!field.is_required) return;
-          const value = processFieldValues[field.id];
-          if (value == null || String(value).trim() === "") {
-            nextErrors[`processField_${field.id}`] =
-              "Este campo es obligatorio";
-            missingProcessFields.push(`${process.name}: ${field.label}`);
-          }
-        });
-    });
+    // Al editar, los campos del flujo son de solo lectura (no se pueden
+    // modificar), por lo que no se revalidan como obligatorios.
+    if (!isEditing) {
+      selectedProcesses.forEach((process) => {
+        (process.field_definitions || [])
+          .filter((field) => !field.diligenciar_en_detalle)
+          .forEach((field) => {
+            if (!field.is_required) return;
+            const value = processFieldValues[field.id];
+            if (value == null || String(value).trim() === "") {
+              nextErrors[`processField_${field.id}`] =
+                "Este campo es obligatorio";
+              missingProcessFields.push(`${process.name}: ${field.label}`);
+            }
+          });
+      });
+    }
 
     setErrors(nextErrors);
     return {
@@ -1155,10 +1167,6 @@ const OrderForm = () => {
             <h2 className="text-lg font-semibold text-slate-900">
               Resumen del flujo
             </h2>
-            <p className="mt-1 text-sm text-slate-500">
-              Esto ayuda a validar antes de crear la orden.
-            </p>
-
             <div className="mt-4 space-y-3">
               {selectedProcesses.length === 0 ? (
                 <div className="rounded-xl border border-dashed p-4 text-sm text-slate-500">
@@ -1186,44 +1194,44 @@ const OrderForm = () => {
                         process.field_definitions
                           .filter((field) => !field.diligenciar_en_detalle)
                           .map((field) => {
-                          const fieldErrorKey = `processField_${field.id}`;
-                          return (
-                            <div key={field.id}>
-                              <label
-                                htmlFor={`process-field-${field.id}`}
-                                className="mb-1 block text-xs font-semibold text-slate-700"
-                              >
-                                {field.label}
-                                {field.is_required ? (
-                                  <span className="text-red-500"> *</span>
-                                ) : null}
-                              </label>
-                              {renderProcessFieldInput(
-                                field,
-                                processFieldValues[field.id],
-                                (newValue) => {
-                                  setProcessFieldValues((prev) => ({
-                                    ...prev,
-                                    [field.id]: newValue,
-                                  }));
-                                  if (errors[fieldErrorKey]) {
-                                    setErrors((prev) => ({
+                            const fieldErrorKey = `processField_${field.id}`;
+                            return (
+                              <div key={field.id}>
+                                <label
+                                  htmlFor={`process-field-${field.id}`}
+                                  className="mb-1 block text-xs font-semibold text-slate-700"
+                                >
+                                  {field.label}
+                                  {field.is_required ? (
+                                    <span className="text-red-500"> *</span>
+                                  ) : null}
+                                </label>
+                                {renderProcessFieldInput(
+                                  field,
+                                  processFieldValues[field.id],
+                                  (newValue) => {
+                                    setProcessFieldValues((prev) => ({
                                       ...prev,
-                                      [fieldErrorKey]: "",
+                                      [field.id]: newValue,
                                     }));
-                                  }
-                                },
-                                false,
-                                Boolean(errors[fieldErrorKey]),
-                              )}
-                              {errors[fieldErrorKey] && (
-                                <p className="mt-1 text-xs text-red-500">
-                                  {errors[fieldErrorKey]}
-                                </p>
-                              )}
-                            </div>
-                          );
-                        })
+                                    if (errors[fieldErrorKey]) {
+                                      setErrors((prev) => ({
+                                        ...prev,
+                                        [fieldErrorKey]: "",
+                                      }));
+                                    }
+                                  },
+                                  isEditing,
+                                  Boolean(errors[fieldErrorKey]),
+                                )}
+                                {errors[fieldErrorKey] && (
+                                  <p className="mt-1 text-xs text-red-500">
+                                    {errors[fieldErrorKey]}
+                                  </p>
+                                )}
+                              </div>
+                            );
+                          })
                       ) : (
                         <span className="text-xs text-slate-400">
                           Sin campos configurables
