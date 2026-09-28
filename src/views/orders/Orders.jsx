@@ -538,9 +538,11 @@ const Orders = () => {
                             <p className="text-xs uppercase tracking-wide text-slate-400">
                               Entregado
                             </p>
-                            <p className="mt-1 font-semibold text-slate-900">
-                              {order.total_delivered != null
-                                ? order.total_delivered.toLocaleString("es-CO")
+                            <p className="mt-1 font-semibold text-emerald-600">
+                              {order.total_real_delivered != null
+                                ? order.total_real_delivered.toLocaleString(
+                                    "es-CO",
+                                  )
                                 : "—"}
                             </p>
                           </div>
@@ -647,7 +649,10 @@ const Orders = () => {
                         <TableHead>Estado</TableHead>
                         {isFinishedTab ? (
                           <>
-                            {sortHead("Entregado", "total_delivered")}
+                            {sortHead(
+                              "Entregado",
+                              "total_real_delivered",
+                            )}
                             {sortHead("Dañadas", "total_damaged")}
                           </>
                         ) : (
@@ -674,9 +679,9 @@ const Orders = () => {
                           </TableCell>
                           {isFinishedTab ? (
                             <>
-                              <TableCell className="font-medium text-slate-800">
-                                {order.total_delivered != null
-                                  ? order.total_delivered.toLocaleString(
+                              <TableCell className="font-semibold text-emerald-600">
+                                {order.total_real_delivered != null
+                                  ? order.total_real_delivered.toLocaleString(
                                       "es-CO",
                                     )
                                   : "—"}

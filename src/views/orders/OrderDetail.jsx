@@ -6,9 +6,15 @@ import orderProcessesService from "@/services/order_processes.service";
 import machineryService from "@/services/machinery.service";
 import { connectSocket } from "@/services/socket.service";
 import StatusBadge from "@/components/common/StatusBadge";
+import NumericKeypadDialog from "@/components/common/NumericKeypadDialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { formatTroquelLabel } from "@/lib/troquel";
 import {
   Select,
@@ -24,7 +30,9 @@ import {
   ArrowLeft,
   CheckCircle2,
   ChevronDown,
+  Info,
   Loader2,
+  Pencil,
   PlayCircle,
   RefreshCw,
 } from "lucide-react";
@@ -106,6 +114,9 @@ const OrderDetail = () => {
     quantity_damaged: "",
     end_observations: "",
   });
+  // Corrección manual de la cantidad recibida (numerador/discrepancia de papel).
+  const [receivedOverride, setReceivedOverride] = useState(null);
+  const [receivedModalOpen, setReceivedModalOpen] = useState(false);
   const [submittingAction, setSubmittingAction] = useState("");
 
   const canOperate = ["ADMIN", "SUPERVISOR", "OPERATOR", "USER"].includes(
@@ -226,15 +237,27 @@ const OrderDetail = () => {
     return base + unitsPerSheet * additionalSheets;
   }, [order?.total_estimated, order?.amount_sheets_additional, unitsPerSheet]);
 
-  // Cantidad recibida (solo lectura): el primer proceso recibe la cantidad
-  // esperada de la orden; cada proceso siguiente recibe lo entregado
+  // Cantidad recibida derivada: el primer proceso recibe la cantidad esperada
+  // de la orden; cada proceso siguiente recibe lo entregado
   // (quantity_delivered) por el proceso anterior.
-  const receivedQuantity = useMemo(() => {
+  const derivedReceived = useMemo(() => {
     if (!activeProcess) return null;
     if (activeProcessIndex === 0) return expectedQuantity;
     const previousDelivered = Number(previousProcess?.quantity_delivered);
     return Number.isFinite(previousDelivered) ? previousDelivered : null;
   }, [activeProcess, activeProcessIndex, previousProcess, expectedQuantity]);
+
+  // Prioridad: override manual del operario > recibida guardada (proceso ya
+  // finalizado o corregida y persistida) > derivada del proceso anterior.
+  const receivedQuantity =
+    receivedOverride != null
+      ? receivedOverride
+      : activeProcess?.quantity_received != null
+        ? activeProcess.quantity_received
+        : derivedReceived;
+
+  // Solo se puede editar la recibida si el proceso ya inició (EN_PROCESO).
+  const canEditReceived = activeProcess?.process_state === "EN_PROCESO";
 
   // Opción A: se puede adelantar el proceso siguiente. Solo se bloquea el
   // INICIO si el proceso anterior aún no ha comenzado (PENDIENTE).
@@ -246,8 +269,7 @@ const OrderDetail = () => {
   // ...pero NO se puede FINALIZAR hasta que el anterior esté TERMINADO (así la
   // cantidad recibida ya está definida).
   const finishBlockedByPreviousProcess =
-    Boolean(previousProcess) &&
-    previousProcess.process_state !== "TERMINADO";
+    Boolean(previousProcess) && previousProcess.process_state !== "TERMINADO";
 
   const canFinishActiveProcess =
     activeProcess?.process_state === "EN_PROCESO" &&
@@ -267,6 +289,8 @@ const OrderDetail = () => {
     if (!activeProcess) return;
     setActiveProcessId(activeProcess.id);
     setExpandedProcessId(activeProcess.id);
+    // Al cambiar de proceso se descarta cualquier corrección manual pendiente.
+    setReceivedOverride(null);
     const values = Object.fromEntries(
       (activeProcess.field_values || []).map((v) => [
         v.field_definition_id,
@@ -430,7 +454,9 @@ const OrderDetail = () => {
     }
 
     if (!startPayload.machinery_id) {
-      toast.error("Debes seleccionar una maquinaria antes de iniciar el proceso");
+      toast.error(
+        "Debes seleccionar una maquinaria antes de iniciar el proceso",
+      );
       return;
     }
 
@@ -444,7 +470,9 @@ const OrderDetail = () => {
 
     // Todos los campos que se diligencian en el detalle son obligatorios;
     // solo las observaciones son opcionales. Los BOOLEAN siempre tienen valor.
-    const detailFields = (activeProcess.process?.field_definitions || []).filter(
+    const detailFields = (
+      activeProcess.process?.field_definitions || []
+    ).filter(
       (field) =>
         !field.deleted_at &&
         !isOperatorSignatureField(field) &&
@@ -506,18 +534,17 @@ const OrderDetail = () => {
 
     const damaged = Number(finishPayload.quantity_damaged || 0);
 
-    // La cantidad dañada ya se sanea y se limita a la recibida en el input,
-    // por lo que aquí no se revalida al hacer click.
-    // quantity_delivered se guarda como el remanente: recibida - dañada.
-    const delivered =
+    // La cantidad recibida (posiblemente corregida por el operario) es la base.
+    // El backend calcula quantity_delivered = recibida - dañada.
+    const received =
       receivedQuantity != null
-        ? Math.max(0, receivedQuantity - damaged)
-        : Number(finishPayload.quantity_delivered || 0);
+        ? receivedQuantity
+        : Number(finishPayload.quantity_delivered || 0) + damaged;
 
     try {
       setSubmittingAction("finish");
       await orderProcessesService.finish(activeProcess.id, {
-        quantity_delivered: delivered,
+        quantity_received: received,
         quantity_damaged: damaged,
         end_observations: finishPayload.end_observations?.trim()
           ? finishPayload.end_observations.trim()
@@ -710,6 +737,106 @@ const OrderDetail = () => {
             </p>
           </div>
         </div>
+
+        {["ADMIN", "SUPERVISOR"].includes(user?.role) &&
+          (() => {
+            const esperado = order.total_expected ?? expectedQuantity ?? null;
+            const real = order.total_real_delivered ?? null;
+            const danadas = order.total_damaged ?? 0;
+            // Papel físico que entró ≈ real entregado + dañadas acumuladas.
+            const fisico = real != null ? real + danadas : null;
+            const diff =
+              fisico != null && esperado != null ? fisico - esperado : null;
+            const diffColor =
+              diff == null
+                ? "text-slate-400"
+                : diff > 0
+                  ? "text-emerald-600"
+                  : diff < 0
+                    ? "text-red-700"
+                    : "text-slate-700";
+            const diffLabel =
+              diff == null
+                ? "Pendiente"
+                : diff > 0
+                  ? `+${diff.toLocaleString("es-CO")} (Más papel)`
+                  : diff < 0
+                    ? `${diff.toLocaleString("es-CO")} (Menos papel)`
+                    : "0 (exacto)";
+            return (
+              <div className="border-b border-slate-200 bg-white px-5 py-4">
+                <p className="mb-3 text-sm font-bold uppercase tracking-wide text-[#13529a]">
+                  Cierre de producción
+                </p>
+                <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+                  <div className="rounded-2xl border border-slate-200 p-4">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                      Esperado (Automático)
+                    </p>
+                    <p className="mt-1 text-lg font-semibold text-slate-900">
+                      {esperado != null
+                        ? esperado.toLocaleString("es-CO")
+                        : "-"}
+                    </p>
+                  </div>
+                  <div className="rounded-2xl border border-slate-200 p-4">
+                    <div className="flex items-center gap-1">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                        Total Real
+                      </p>
+                      <Tooltip>
+                        <TooltipTrigger
+                          render={
+                            <button
+                              type="button"
+                              className="cursor-help text-slate-400 hover:text-slate-600"
+                              aria-label="Información Total Real"
+                            />
+                          }
+                        >
+                          <Info size={13} />
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          Valor ideal real, igual a Real Entregado + Dañadas.
+                        </TooltipContent>
+                      </Tooltip>
+                    </div>
+                    <p className="mt-1 text-lg font-semibold text-blue-900">
+                      {fisico != null
+                        ? fisico.toLocaleString("es-CO")
+                        : "En proceso"}
+                    </p>
+                  </div>
+                  <div className="rounded-2xl border border-slate-200 p-4">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                      Real entregado
+                    </p>
+                    <p className="mt-1 text-lg font-semibold text-emerald-600">
+                      {real != null
+                        ? real.toLocaleString("es-CO")
+                        : "En proceso"}
+                    </p>
+                  </div>
+                  <div className="rounded-2xl border border-slate-200 p-4">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                      Dañadas (total)
+                    </p>
+                    <p className="mt-1 text-lg font-semibold text-red-700">
+                      {danadas.toLocaleString("es-CO")}
+                    </p>
+                  </div>
+                  <div className="rounded-2xl border border-slate-200 p-4">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                      Diferencia papel
+                    </p>
+                    <p className={`mt-1 text-lg font-semibold ${diffColor}`}>
+                      {diffLabel}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
 
         <div className="space-y-3 bg-slate-50 p-4">
           {processes.map((process, index) => {
@@ -999,7 +1126,8 @@ const OrderDetail = () => {
                                     placeholder={
                                       !startPayload.machinery_id
                                         ? "Primero selecciona una maquinaria"
-                                        : selectedMachineryOperators.length === 0
+                                        : selectedMachineryOperators.length ===
+                                            0
                                           ? "Esta maquinaria no tiene operarios asignados"
                                           : "Selecciona un operario"
                                     }
@@ -1030,9 +1158,7 @@ const OrderDetail = () => {
                             </div>
                             {defs.map((field) => (
                               <div key={field.id} className="space-y-2">
-                                <Label>
-                                  {field.label} *
-                                </Label>
+                                <Label>{field.label} *</Label>
                                 {dynamicInput(
                                   field,
                                   startPayload.field_values[field.id] || "",
@@ -1096,7 +1222,8 @@ const OrderDetail = () => {
                               <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
                                 {activeProcess?.process_state === "TERMINADO"
                                   ? "Este proceso ya fue finalizado."
-                                  : activeProcess?.process_state === "EN_PROCESO" &&
+                                  : activeProcess?.process_state ===
+                                        "EN_PROCESO" &&
                                       finishBlockedByPreviousProcess
                                     ? `Debes terminar ${previousProcess?.process?.name || "el proceso anterior"} para finalizar este (la cantidad recibida se toma de ahí).`
                                     : "Debes iniciar el proceso antes de poder finalizarlo."}
@@ -1108,12 +1235,30 @@ const OrderDetail = () => {
                             >
                               <div className="space-y-2">
                                 <Label>Cantidad recibida</Label>
-                                <Input
-                                  type="number"
-                                  readOnly
-                                  disabled
-                                  value={receivedQuantity ?? ""}
-                                />
+                                <div className="flex items-center gap-2">
+                                  <Input
+                                    type="number"
+                                    readOnly
+                                    disabled
+                                    value={receivedQuantity ?? ""}
+                                  />
+                                  {canEditReceived && (
+                                    <Button
+                                      type="button"
+                                      size="icon"
+                                      title="Editar cantidad recibida"
+                                      className="cursor-pointer bg-[#13529a] text-white"
+                                      onClick={() => setReceivedModalOpen(true)}
+                                    >
+                                      <Pencil size={16} />
+                                    </Button>
+                                  )}
+                                </div>
+                                {receivedOverride != null && (
+                                  <p className="text-xs font-medium text-amber-600">
+                                    Valor corregido manualmente.
+                                  </p>
+                                )}
                               </div>
                               <div className="space-y-2">
                                 <Label>Cantidad dañada</Label>
@@ -1218,6 +1363,19 @@ const OrderDetail = () => {
           })}
         </div>
       </div>
+
+      <NumericKeypadDialog
+        isOpen={receivedModalOpen}
+        onClose={() => setReceivedModalOpen(false)}
+        onConfirm={(value) => {
+          setReceivedOverride(value);
+          setReceivedModalOpen(false);
+        }}
+        title="Editar cantidad recibida"
+        description="Digita la cantidad que realmente ingresó a este proceso."
+        initialValue={receivedQuantity ?? ""}
+        confirmText="Confirmar"
+      />
     </div>
   );
 };
