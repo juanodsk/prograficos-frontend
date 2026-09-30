@@ -27,6 +27,16 @@ const productsService = {
     const { data } = await api.get(`/products/${id}`);
     return data;
   },
+  checkCode: async ({ third_id, code, excludeId } = {}) => {
+    const { data } = await api.get("/products/check-code", {
+      params: {
+        third_id,
+        code,
+        ...(excludeId ? { excludeId } : {}),
+      },
+    });
+    return data;
+  },
   create: async (productData) => {
     const { data } = await api.post("/products", productData);
     return data;

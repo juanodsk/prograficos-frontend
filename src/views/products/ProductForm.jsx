@@ -45,16 +45,19 @@ export default function ProductForm({
   onSuccess,
   productId,
   defaultThirdId = null,
+  defaultThirdPrefix = "",
   lockThird = false,
 }) {
   const isEditing = Boolean(productId);
   const [loading, setLoading] = useState(false);
   const [fetching, setFetching] = useState(false);
   const [catalogLoading, setCatalogLoading] = useState(false);
+  const [checkingCode, setCheckingCode] = useState(false);
   const [errors, setErrors] = useState({});
   const [catalogs, setCatalogs] = useState({ troqueles: [], thirds: [] });
   const [form, setForm] = useState({
     name: "",
+    code: "",
     troquel_id: "",
     third_id: "",
     sale_price: "",
@@ -81,6 +84,7 @@ export default function ProductForm({
   const resetForm = () => {
     setForm({
       name: "",
+      code: "",
       troquel_id: "",
       third_id: defaultThirdId ? String(defaultThirdId) : "",
       sale_price: "",
@@ -119,6 +123,8 @@ export default function ProductForm({
 
       setForm({
         name: product?.name || "",
+        // El código guardado es prefijo + número; en el input solo va el número.
+        code: (product?.code || "").match(/\d+$/)?.[0] || "",
         troquel_id: product?.troquel_id ? String(product.troquel_id) : "",
         third_id: product?.third_id
           ? String(product.third_id)
@@ -159,6 +165,35 @@ export default function ProductForm({
     );
   }, [catalogs.thirds, defaultThirdId, form.third_id]);
 
+  // Prefijo del cliente seleccionado (bloqueado = viene por prop; si no, del tercero).
+  const activePrefix =
+    (lockThird ? defaultThirdPrefix : selectedThird?.prefix) || "";
+
+  // Verifica en el backend que el código (prefijo + número) no exista ya.
+  const checkCodeAvailability = async () => {
+    const number = form.code.trim();
+    if (!number || !activePrefix || !form.third_id) return;
+
+    try {
+      setCheckingCode(true);
+      const res = await productsService.checkCode({
+        third_id: Number(form.third_id),
+        code: `${activePrefix}${number}`,
+        excludeId: isEditing ? Number(productId) : undefined,
+      });
+      if (res?.data?.exists) {
+        setErrors((prev) => ({
+          ...prev,
+          code: "El código del producto ya existe, debe ser único por cliente",
+        }));
+      }
+    } catch {
+      // Silencioso: la validación definitiva ocurre al guardar.
+    } finally {
+      setCheckingCode(false);
+    }
+  };
+
   const validate = () => {
     const nextErrors = {};
 
@@ -168,6 +203,10 @@ export default function ProductForm({
 
     if (!form.third_id) {
       nextErrors.third_id = "Selecciona un tercero";
+    }
+
+    if (form.code.trim() && !activePrefix) {
+      nextErrors.code = "El cliente no tiene prefijo para asignar un código";
     }
 
     setErrors(nextErrors);
@@ -183,6 +222,8 @@ export default function ProductForm({
       setLoading(true);
       const payload = {
         name: form.name.trim() || null,
+        // Se guarda prefijo + número (ej: GRN1); null si no se digitó número.
+        code: form.code.trim() ? `${activePrefix}${form.code.trim()}` : null,
         troquel_id: Number(form.troquel_id),
         third_id: Number(form.third_id),
         sale_price: form.sale_price === "" ? null : Number(form.sale_price),
@@ -309,16 +350,65 @@ export default function ProductForm({
                 </aside>
 
                 <div className="grid gap-4 md:grid-cols-2">
-                  <div className="space-y-2 md:col-span-2">
-                    <Label>Nombre del producto</Label>
-                    <Input
-                      value={form.name}
-                      onChange={(e) =>
-                        setForm((prev) => ({ ...prev, name: e.target.value }))
-                      }
-                      placeholder="Ej: Caja plegadiza 12oz"
-                      className="h-9"
-                    />
+                  <div className="flex flex-col gap-4 sm:flex-row sm:items-start md:col-span-2">
+                    <div className="space-y-2 sm:w-40">
+                      <Label>Código (opcional)</Label>
+                      <div className="flex items-center">
+                        <span className="flex h-9 items-center justify-center rounded-l-md border border-r-0 border-slate-300 bg-slate-100 px-2.5 text-sm font-semibold text-slate-700">
+                          {activePrefix || "—"}
+                        </span>
+                        <Input
+                          type="text"
+                          inputMode="numeric"
+                          maxLength={2}
+                          placeholder="N°"
+                          value={form.code}
+                          disabled={!activePrefix}
+                          onChange={(e) => {
+                            const digits = e.target.value
+                              .replace(/\D/g, "")
+                              .slice(0, 2);
+                            setForm((prev) => ({ ...prev, code: digits }));
+                            if (errors.code) {
+                              setErrors((prev) => ({ ...prev, code: "" }));
+                            }
+                          }}
+                          onBlur={checkCodeAvailability}
+                          className="h-9 w-full rounded-l-none border-slate-300 text-sm"
+                        />
+                      </div>
+                      {!activePrefix ? (
+                        <p className="text-[11px] text-slate-400">
+                          El cliente no tiene prefijo.
+                        </p>
+                      ) : (
+                        form.code.trim() && (
+                          <p className="text-[11px] text-slate-500">
+                            Se guardará{" "}
+                            <span className="font-semibold">
+                              {activePrefix}
+                              {form.code.trim()}
+                            </span>
+                            {checkingCode ? " · verificando..." : ""}
+                          </p>
+                        )
+                      )}
+                      {errors.code && (
+                        <p className="text-xs text-red-500">{errors.code}</p>
+                      )}
+                    </div>
+
+                    <div className="flex-1 space-y-2">
+                      <Label>Nombre del producto</Label>
+                      <Input
+                        value={form.name}
+                        onChange={(e) =>
+                          setForm((prev) => ({ ...prev, name: e.target.value }))
+                        }
+                        placeholder="Ej: Caja plegadiza 12oz"
+                        className="h-9"
+                      />
+                    </div>
                   </div>
 
                   <div className="space-y-2">
