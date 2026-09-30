@@ -156,6 +156,7 @@ const ThirdView = ({ isOpen, onClose, thirdId }) => {
     () =>
       products.map((product) => ({
         id: product.id,
+        code: product.code || null,
         name: product.name || "Producto sin nombre",
         troquel_code: formatTroquelLabel(product.troquel),
         troquel_size: product.troquel?.size || "",
@@ -168,6 +169,16 @@ const ThirdView = ({ isOpen, onClose, thirdId }) => {
   );
 
   const productColumns = [
+    {
+      key: "code",
+      label: "Código",
+      render: (row) =>
+        row.code ? (
+          <span className="font-medium text-slate-900">{row.code}</span>
+        ) : (
+          <span className="italic text-gray-600 text-center">Sin Código</span>
+        ),
+    },
     {
       key: "name",
       label: "Producto",
@@ -420,6 +431,7 @@ const ThirdView = ({ isOpen, onClose, thirdId }) => {
         onSuccess={fetchThird}
         productId={productForm.productId}
         defaultThirdId={third?.id || null}
+        defaultThirdPrefix={third?.prefix || ""}
         lockThird
       />
 

@@ -187,6 +187,16 @@ const Products = () => {
   const columns = [
     { key: "id", label: "ID" },
     {
+      key: "code",
+      label: "Código",
+      render: (row) =>
+        row.code ? (
+          <span className="font-medium text-slate-900">{row.code}</span>
+        ) : (
+          <span className="italic text-gray-600">Pendiente</span>
+        ),
+    },
+    {
       key: "name",
       label: "Nombre",
       render: (row) => row.name || "Sin nombre",

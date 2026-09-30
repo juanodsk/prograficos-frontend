@@ -221,6 +221,16 @@ const Troqueles = () => {
         );
       },
     },
+    {
+      key: "description",
+      label: "Descripción",
+      render: (row) =>
+        row.description ? (
+          <span className="font-normal text-slate-900">{row.description}</span>
+        ) : (
+          <span className="italic text-gray-600">Pendiente</span>
+        ),
+    },
 
     {
       key: "elaboration_date",

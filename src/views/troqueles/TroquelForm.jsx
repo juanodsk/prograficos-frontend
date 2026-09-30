@@ -56,6 +56,7 @@ export default function TroquelFormModal({
   const [errors, setErrors] = useState({});
   const [form, setForm] = useState({
     code: "",
+    description: "",
     elaboration_date: new Date(),
     size: "SMALL",
     is_active: true,
@@ -69,6 +70,7 @@ export default function TroquelFormModal({
   const resetForm = () => {
     setForm({
       code: "",
+      description: "",
       elaboration_date: new Date(),
       size: "SMALL",
       is_active: true,
@@ -85,6 +87,7 @@ export default function TroquelFormModal({
 
       setForm({
         code: t.code || "",
+        description: t.description || "",
         elaboration_date: new Date(t.elaboration_date),
         size: t.size || "SMALL",
         is_active: t.is_active ?? true,
@@ -124,6 +127,7 @@ export default function TroquelFormModal({
 
       const payload = {
         code: form.code.trim(),
+        description: form.description.trim() || null,
         elaboration_date: form.elaboration_date.toISOString(),
         size: form.size,
         is_active: form.is_active,
@@ -350,6 +354,24 @@ export default function TroquelFormModal({
                       </p>
                     )}
                   </div>
+                </div>
+              </div>
+
+              <div className="w-full sm:w-1/2">
+                <div className="space-y-1">
+                  <Label className="text-xs">Descripción</Label>
+                  <Input
+                    name="description"
+                    placeholder="Ej: Caja de hamburguesa"
+                    value={form.description}
+                    onChange={(e) =>
+                      setForm((prev) => ({
+                        ...prev,
+                        description: e.target.value,
+                      }))
+                    }
+                    className="h-9 w-full text-sm"
+                  />
                 </div>
               </div>
 

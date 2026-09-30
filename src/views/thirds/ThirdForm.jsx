@@ -37,6 +37,7 @@ export default function ThirdForm({ isOpen, onClose, onSuccess, thirdId }) {
     document_type: "",
     document_number: "",
     company_name: "",
+    prefix: "",
     is_active: true,
   });
 
@@ -55,6 +56,7 @@ export default function ThirdForm({ isOpen, onClose, onSuccess, thirdId }) {
       document_type: "",
       document_number: "",
       company_name: "",
+      prefix: "",
       is_active: true,
     });
     setErrors({});
@@ -76,6 +78,7 @@ export default function ThirdForm({ isOpen, onClose, onSuccess, thirdId }) {
         document_type: t?.document_type || "",
         document_number: t?.document_number || "",
         company_name: t?.company_name || "",
+        prefix: t?.prefix || "",
         is_active: t?.is_active ?? true,
       });
     } catch {
@@ -116,6 +119,16 @@ export default function ThirdForm({ isOpen, onClose, onSuccess, thirdId }) {
       newErrors.document_number = "El número de documento debe ser positivo";
     }
 
+    if (form.type_person === "CLIENTE") {
+      const prefix = form.prefix.trim();
+      if (!prefix) {
+        newErrors.prefix = "El prefijo es obligatorio para clientes";
+      } else if (!/^[A-Z0-9]{1,4}$/.test(prefix)) {
+        newErrors.prefix =
+          "El prefijo debe ser alfanumérico en mayúsculas de máximo 4 caracteres";
+      }
+    }
+
     setErrors(newErrors);
 
     return Object.keys(newErrors).length === 0;
@@ -138,6 +151,7 @@ export default function ThirdForm({ isOpen, onClose, onSuccess, thirdId }) {
         document_type: form.document_type,
         document_number: form.document_number,
         company_name: form.company_name || null,
+        prefix: form.type_person === "CLIENTE" ? form.prefix || null : null,
         is_active: form.is_active,
       };
 
@@ -276,6 +290,38 @@ export default function ThirdForm({ isOpen, onClose, onSuccess, thirdId }) {
                         </span>
                       </div>
                     </div>
+
+                    {form.type_person === "CLIENTE" && (
+                      <div>
+                        <p className="text-xs uppercase tracking-wide text-slate-400">
+                          Prefijo del cliente
+                        </p>
+                        <Input
+                          name="prefix"
+                          value={form.prefix}
+                          onChange={(e) => {
+                            const clean = e.target.value
+                              .toUpperCase()
+                              .replace(/[^A-Z0-9]/g, "")
+                              .slice(0, 4);
+                            setForm((prev) => ({ ...prev, prefix: clean }));
+                            if (errors.prefix) {
+                              setErrors((prev) => ({ ...prev, prefix: "" }));
+                            }
+                          }}
+                          placeholder="Ej: GRN"
+                          className="mt-2 h-9 text-sm uppercase"
+                        />
+                        <p className="mt-1 text-[11px] text-slate-400">
+                          Máx. 4 Caracteres
+                        </p>
+                        {errors.prefix && (
+                          <p className="mt-1 text-xs text-red-500">
+                            {errors.prefix}
+                          </p>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </aside>
 
@@ -331,9 +377,17 @@ export default function ThirdForm({ isOpen, onClose, onSuccess, thirdId }) {
                       <Select
                         value={form.type_person}
                         onValueChange={(value) => {
-                          setForm((prev) => ({ ...prev, type_person: value }));
+                          setForm((prev) => ({
+                            ...prev,
+                            type_person: value,
+                            // El prefijo solo aplica a clientes.
+                            prefix: value === "CLIENTE" ? prev.prefix : "",
+                          }));
                           if (errors.type_person) {
                             setErrors((prev) => ({ ...prev, type_person: "" }));
+                          }
+                          if (value !== "CLIENTE" && errors.prefix) {
+                            setErrors((prev) => ({ ...prev, prefix: "" }));
                           }
                         }}
                       >
@@ -405,7 +459,10 @@ export default function ThirdForm({ isOpen, onClose, onSuccess, thirdId }) {
                       <Select
                         value={form.document_type}
                         onValueChange={(value) => {
-                          setForm((prev) => ({ ...prev, document_type: value }));
+                          setForm((prev) => ({
+                            ...prev,
+                            document_type: value,
+                          }));
                           if (errors.document_type) {
                             setErrors((prev) => ({
                               ...prev,
