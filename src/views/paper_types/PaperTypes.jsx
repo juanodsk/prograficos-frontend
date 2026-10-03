@@ -1,4 +1,5 @@
 import { useAuthStore } from "../../store/authStore";
+import { hasPermission } from "@/lib/permissions";
 import { useState, useEffect, useCallback } from "react";
 import paperTypesService from "@/services/paper_types.service";
 
@@ -30,6 +31,7 @@ const defaultTableState = {
 
 const PaperTypes = () => {
   const { user: currentUser } = useAuthStore();
+  const canManage = hasPermission(currentUser, "catalogs:manage");
   const [paperTypes, setPaperTypes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [tableState, setTableState] = usePersistedTableState(
@@ -180,8 +182,8 @@ const PaperTypes = () => {
 
   // ───────────── ACCIONES ─────────────
   const actions = (row) => {
-    const canEdit = ["ADMIN", "SUPERVISOR"].includes(currentUser?.role);
-    const canDelete = ["ADMIN", "SUPERVISOR"].includes(currentUser?.role);
+    const canEdit = canManage;
+    const canDelete = canManage;
 
     return (
       <div className="flex items-center justify-end gap-2">
@@ -229,13 +231,15 @@ const PaperTypes = () => {
           </p>
         </div>
 
-        <Button
-          onClick={handleOpenCreate}
-          className="bg-[#13529a] hover:bg-[#0f3f7a] text-white cursor-pointer"
-        >
-          <Plus size={16} className="mr-2" />
-          Nuevo Tipo de Papel
-        </Button>
+        {canManage && (
+          <Button
+            onClick={handleOpenCreate}
+            className="bg-[#13529a] hover:bg-[#0f3f7a] text-white cursor-pointer"
+          >
+            <Plus size={16} className="mr-2" />
+            Nuevo Tipo de Papel
+          </Button>
+        )}
       </div>
 
       {/* Tabla */}

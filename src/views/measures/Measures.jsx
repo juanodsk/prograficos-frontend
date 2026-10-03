@@ -1,5 +1,6 @@
 import React from "react";
 import { useAuthStore } from "../../store/authStore";
+import { hasPermission } from "@/lib/permissions";
 import { useState, useEffect } from "react";
 import measuresService from "../../services/measures.service";
 import formatsService from "@/services/formats.service";
@@ -17,6 +18,7 @@ import { Plus, Pencil, Trash2, Loader2, ScanEye } from "lucide-react";
 
 const Measures = () => {
   const { user: currentUser } = useAuthStore();
+  const canManage = hasPermission(currentUser, "catalogs:manage");
   const [measures, setMeasures] = useState([]);
   const [formats, setFormats] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -139,8 +141,8 @@ const Measures = () => {
 
   // ───────────── ACCIONES ─────────────
   const actions = (row) => {
-    const canEdit = ["ADMIN", "SUPERVISOR"].includes(currentUser?.role);
-    const canDelete = ["ADMIN", "SUPERVISOR"].includes(currentUser?.role);
+    const canEdit = canManage;
+    const canDelete = canManage;
 
     return (
       <div className="flex items-center justify-end gap-2">
@@ -188,13 +190,15 @@ const Measures = () => {
           </p>
         </div>
 
-        <Button
-          onClick={handleOpenCreate}
-          className="bg-[#13529a] hover:bg-[#0f3f7a] text-white cursor-pointer"
-        >
-          <Plus size={16} className="mr-2" />
-          Nueva Medida
-        </Button>
+        {canManage && (
+          <Button
+            onClick={handleOpenCreate}
+            className="bg-[#13529a] hover:bg-[#0f3f7a] text-white cursor-pointer"
+          >
+            <Plus size={16} className="mr-2" />
+            Nueva Medida
+          </Button>
+        )}
       </div>
 
       {/* Tabla */}

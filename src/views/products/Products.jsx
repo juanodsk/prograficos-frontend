@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import productsService from "../../services/products.service";
 import { useAuthStore } from "../../store/authStore";
+import { hasPermission } from "@/lib/permissions";
 
 import ProductForm from "../products/ProductForm";
 import ProductView from "./ProductView";
@@ -48,6 +49,9 @@ const formatProductDisplayName = (product) =>
 
 const Products = () => {
   const { user: currentUser } = useAuthStore();
+  const canCreate = hasPermission(currentUser, "products:create");
+  const canUpdate = hasPermission(currentUser, "products:update");
+  const canDelete = hasPermission(currentUser, "products:delete");
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [tableState, setTableState] = usePersistedTableState(
@@ -236,8 +240,7 @@ const Products = () => {
   ];
 
   const actions = (row) => {
-    const canEdit = ["ADMIN", "SUPERVISOR"].includes(currentUser?.role);
-    const canDelete = ["ADMIN", "SUPERVISOR"].includes(currentUser?.role);
+    const canEdit = canUpdate;
 
     return (
       <div className="flex items-center justify-end gap-2">
@@ -291,13 +294,15 @@ const Products = () => {
           </p>
         </div>
 
-        <Button
-          onClick={handleOpenCreate}
-          className="cursor-pointer bg-[#13529a] text-white hover:bg-[#0f3f7a]"
-        >
-          <Plus size={16} className="mr-2" />
-          Nuevo Producto
-        </Button>
+        {canCreate && (
+          <Button
+            onClick={handleOpenCreate}
+            className="cursor-pointer bg-[#13529a] text-white hover:bg-[#0f3f7a]"
+          >
+            <Plus size={16} className="mr-2" />
+            Nuevo Producto
+          </Button>
+        )}
       </div>
 
       <div className="rounded-xl border bg-white p-4 shadow-sm">

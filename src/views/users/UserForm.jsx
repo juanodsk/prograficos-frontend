@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import userService from "../../services/user.service";
+import roleService from "../../services/role.service";
 import { useAuthStore } from "../../store/authStore";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,17 +17,12 @@ import {
 } from "@/components/ui/select";
 import { X, Loader2, Save, User } from "lucide-react";
 
-const roles = [
-  { value: "ADMIN", label: "Administrador" },
-  { value: "SUPERVISOR", label: "Supervisor" },
-  { value: "OPERATOR", label: "Operario" },
-  { value: "USER", label: "Usuario" },
-];
-
 export default function UserForm({ isOpen, onClose, onSuccess, userId }) {
   const { user: currentUser, updateUser: updateAuthUser } = useAuthStore();
   const isEditing = !!userId;
 
+  // Roles asignables: se cargan del backend (distintos de ADMIN y activos).
+  const [roles, setRoles] = useState([]);
   const [loading, setLoading] = useState(false);
   const [fetching, setFetching] = useState(false);
   const [errors, setErrors] = useState({});
@@ -37,15 +33,19 @@ export default function UserForm({ isOpen, onClose, onSuccess, userId }) {
   const [form, setForm] = useState({
     name: "",
     surename: "",
+    username: "",
     email: "",
     password: "",
-    role: "USER",
+    role: "",
     avatar_url: "",
     is_active: true,
     operates_machinery: false,
   });
 
   useEffect(() => {
+    if (isOpen) {
+      fetchRoles();
+    }
     if (isOpen && isEditing) {
       fetchUser();
     }
@@ -54,13 +54,26 @@ export default function UserForm({ isOpen, onClose, onSuccess, userId }) {
     }
   }, [isOpen, userId]);
 
+  const fetchRoles = async () => {
+    try {
+      const res = await roleService.getRoles();
+      const assignable = (res.data || []).filter(
+        (r) => r.name !== "ADMIN" && r.is_active,
+      );
+      setRoles(assignable);
+    } catch {
+      setRoles([]);
+    }
+  };
+
   const resetForm = () => {
     setForm({
       name: "",
       surename: "",
+      username: "",
       email: "",
       password: "",
-      role: "USER",
+      role: "",
       avatar_url: "",
       is_active: true,
       operates_machinery: false,
@@ -79,9 +92,10 @@ export default function UserForm({ isOpen, onClose, onSuccess, userId }) {
       setForm({
         name: u.name || "",
         surename: u.surename || "",
+        username: u.username || "",
         email: u.email || "",
         password: "",
-        role: u.role || "USER",
+        role: u.role || "",
         avatar_url: u.avatar_url || "",
         is_active: u.is_active ?? true,
         operates_machinery: u.operates_machinery ?? false,
@@ -101,15 +115,39 @@ export default function UserForm({ isOpen, onClose, onSuccess, userId }) {
     const newErrors = {};
     if (!form.name.trim()) newErrors.name = "El nombre es requerido";
     if (!form.surename.trim()) newErrors.surename = "El apellido es requerido";
+    if (!form.username.trim()) newErrors.username = "El usuario es requerido";
+    else if (form.username.trim().length < 6)
+      newErrors.username = "Mínimo 6 caracteres";
     if (!form.email.trim()) newErrors.email = "El email es requerido";
     else if (!/\S+@\S+\.\S+/.test(form.email))
       newErrors.email = "Email inválido";
+    if (!form.role) newErrors.role = "El rol es obligatorio";
     if (!isEditing && !form.password)
       newErrors.password = "La contraseña es requerida";
     if (!isEditing && form.password?.length < 6)
       newErrors.password = "Mínimo 6 caracteres";
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
+  };
+
+  // Verifica en el backend que el username no esté en uso (validación en blur).
+  const checkUsernameAvailability = async () => {
+    const username = form.username.trim();
+    if (!username || username.length < 6) return;
+    try {
+      const res = await userService.checkUsername({
+        username,
+        excludeId: isEditing ? userId : undefined,
+      });
+      if (res?.data?.exists) {
+        setErrors((prev) => ({
+          ...prev,
+          username: "Ese nombre de usuario ya está en uso",
+        }));
+      }
+    } catch {
+      // Silencioso: la validación definitiva ocurre al guardar.
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -120,10 +158,6 @@ export default function UserForm({ isOpen, onClose, onSuccess, userId }) {
       const payload = { ...form };
       delete payload.avatar_url; // solo para mostrar; no se envía como dato
       if (isEditing && !payload.password) delete payload.password;
-
-      if (currentUser?.role !== "ADMIN" && currentUser?.role !== "SUPERVISOR") {
-        delete payload.role;
-      }
 
       let result;
       if (isEditing) {
@@ -137,7 +171,10 @@ export default function UserForm({ isOpen, onClose, onSuccess, userId }) {
       // Foto: subir la nueva, o borrar la actual si el usuario la quitó.
       if (avatarFile && targetId) {
         try {
-          const avatarRes = await userService.uploadAvatar(targetId, avatarFile);
+          const avatarRes = await userService.uploadAvatar(
+            targetId,
+            avatarFile,
+          );
           savedUser = { ...savedUser, avatar_url: avatarRes?.data?.avatar_url };
         } catch (err) {
           toast.error(
@@ -158,7 +195,9 @@ export default function UserForm({ isOpen, onClose, onSuccess, userId }) {
       }
 
       toast.success(
-        isEditing ? "Usuario actualizado exitosamente" : "Usuario creado exitosamente",
+        isEditing
+          ? "Usuario actualizado exitosamente"
+          : "Usuario creado exitosamente",
       );
 
       if (isEditing && currentUser?.id === userId) {
@@ -275,24 +314,21 @@ export default function UserForm({ isOpen, onClose, onSuccess, userId }) {
                         onValueChange={(value) =>
                           setForm((prev) => ({ ...prev, role: value }))
                         }
-                        disabled={
-                          currentUser?.role !== "ADMIN" &&
-                          currentUser?.role !== "SUPERVISOR"
-                        }
                       >
                         <SelectTrigger className="h-9 text-sm">
                           <SelectValue placeholder="Seleccionar rol" />
                         </SelectTrigger>
                         <SelectContent>
-                          {roles
-                            .filter((r) => r.value !== "ADMIN")
-                            .map((r) => (
-                              <SelectItem key={r.value} value={r.value}>
-                                {r.label}
-                              </SelectItem>
-                            ))}
+                          {roles.map((r) => (
+                            <SelectItem key={r.id} value={r.name}>
+                              {r.label}
+                            </SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
+                      {errors.role && (
+                        <p className="text-xs text-red-500">{errors.role}</p>
+                      )}
                     </div>
 
                     <div className="space-y-1">
@@ -351,6 +387,36 @@ export default function UserForm({ isOpen, onClose, onSuccess, userId }) {
                       {errors.surename && (
                         <p className="text-xs text-red-500">
                           {errors.surename}
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="space-y-1">
+                      <Label className="text-xs">Usuario (username)</Label>
+                      <Input
+                        name="username"
+                        autoCapitalize="none"
+                        autoCorrect="off"
+                        spellCheck={false}
+                        placeholder="ej: jperez"
+                        value={form.username}
+                        onChange={(e) => {
+                          setForm((prev) => ({
+                            ...prev,
+                            username: e.target.value
+                              .toLowerCase()
+                              .replace(/\s+/g, "")
+                              .replace(/[^a-z0-9._-]/g, ""),
+                          }));
+                          if (errors.username)
+                            setErrors((prev) => ({ ...prev, username: "" }));
+                        }}
+                        onBlur={checkUsernameAvailability}
+                        className="h-9 text-sm"
+                      />
+                      {errors.username && (
+                        <p className="text-xs text-red-500">
+                          {errors.username}
                         </p>
                       )}
                     </div>

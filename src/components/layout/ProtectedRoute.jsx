@@ -10,7 +10,7 @@ import inactivityService, {
 } from "../../services/inactivity.service";
 import { Loader2 } from "lucide-react";
 
-const ProtectedRoute = ({ roles, withoutShell = false }) => {
+const ProtectedRoute = ({ roles, permissions, withoutShell = false }) => {
   const { isAuthenticated, user, setUser } = useAuthStore();
   const [checkingSession, setCheckingSession] = useState(true);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
@@ -93,6 +93,17 @@ const ProtectedRoute = ({ roles, withoutShell = false }) => {
   }
 
   if (roles && !roles.includes(user?.role)) {
+    return <Navigate to="/unauthorized" />;
+  }
+
+  // Gate por permisos (claims). ADMIN es superusuario: siempre pasa.
+  // Basta con tener uno de los permisos indicados.
+  const isAdmin = user?.role === "ADMIN";
+  if (
+    permissions &&
+    !isAdmin &&
+    !permissions.some((p) => user?.permissions?.includes(p))
+  ) {
     return <Navigate to="/unauthorized" />;
   }
 

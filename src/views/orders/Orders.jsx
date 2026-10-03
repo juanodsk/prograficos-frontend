@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { useAuthStore } from "../../store/authStore";
+import { hasPermission } from "@/lib/permissions";
 import ConfirmDialog from "../../components/common/ConfirmDialog";
 import ServerPagination from "../../components/common/ServerPagination";
 import ordersService from "@/services/orders.service";
@@ -120,11 +121,11 @@ const Orders = () => {
     loading: false,
   });
 
-  const canDeleteOrder = ["ADMIN", "SUPERVISOR"].includes(currentUser?.role);
-  const canCreate = ["ADMIN", "SUPERVISOR"].includes(currentUser?.role);
-  const canEdit = ["ADMIN", "SUPERVISOR"].includes(currentUser?.role);
-  // OPERATOR (y USER) no pueden terminar órdenes: se les oculta el botón.
-  const canFinishOrder = ["ADMIN", "SUPERVISOR"].includes(currentUser?.role);
+  const canDeleteOrder = hasPermission(currentUser, "orders:delete");
+  const canCreate = hasPermission(currentUser, "orders:create");
+  const canEdit = hasPermission(currentUser, "orders:update");
+  // Terminar una orden requiere el permiso dedicado orders:finish.
+  const canFinishOrder = hasPermission(currentUser, "orders:finish");
 
   const [sort, setSort] = useState({ sortBy: "date", sortDirection: "desc" });
 

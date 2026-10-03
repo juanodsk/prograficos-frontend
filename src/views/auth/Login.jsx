@@ -21,15 +21,15 @@ const Login = () => {
 
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const [form, setForm] = useState({ email: "", password: "" });
+  const [form, setForm] = useState({ username: "", password: "" });
   const [errors, setErrors] = useState({});
   const [serverError, setServerError] = useState("");
 
   const validate = () => {
     const newErrors = {};
-    if (!form.email) newErrors.email = "El email es requerido";
-    else if (!/\S+@\S+\.\S+/.test(form.email))
-      newErrors.email = "Email inválido";
+    if (!form.username) newErrors.username = "El usuario es requerido";
+    else if (form.username.trim().length < 3)
+      newErrors.username = "Mínimo 3 caracteres";
     if (!form.password) newErrors.password = "La contraseña es requerida";
     else if (form.password.length < 6)
       newErrors.password = "Mínimo 6 caracteres";
@@ -75,24 +75,30 @@ const Login = () => {
 
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-5">
-            {/* EMAIL */}
+            {/* USERNAME */}
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="username">Usuario</Label>
               <Input
-                id="email"
-                type="email"
-                placeholder="correo@ejemplo.com"
-                value={form.email}
+                id="username"
+                type="text"
+                autoCapitalize="none"
+                autoCorrect="off"
+                spellCheck={false}
+                placeholder="Ej: andresramirez"
+                value={form.username}
                 onChange={(e) => {
-                  setForm({ ...form, email: e.target.value });
+                  setForm({
+                    ...form,
+                    username: e.target.value.toLowerCase().replace(/\s+/g, ""),
+                  });
                   setServerError("");
-                  if (errors.email)
-                    setErrors((prev) => ({ ...prev, email: "" }));
+                  if (errors.username)
+                    setErrors((prev) => ({ ...prev, username: "" }));
                 }}
                 className="focus-visible:ring-[#13529a]"
               />
-              {errors.email && (
-                <p className="text-xs text-red-500">{errors.email}</p>
+              {errors.username && (
+                <p className="text-xs text-red-500">{errors.username}</p>
               )}
             </div>
 

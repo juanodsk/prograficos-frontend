@@ -26,6 +26,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useAuthStore } from "@/store/authStore";
+import { hasPermission } from "@/lib/permissions";
 import {
   ArrowLeft,
   CheckCircle2,
@@ -119,9 +120,8 @@ const OrderDetail = () => {
   const [receivedModalOpen, setReceivedModalOpen] = useState(false);
   const [submittingAction, setSubmittingAction] = useState("");
 
-  const canOperate = ["ADMIN", "SUPERVISOR", "OPERATOR", "USER"].includes(
-    user?.role,
-  );
+  const canOperate = hasPermission(user, "orders:operate");
+  const canFinishOrder = hasPermission(user, "orders:finish");
 
   const loadData = async (silent = false) => {
     try {
@@ -738,7 +738,7 @@ const OrderDetail = () => {
           </div>
         </div>
 
-        {["ADMIN", "SUPERVISOR"].includes(user?.role) &&
+        {canFinishOrder &&
           (() => {
             const esperado = order.total_expected ?? expectedQuantity ?? null;
             const real = order.total_real_delivered ?? null;
