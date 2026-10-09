@@ -17,6 +17,10 @@ const orderProcessesService = {
     const { data } = await api.patch(`/order-processes/${id}/finish`, payload);
     return data;
   },
+  edit: async (id, payload) => {
+    const { data } = await api.patch(`/order-processes/${id}/edit`, payload);
+    return data;
+  },
 };
 
 export default orderProcessesService;
