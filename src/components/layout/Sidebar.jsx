@@ -26,6 +26,9 @@ import {
   X,
   Factory,
   ShieldUser,
+  ShieldCheck,
+  Shield,
+  KeyRound,
 } from "lucide-react";
 
 const menuItems = [
@@ -39,85 +42,102 @@ const menuItems = [
     label: "Órdenes",
     path: "/ordenes",
     icon: ClipboardList,
-    roles: ["ADMIN", "SUPERVISOR", "OPERATOR", "USER"],
+    perm: "orders:view",
   },
   {
     label: "Monitor Planta",
     path: "/ordenes/monitor",
     icon: Factory,
-    roles: ["ADMIN", "SUPERVISOR", "OPERATOR", "USER"],
+    perm: "monitor:view",
   },
 
   {
     label: "Administración",
     icon: ShieldUser,
-    roles: ["ADMIN", "SUPERVISOR"],
     children: [
       {
         label: "Auditoría",
         path: "/ordenes/auditoria",
         icon: ScrollText,
-        roles: ["ADMIN", "SUPERVISOR", "OPERATOR", "USER"],
+        perm: "audit:view",
       },
     ],
   },
   {
     label: "Configuración",
     icon: Settings,
-    roles: ["ADMIN", "SUPERVISOR"],
     children: [
-      {
-        label: "Usuarios",
-        path: "/configuracion/usuarios",
-        icon: UserCog,
-        roles: ["ADMIN", "SUPERVISOR"],
-      },
       {
         label: "Terceros",
         path: "/configuracion/terceros",
         icon: Building2,
-        roles: ["ADMIN", "SUPERVISOR"],
+        perm: "thirds:view",
       },
       {
         label: "Productos",
         path: "/configuracion/productos",
         icon: Package,
-        roles: ["ADMIN", "SUPERVISOR"],
+        perm: "products:view",
       },
       {
         label: "Troqueles",
         path: "/configuracion/troqueles",
         icon: Scissors,
-        roles: ["ADMIN", "SUPERVISOR"],
+        perm: "troqueles:view",
       },
       {
         label: "Medidas",
         path: "/configuracion/medidas",
         icon: Ruler,
-        roles: ["ADMIN", "SUPERVISOR"],
+        perm: "catalogs:view",
       },
       {
         label: "Formatos",
         path: "/configuracion/formatos",
         icon: FileText,
-        roles: ["ADMIN", "SUPERVISOR"],
+        perm: "catalogs:view",
       },
       {
         label: "Maquinarias",
         path: "/configuracion/maquinarias",
         icon: Factory,
-        roles: ["ADMIN", "SUPERVISOR"],
+        perm: "catalogs:view",
       },
       {
         label: "Tipos de Papel",
         path: "/configuracion/tipos_papel",
         icon: Layers,
-        roles: ["ADMIN", "SUPERVISOR"],
+        perm: "catalogs:view",
       },
       {
         label: "Procesos",
         path: "/configuracion/procesos",
         icon: Settings,
+        perm: "catalogs:view",
+      },
+    ],
+  },
+  {
+    label: "Seguridad",
+    icon: ShieldCheck,
+    roles: ["ADMIN"],
+    children: [
+      {
+        label: "Usuarios",
+        path: "/seguridad/usuarios",
+        icon: UserCog,
+        roles: ["ADMIN"],
+      },
+      {
+        label: "Roles",
+        path: "/seguridad/roles",
+        icon: Shield,
+        roles: ["ADMIN"],
+      },
+      {
+        label: "Permisos por Rol",
+        path: "/seguridad/permisos",
+        icon: KeyRound,
         roles: ["ADMIN"],
       },
     ],
@@ -176,17 +196,37 @@ const Sidebar = ({ mobileOpen = false, onCloseMobile }) => {
     onCloseMobile?.();
   };
 
+  // ADMIN es superusuario: ve todo. El resto se evalúa por permiso o por rol.
+  const isAdmin = user?.role === "ADMIN";
+  const userPermissions = user?.permissions || [];
+
+  // Un ítem es visible si: tiene `perm` y el usuario lo posee (o es ADMIN),
+  // o tiene `roles` y el rol del usuario está incluido.
+  const canSee = (item) => {
+    if (item.perm) return isAdmin || userPermissions.includes(item.perm);
+    if (item.roles) return item.roles.includes(user?.role);
+    return true;
+  };
+
+  // Hijos visibles de un grupo: los `perm` se evalúan por permiso; los `roles`
+  // solo si además el usuario cumple el gate de rol del grupo padre (evita que
+  // un permiso suelto exponga ítems por-rol que no le corresponden).
+  const visibleChildren = (group) => {
+    const groupRoleOk = !group.roles || group.roles.includes(user?.role);
+    return group.children.filter((child) =>
+      child.perm ? canSee(child) : groupRoleOk && canSee(child),
+    );
+  };
+
   const filteredMenu = menuItems.filter((item) =>
-    item.roles.includes(user?.role),
+    item.children ? visibleChildren(item).length > 0 : canSee(item),
   );
 
   const renderMenu = (isMobile = false) => (
     <nav className="flex-1 space-y-1 overflow-y-auto overflow-x-hidden p-2">
       {filteredMenu.map((item) => {
         if (item.children) {
-          const filteredChildren = item.children.filter((child) =>
-            child.roles.includes(user?.role),
-          );
+          const filteredChildren = visibleChildren(item);
 
           const isOpen = openMenus[item.label] && (isMobile || !collapsed);
           const isActive = filteredChildren.some((child) =>

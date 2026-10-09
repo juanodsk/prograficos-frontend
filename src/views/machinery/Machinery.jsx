@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { useAuthStore } from "../../store/authStore";
+import { hasPermission } from "@/lib/permissions";
 import machineryService from "@/services/machinery.service";
 import { getMachineryTypeLabel } from "@/constants/machineryTypes";
 import MachineryForm from "./MachineryForm";
@@ -11,6 +12,7 @@ import { Factory, Loader2, Pencil, Plus, Trash2 } from "lucide-react";
 
 const Machinery = () => {
   const { user: currentUser } = useAuthStore();
+  const canManage = hasPermission(currentUser, "catalogs:manage");
   const [machinery, setMachinery] = useState([]);
   const [loading, setLoading] = useState(true);
   const [formModal, setFormModal] = useState({
@@ -116,8 +118,8 @@ const Machinery = () => {
   ];
 
   const actions = (row) => {
-    const canEdit = ["ADMIN", "SUPERVISOR"].includes(currentUser?.role);
-    const canDelete = ["ADMIN", "SUPERVISOR"].includes(currentUser?.role);
+    const canEdit = canManage;
+    const canDelete = canManage;
 
     return (
       <div className="flex items-center justify-end gap-2">
@@ -162,13 +164,15 @@ const Machinery = () => {
           </p>
         </div>
 
-        <Button
-          onClick={handleOpenCreate}
-          className="cursor-pointer bg-[#13529a] text-white hover:bg-[#0f3f7a]"
-        >
-          <Plus size={16} className="mr-2" />
-          Nueva Maquinaria
-        </Button>
+        {canManage && (
+          <Button
+            onClick={handleOpenCreate}
+            className="cursor-pointer bg-[#13529a] text-white hover:bg-[#0f3f7a]"
+          >
+            <Plus size={16} className="mr-2" />
+            Nueva Maquinaria
+          </Button>
+        )}
       </div>
 
       <div className="rounded-xl border bg-white p-4 shadow-sm">

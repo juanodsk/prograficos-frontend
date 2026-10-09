@@ -5,6 +5,8 @@ import Login from "../views/auth/Login";
 import Landing from "../views/landing/Landing";
 import Dashboard from "../views/dashboard/Dashboard";
 import Users from "../views/users/Users";
+import Roles from "../views/security/Roles";
+import RolePermissions from "../views/security/RolePermissions";
 import Orders from "../views/orders/Orders";
 import OrdersAudit from "../views/orders/OrdersAudit";
 import OrderForm from "../views/orders/OrderForm";
@@ -45,33 +47,27 @@ const router = createBrowserRouter([
     element: <ProtectedRoute />,
     children: [{ path: "dashboard", element: <Dashboard /> }],
   },
-  // Rutas solo para ADMIN y SUPERVISOR
+  // Terceros / Productos / Troqueles: acceso por permiso de "ver". ADMIN pasa siempre.
   {
     path: "/",
-    element: <ProtectedRoute roles={["ADMIN", "SUPERVISOR"]} />,
+    element: <ProtectedRoute permissions={["thirds:view"]} />,
+    children: [{ path: "/configuracion/terceros", element: <Thirds /> }],
+  },
+  {
+    path: "/",
+    element: <ProtectedRoute permissions={["products:view"]} />,
+    children: [{ path: "/configuracion/productos", element: <Products /> }],
+  },
+  {
+    path: "/",
+    element: <ProtectedRoute permissions={["troqueles:view"]} />,
+    children: [{ path: "/configuracion/troqueles", element: <Troqueles /> }],
+  },
+  // Catálogos: acceso por permiso (catalogs:view). ADMIN pasa siempre.
+  {
+    path: "/",
+    element: <ProtectedRoute permissions={["catalogs:view"]} />,
     children: [
-      { path: "/configuracion/usuarios", element: <Users /> },
-      // Redirigen al modal que está en la lista
-      {
-        path: "/configuracion/usuario/create",
-        element: <Navigate to="/configuracion/usuarios" replace />,
-      },
-      {
-        path: "/configuracion/usuario/:id/edit",
-        element: <Navigate to="/configuracion/usuarios" replace />,
-      },
-      {
-        path: "/configuracion/terceros",
-        element: <Thirds />,
-      },
-      {
-        path: "/configuracion/productos",
-        element: <Products />,
-      },
-      {
-        path: "/configuracion/troqueles",
-        element: <Troqueles />,
-      },
       {
         path: "/configuracion/medidas",
         element: <Measures />,
@@ -94,26 +90,60 @@ const router = createBrowserRouter([
       },
     ],
   },
-  // Rutas para operación de órdenes
+  // Zona de Seguridad: solo ADMIN
   {
     path: "/",
-    element: <ProtectedRoute roles={["ADMIN", "SUPERVISOR", "OPERATOR"]} />,
+    element: <ProtectedRoute roles={["ADMIN"]} />,
     children: [
-      { path: "ordenes", element: <Orders /> },
-      { path: "ordenes/auditoria", element: <OrdersAudit /> },
-      { path: "ordenes/crear", element: <OrderForm /> },
-      { path: "ordenes/:id", element: <OrderDetail /> },
-      { path: "ordenes/:id/editar", element: <OrderForm /> },
+      { path: "/seguridad/usuarios", element: <Users /> },
+      { path: "/seguridad/roles", element: <Roles /> },
+      { path: "/seguridad/permisos", element: <RolePermissions /> },
+      // Compatibilidad: la antigua ruta de usuarios ahora vive en Seguridad.
+      {
+        path: "/configuracion/usuarios",
+        element: <Navigate to="/seguridad/usuarios" replace />,
+      },
     ],
   },
+  // Órdenes: acceso por permiso. ADMIN pasa siempre.
+  // Ver/abrir una orden: cualquiera del flujo de órdenes.
   {
     path: "/",
     element: (
       <ProtectedRoute
-        roles={["ADMIN", "SUPERVISOR", "OPERATOR"]}
-        withoutShell
+        permissions={[
+          "orders:view",
+          "orders:create",
+          "orders:update",
+          "orders:operate",
+          "orders:finish",
+        ]}
       />
     ),
+    children: [
+      { path: "ordenes", element: <Orders /> },
+      { path: "ordenes/:id", element: <OrderDetail /> },
+    ],
+  },
+  {
+    path: "/",
+    element: <ProtectedRoute permissions={["orders:create"]} />,
+    children: [{ path: "ordenes/crear", element: <OrderForm /> }],
+  },
+  {
+    path: "/",
+    element: <ProtectedRoute permissions={["orders:update"]} />,
+    children: [{ path: "ordenes/:id/editar", element: <OrderForm /> }],
+  },
+  // Auditoría: acceso por permiso audit:view (hoy solo ADMIN/SUPERVISOR lo tienen).
+  {
+    path: "/",
+    element: <ProtectedRoute permissions={["audit:view"]} />,
+    children: [{ path: "ordenes/auditoria", element: <OrdersAudit /> }],
+  },
+  {
+    path: "/",
+    element: <ProtectedRoute permissions={["monitor:view"]} withoutShell />,
     children: [{ path: "ordenes/monitor", element: <ProductionBoard /> }],
   },
   {

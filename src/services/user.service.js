@@ -21,6 +21,12 @@ const userService = {
     const { data } = await api.get(`/users/${id}`);
     return data;
   },
+  checkUsername: async ({ username, excludeId } = {}) => {
+    const { data } = await api.get("/users/check-username", {
+      params: { username, ...(excludeId ? { excludeId } : {}) },
+    });
+    return data;
+  },
   getOperators: async () => {
     const { data } = await api.get("/users/operators");
     return data;

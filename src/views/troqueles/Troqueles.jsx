@@ -7,6 +7,7 @@ import TroquelImagesViewer from "./TroquelImagesViewer";
 import TroquelView from "./TroquelView";
 import DataTable from "../../components/data-table/DataTable";
 import { useAuthStore } from "../../store/authStore";
+import { hasPermission } from "@/lib/permissions";
 import usePersistedTableState from "../../hooks/usePersistedTableState";
 
 import { Button } from "@/components/ui/button";
@@ -66,6 +67,9 @@ const sizeConfig = {
 
 const Troqueles = () => {
   const { user: currentUser } = useAuthStore();
+  const canCreate = hasPermission(currentUser, "troqueles:create");
+  const canUpdate = hasPermission(currentUser, "troqueles:update");
+  const canDelete = hasPermission(currentUser, "troqueles:delete");
 
   const [troqueles, setTroqueles] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -276,8 +280,7 @@ const Troqueles = () => {
 
   // ───────────── ACCIONES ─────────────
   const actions = (row) => {
-    const canEdit = ["ADMIN", "SUPERVISOR"].includes(currentUser?.role);
-    const canDelete = ["ADMIN", "SUPERVISOR"].includes(currentUser?.role);
+    const canEdit = canUpdate;
 
     return (
       <div className="flex items-center justify-end gap-2">
@@ -322,12 +325,14 @@ const Troqueles = () => {
           </p>
         </div>
 
-        <Button
-          onClick={handleOpenCreate}
-          className="bg-[#13529a] hover:bg-[#0f3f7a] text-white cursor-pointer"
-        >
-          <Plus size={16} className="mr-2" /> Nuevo Troquel
-        </Button>
+        {canCreate && (
+          <Button
+            onClick={handleOpenCreate}
+            className="bg-[#13529a] hover:bg-[#0f3f7a] text-white cursor-pointer"
+          >
+            <Plus size={16} className="mr-2" /> Nuevo Troquel
+          </Button>
+        )}
       </div>
 
       {/* Tabla */}

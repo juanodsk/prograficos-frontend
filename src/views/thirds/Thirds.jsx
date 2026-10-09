@@ -2,6 +2,8 @@ import { useState, useEffect, useCallback } from "react";
 import { toast } from "sonner";
 
 import thirdService from "../../services/thirds.service";
+import { useAuthStore } from "../../store/authStore";
+import { hasPermission } from "@/lib/permissions";
 import ConfirmDialog from "../../components/common/ConfirmDialog";
 import DataTable from "../../components/data-table/DataTable";
 import usePersistedTableState from "../../hooks/usePersistedTableState";
@@ -43,6 +45,11 @@ const getTabButtonClassName = (isActive) =>
   }`;
 
 const Thirds = () => {
+  const { user: currentUser } = useAuthStore();
+  const canCreate = hasPermission(currentUser, "thirds:create");
+  const canUpdate = hasPermission(currentUser, "thirds:update");
+  const canDelete = hasPermission(currentUser, "thirds:delete");
+
   const [thirds, setThirds] = useState([]);
   const [loading, setLoading] = useState(true);
   const [tableState, setTableState] = usePersistedTableState(
@@ -239,9 +246,14 @@ const Thirds = () => {
       <Button
         size="icon"
         variant="ghost"
-        className="hover:text-[#13529a] hover:bg-[#13529a]/10 cursor-pointer"
-        onClick={() => handleOpenEdit(row.id)}
-        title="Editar tercero"
+        disabled={!canUpdate}
+        className={
+          canUpdate
+            ? "hover:text-[#13529a] hover:bg-[#13529a]/10 cursor-pointer"
+            : "text-gray-300 cursor-not-allowed opacity-50"
+        }
+        onClick={() => canUpdate && handleOpenEdit(row.id)}
+        title={canUpdate ? "Editar tercero" : "Sin permiso para editar"}
       >
         <Pencil size={16} />
       </Button>
@@ -250,9 +262,14 @@ const Thirds = () => {
       <Button
         size="icon"
         variant="ghost"
-        className="text-red-600 hover:text-red-700 hover:bg-red-50 cursor-pointer"
-        onClick={() => handleDeleteClick(row)}
-        title="Eliminar tercero"
+        disabled={!canDelete}
+        className={
+          canDelete
+            ? "text-red-600 hover:text-red-700 hover:bg-red-50 cursor-pointer"
+            : "text-gray-300 cursor-not-allowed opacity-50"
+        }
+        onClick={() => canDelete && handleDeleteClick(row)}
+        title={canDelete ? "Eliminar tercero" : "Sin permiso para eliminar"}
       >
         <Trash2 size={16} />
       </Button>
@@ -273,13 +290,15 @@ const Thirds = () => {
           </p>
         </div>
 
-        <Button
-          onClick={handleOpenCreate}
-          className="bg-[#13529a] hover:bg-[#0f3f7a] text-white cursor-pointer"
-        >
-          <Plus size={16} className="mr-2" />
-          Nuevo tercero
-        </Button>
+        {canCreate && (
+          <Button
+            onClick={handleOpenCreate}
+            className="bg-[#13529a] hover:bg-[#0f3f7a] text-white cursor-pointer"
+          >
+            <Plus size={16} className="mr-2" />
+            Nuevo tercero
+          </Button>
+        )}
       </div>
 
       <div className="overflow-hidden rounded-2xl border bg-white shadow-sm">

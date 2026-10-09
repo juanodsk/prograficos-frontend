@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import troquelesService from "../../services/troqueles.service";
+import { useAuthStore } from "../../store/authStore";
+import { hasPermission } from "@/lib/permissions";
 import { X, Loader2, Download, ImageOff } from "lucide-react";
 import {
   Carousel,
@@ -18,6 +20,9 @@ export default function TroquelImagesViewer({
   onClose,
   title = "Imágenes del troquel",
 }) {
+  const { user: currentUser } = useAuthStore();
+  const canDownload = hasPermission(currentUser, "troqueles:download");
+
   const [images, setImages] = useState([]);
   const [loading, setLoading] = useState(false);
   const [downloadingId, setDownloadingId] = useState(null);
@@ -104,20 +109,22 @@ export default function TroquelImagesViewer({
                         loading="lazy"
                         className="mx-auto max-h-[60vh] w-full object-contain"
                       />
-                      <button
-                        type="button"
-                        onClick={() => handleDownload(img)}
-                        disabled={downloadingId === img.id}
-                        className="absolute bottom-2 right-2 inline-flex items-center gap-1 rounded-md bg-black/55 px-2.5 py-1.5 text-xs text-white transition-colors hover:bg-[#13529a] disabled:opacity-70"
-                        title="Descargar"
-                      >
-                        {downloadingId === img.id ? (
-                          <Loader2 size={13} className="animate-spin" />
-                        ) : (
-                          <Download size={13} />
-                        )}
-                        Descargar
-                      </button>
+                      {canDownload && (
+                        <button
+                          type="button"
+                          onClick={() => handleDownload(img)}
+                          disabled={downloadingId === img.id}
+                          className="absolute bottom-2 right-2 inline-flex items-center gap-1 rounded-md bg-black/55 px-2.5 py-1.5 text-xs text-white transition-colors hover:bg-[#13529a] disabled:opacity-70"
+                          title="Descargar"
+                        >
+                          {downloadingId === img.id ? (
+                            <Loader2 size={13} className="animate-spin" />
+                          ) : (
+                            <Download size={13} />
+                          )}
+                          Descargar
+                        </button>
+                      )}
                     </div>
                   </CarouselItem>
                 ))}

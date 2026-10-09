@@ -26,6 +26,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useAuthStore } from "@/store/authStore";
+import { hasPermission } from "@/lib/permissions";
 import {
   ArrowLeft,
   CheckCircle2,
@@ -35,6 +36,8 @@ import {
   Pencil,
   PlayCircle,
   RefreshCw,
+  Save,
+  X,
 } from "lucide-react";
 
 const isOperatorSignatureField = (field) => {
@@ -118,10 +121,15 @@ const OrderDetail = () => {
   const [receivedOverride, setReceivedOverride] = useState(null);
   const [receivedModalOpen, setReceivedModalOpen] = useState(false);
   const [submittingAction, setSubmittingAction] = useState("");
+  // Edición/corrección de un proceso ya TERMINADO (requiere orders:edit_processes).
+  const [editingProcessId, setEditingProcessId] = useState(null);
 
-  const canOperate = ["ADMIN", "SUPERVISOR", "OPERATOR", "USER"].includes(
-    user?.role,
-  );
+  const canOperate = hasPermission(user, "orders:operate");
+  const canEditProcesses = hasPermission(user, "orders:edit_processes");
+  const orderFinished = order?.order_status === "TERMINADO";
+  const isEditingActive =
+    editingProcessId != null && editingProcessId === activeProcessId;
+  const canFinishOrder = hasPermission(user, "orders:finish");
 
   const loadData = async (silent = false) => {
     try {
@@ -284,6 +292,24 @@ const OrderDetail = () => {
           receivedQuantity - Number(finishPayload.quantity_damaged || 0),
         )
       : null;
+
+  // "Dirty": en modo edición, true solo si algún campo difiere del valor
+  // original del proceso. Habilita el botón Guardar (como un formulario reactivo).
+  const isEditDirty =
+    isEditingActive &&
+    activeProcess != null &&
+    (startPayload.machinery_id !== String(activeProcess.machinery_id ?? "") ||
+      startPayload.operator_user_id !==
+        String(activeProcess.user_id ?? "") ||
+      (startPayload.observations || "") !==
+        (activeProcess.observations || "") ||
+      (finishPayload.end_observations || "") !==
+        (activeProcess.end_observations || "") ||
+      Number(finishPayload.quantity_damaged || 0) !==
+        Number(activeProcess.quantity_damaged ?? 0) ||
+      (receivedOverride != null &&
+        Number(receivedOverride) !==
+          Number(activeProcess.quantity_received ?? receivedOverride)));
 
   useEffect(() => {
     if (!activeProcess) return;
@@ -561,6 +587,101 @@ const OrderDetail = () => {
     }
   };
 
+  // ───────────── EDICIÓN DE PROCESO TERMINADO ─────────────
+  const startEditProcess = (process) => {
+    // Activar el proceso dispara el useEffect que carga start/finishPayload.
+    setActiveProcessId(process.id);
+    setExpandedProcessId(process.id);
+    setReceivedOverride(null);
+    setEditingProcessId(process.id);
+  };
+
+  const cancelEditProcess = () => {
+    setEditingProcessId(null);
+    setReceivedOverride(null);
+    // Descartar cambios: recargar payloads desde el proceso activo.
+    if (activeProcess) {
+      setStartPayload({
+        machinery_id: activeProcess.machinery_id
+          ? String(activeProcess.machinery_id)
+          : "",
+        operator_user_id: activeProcess.user_id
+          ? String(activeProcess.user_id)
+          : "",
+        observations: activeProcess.observations || "",
+        field_values: Object.fromEntries(
+          (activeProcess.field_values || []).map((v) => [
+            v.field_definition_id,
+            String(v.value ?? ""),
+          ]),
+        ),
+      });
+      setFinishPayload({
+        quantity_delivered:
+          activeProcess.quantity_delivered != null
+            ? String(activeProcess.quantity_delivered)
+            : "",
+        quantity_damaged:
+          activeProcess.quantity_damaged != null
+            ? String(activeProcess.quantity_damaged)
+            : "",
+        end_observations: activeProcess.end_observations || "",
+      });
+    }
+  };
+
+  const submitEditProcess = async () => {
+    if (!activeProcess) return;
+    // Nada cambió: no se llama al backend, solo se cierra la edición.
+    if (!isEditDirty) {
+      cancelEditProcess();
+      return;
+    }
+    if (!startPayload.machinery_id) {
+      toast.error("Selecciona una maquinaria");
+      return;
+    }
+    if (!startPayload.operator_user_id) {
+      toast.error("Selecciona un operario");
+      return;
+    }
+    const damaged = Number(finishPayload.quantity_damaged || 0);
+    const received =
+      receivedQuantity != null
+        ? receivedQuantity
+        : Number(finishPayload.quantity_delivered || 0) + damaged;
+    if (received == null || Number.isNaN(received) || received < 0) {
+      toast.error("La cantidad recibida no es válida");
+      return;
+    }
+    if (damaged > received) {
+      toast.error("La cantidad dañada no puede ser mayor que la recibida");
+      return;
+    }
+
+    try {
+      setSubmittingAction("edit");
+      await orderProcessesService.edit(activeProcess.id, {
+        machinery_id: startPayload.machinery_id,
+        operator_user_id: startPayload.operator_user_id,
+        observations: startPayload.observations ?? "",
+        end_observations: finishPayload.end_observations ?? "",
+        quantity_received: received,
+        quantity_damaged: damaged,
+      });
+      toast.success("Proceso corregido exitosamente");
+      setEditingProcessId(null);
+      setReceivedOverride(null);
+      await loadData(true);
+    } catch (error) {
+      toast.error(
+        error?.response?.data?.message || "No se pudo corregir el proceso",
+      );
+    } finally {
+      setSubmittingAction("");
+    }
+  };
+
   if (loading)
     return (
       <div className="flex justify-center py-20">
@@ -601,13 +722,15 @@ const OrderDetail = () => {
             />
             Recargar
           </Button>
-          <Button
-            disabled={orderInputLocked}
-            onClick={() => navigate(`/ordenes/${order.id}/editar`)}
-            className="bg-[#13529a] text-white hover:bg-[#0f3f7a] cursor-pointer"
-          >
-            Editar orden
-          </Button>
+          {!orderFinished && (
+            <Button
+              disabled={orderInputLocked}
+              onClick={() => navigate(`/ordenes/${order.id}/editar`)}
+              className="bg-[#13529a] text-white hover:bg-[#0f3f7a] cursor-pointer"
+            >
+              Editar orden
+            </Button>
+          )}
         </div>
       </div>
 
@@ -738,7 +861,7 @@ const OrderDetail = () => {
           </div>
         </div>
 
-        {["ADMIN", "SUPERVISOR"].includes(user?.role) &&
+        {canFinishOrder &&
           (() => {
             const esperado = order.total_expected ?? expectedQuantity ?? null;
             const real = order.total_real_delivered ?? null;
@@ -908,6 +1031,30 @@ const OrderDetail = () => {
                     </div>
                   </div>
                   <div className="flex items-center gap-3">
+                    {canEditProcesses &&
+                      orderFinished &&
+                      process.process_state === "TERMINADO" &&
+                      editingProcessId !== process.id && (
+                        <span
+                          role="button"
+                          tabIndex={0}
+                          title="Editar / corregir este proceso"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            startEditProcess(process);
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" || e.key === " ") {
+                              e.stopPropagation();
+                              startEditProcess(process);
+                            }
+                          }}
+                          className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-[#13529a]/30 bg-white px-3 py-1.5 text-xs font-semibold text-[#13529a] shadow-sm transition-colors hover:bg-[#13529a]/10"
+                        >
+                          <Pencil size={14} />
+                          Editar Proceso
+                        </span>
+                      )}
                     <StatusBadge status={process.process_state} />
                     <ChevronDown
                       size={18}
@@ -1026,7 +1173,7 @@ const OrderDetail = () => {
                                 antes de iniciar este proceso.
                               </div>
                             )}
-                            {processInputLocked && (
+                            {processInputLocked && !orderFinished && (
                               <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
                                 Los datos de entrada quedaron bloqueados desde
                                 que este proceso fue iniciado.
@@ -1071,7 +1218,7 @@ const OrderDetail = () => {
                               <Label>Maquinaria</Label>
                               <Select
                                 value={startPayload.machinery_id}
-                                disabled={processInputLocked}
+                                disabled={processInputLocked && !isEditingActive}
                                 onValueChange={(value) =>
                                   setStartPayload((p) => ({
                                     ...p,
@@ -1110,7 +1257,7 @@ const OrderDetail = () => {
                               <Select
                                 value={startPayload.operator_user_id}
                                 disabled={
-                                  processInputLocked ||
+                                  (processInputLocked && !isEditingActive) ||
                                   !startPayload.machinery_id ||
                                   selectedMachineryOperators.length === 0
                                 }
@@ -1177,7 +1324,7 @@ const OrderDetail = () => {
                             <div className="space-y-2">
                               <Label>Observaciones</Label>
                               <Input
-                                disabled={processInputLocked}
+                                disabled={processInputLocked && !isEditingActive}
                                 value={startPayload.observations}
                                 onChange={(e) =>
                                   setStartPayload((p) => ({
@@ -1187,31 +1334,33 @@ const OrderDetail = () => {
                                 }
                               />
                             </div>
-                            <Button
-                              onClick={submitStart}
-                              disabled={
-                                !canOperate ||
-                                activeProcess?.process_state !== "PENDIENTE" ||
-                                startBlockedByPreviousProcess ||
-                                submittingAction === "start"
-                              }
-                              className="h-16 w-full rounded-xl bg-blue-600 px-5 text-base font-semibold text-white hover:bg-blue-700 cursor-pointer"
-                            >
-                              {submittingAction === "start" ? (
-                                <>
-                                  <Loader2
-                                    size={18}
-                                    className="mr-2 animate-spin"
-                                  />
-                                  Iniciando...
-                                </>
-                              ) : (
-                                <>
-                                  <PlayCircle size={18} className="mr-2" />
-                                  Iniciar proceso
-                                </>
-                              )}
-                            </Button>
+                            {!orderFinished && (
+                              <Button
+                                onClick={submitStart}
+                                disabled={
+                                  !canOperate ||
+                                  activeProcess?.process_state !== "PENDIENTE" ||
+                                  startBlockedByPreviousProcess ||
+                                  submittingAction === "start"
+                                }
+                                className="h-16 w-full rounded-xl bg-blue-600 px-5 text-base font-semibold text-white hover:bg-blue-700 cursor-pointer"
+                              >
+                                {submittingAction === "start" ? (
+                                  <>
+                                    <Loader2
+                                      size={18}
+                                      className="mr-2 animate-spin"
+                                    />
+                                    Iniciando...
+                                  </>
+                                ) : (
+                                  <>
+                                    <PlayCircle size={18} className="mr-2" />
+                                    Iniciar proceso
+                                  </>
+                                )}
+                              </Button>
+                            )}
                           </div>
 
                           <div className="p-5 space-y-4">
@@ -1242,7 +1391,7 @@ const OrderDetail = () => {
                                     disabled
                                     value={receivedQuantity ?? ""}
                                   />
-                                  {canEditReceived && (
+                                  {(canEditReceived || isEditingActive) && (
                                     <Button
                                       type="button"
                                       size="icon"
@@ -1265,7 +1414,7 @@ const OrderDetail = () => {
                                 <Input
                                   type="text"
                                   inputMode="numeric"
-                                  disabled={!canFinishActiveProcess}
+                                  disabled={!canFinishActiveProcess && !isEditingActive}
                                   value={finishPayload.quantity_damaged}
                                   onChange={(e) => {
                                     const raw = e.target.value;
@@ -1312,7 +1461,7 @@ const OrderDetail = () => {
                               <div className="space-y-2 sm:col-span-3">
                                 <Label>Observaciones</Label>
                                 <Input
-                                  disabled={!canFinishActiveProcess}
+                                  disabled={!canFinishActiveProcess && !isEditingActive}
                                   value={finishPayload.end_observations}
                                   onChange={(e) =>
                                     setFinishPayload((p) => ({
@@ -1322,37 +1471,74 @@ const OrderDetail = () => {
                                   }
                                 />
                               </div>
-                              <div className="sm:col-span-3">
-                                <Button
-                                  onClick={submitFinish}
-                                  disabled={
-                                    !canOperate ||
-                                    !canFinishActiveProcess ||
-                                    submittingAction === "finish"
-                                  }
-                                  className="h-16 w-full rounded-xl bg-green-600 px-5 text-base font-semibold text-white hover:bg-green-700 cursor-pointer"
-                                >
-                                  {submittingAction === "finish" ? (
-                                    <>
-                                      <Loader2
-                                        size={18}
-                                        className="mr-2 animate-spin"
-                                      />
-                                      Finalizando...
-                                    </>
-                                  ) : (
-                                    <>
-                                      <CheckCircle2
-                                        size={18}
-                                        className="mr-2"
-                                      />
-                                      Finalizar proceso
-                                    </>
-                                  )}
-                                </Button>
-                              </div>
+                              {!orderFinished && (
+                                <div className="sm:col-span-3">
+                                  <Button
+                                    onClick={submitFinish}
+                                    disabled={
+                                      !canOperate ||
+                                      !canFinishActiveProcess ||
+                                      submittingAction === "finish"
+                                    }
+                                    className="h-16 w-full rounded-xl bg-green-600 px-5 text-base font-semibold text-white hover:bg-green-700 cursor-pointer"
+                                  >
+                                    {submittingAction === "finish" ? (
+                                      <>
+                                        <Loader2
+                                          size={18}
+                                          className="mr-2 animate-spin"
+                                        />
+                                        Finalizando...
+                                      </>
+                                    ) : (
+                                      <>
+                                        <CheckCircle2
+                                          size={18}
+                                          className="mr-2"
+                                        />
+                                        Finalizar proceso
+                                      </>
+                                    )}
+                                  </Button>
+                                </div>
+                              )}
                             </div>
                           </div>
+                          {isEditingActive && (
+                            <div className="flex flex-col gap-3 border-t border-slate-200 bg-slate-50 p-5 sm:flex-row lg:col-span-2">
+                              <Button
+                                variant="outline"
+                                onClick={cancelEditProcess}
+                                disabled={submittingAction === "edit"}
+                                className="h-14 flex-1 rounded-xl border-slate-300 text-base font-semibold cursor-pointer"
+                              >
+                                <X size={18} className="mr-2" />
+                                Cancelar
+                              </Button>
+                              <Button
+                                onClick={submitEditProcess}
+                                disabled={
+                                  submittingAction === "edit" || !isEditDirty
+                                }
+                                className="h-14 flex-1 rounded-xl bg-[#13529a] px-5 text-base font-semibold text-white hover:bg-[#0f3f7a] disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer"
+                              >
+                                {submittingAction === "edit" ? (
+                                  <>
+                                    <Loader2
+                                      size={18}
+                                      className="mr-2 animate-spin"
+                                    />
+                                    Guardando...
+                                  </>
+                                ) : (
+                                  <>
+                                    <Save size={18} className="mr-2" />
+                                    Guardar
+                                  </>
+                                )}
+                              </Button>
+                            </div>
+                          )}
                         </div>
                       )}
                     </div>

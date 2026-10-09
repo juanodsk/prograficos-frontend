@@ -1,4 +1,5 @@
 import { useAuthStore } from "../../store/authStore";
+import { hasPermission } from "@/lib/permissions";
 import { useState, useEffect, useCallback } from "react";
 import processesService from "@/services/processes.service";
 
@@ -37,6 +38,7 @@ const reorderProcessList = (items, draggedProcessId, targetProcessId) => {
 
 const Processes = () => {
   const { user: currentUser } = useAuthStore();
+  const canManage = hasPermission(currentUser, "catalogs:manage");
   const [processes, setProcesses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [draggedProcessId, setDraggedProcessId] = useState(null);
@@ -250,8 +252,8 @@ const Processes = () => {
 
   // ───────────── ACCIONES ─────────────
   const actions = (row) => {
-    const canEdit = ["ADMIN", "SUPERVISOR"].includes(currentUser?.role);
-    const canDelete = ["ADMIN", "SUPERVISOR"].includes(currentUser?.role);
+    const canEdit = canManage;
+    const canDelete = canManage;
 
     return (
       <div className="flex items-center justify-end gap-2">
@@ -299,13 +301,15 @@ const Processes = () => {
           </p>
         </div>
 
-        <Button
-          onClick={handleOpenCreate}
-          className="bg-[#13529a] hover:bg-[#0f3f7a] text-white cursor-pointer"
-        >
-          <Plus size={16} className="mr-2" />
-          Nuevo Proceso
-        </Button>
+        {canManage && (
+          <Button
+            onClick={handleOpenCreate}
+            className="bg-[#13529a] hover:bg-[#0f3f7a] text-white cursor-pointer"
+          >
+            <Plus size={16} className="mr-2" />
+            Nuevo Proceso
+          </Button>
+        )}
       </div>
 
       {/* Tabla */}
@@ -359,9 +363,9 @@ const Processes = () => {
                         <button
                           type="button"
                           onPointerDown={(event) =>
-                            handlePointerStart(event, process.id)
+                            canManage && handlePointerStart(event, process.id)
                           }
-                          disabled={reordering}
+                          disabled={reordering || !canManage}
                           aria-label={`Mover proceso ${process.name}`}
                           className="rounded-xl bg-[#13529a]/10 p-2 text-[#13529a] touch-none cursor-grab active:cursor-grabbing disabled:cursor-wait"
                         >
