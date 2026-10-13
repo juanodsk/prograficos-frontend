@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/table";
 import {
   CheckCircle,
+  Copy,
   Eye,
   BookOpenCheck,
   LayoutGrid,
@@ -123,6 +124,7 @@ const Orders = () => {
 
   const canDeleteOrder = hasPermission(currentUser, "orders:delete");
   const canCreate = hasPermission(currentUser, "orders:create");
+  const canDuplicate = hasPermission(currentUser, "orders:duplicate");
   const canEdit = hasPermission(currentUser, "orders:update");
   // Terminar una orden requiere el permiso dedicado orders:finish.
   const canFinishOrder = hasPermission(currentUser, "orders:finish");
@@ -597,6 +599,19 @@ const Orders = () => {
                         <BookOpenCheck size={16} className="mr-2" />
                         Avance
                       </Button>
+                      {isFinishedOrder(order) && canDuplicate && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() =>
+                            navigate(`/ordenes/crear?duplicate=${order.id}`)
+                          }
+                          className="border-[#13529a]/30 text-[#13529a] hover:bg-[#13529a]/10 cursor-pointer"
+                        >
+                          <Copy size={16} className="mr-2" />
+                          Duplicar
+                        </Button>
+                      )}
                       {canEdit && (
                         <Button
                           size="sm"
@@ -637,7 +652,7 @@ const Orders = () => {
               </div>
             ) : (
               <div className="p-4">
-                <div className="overflow-hidden rounded-2xl border border-slate-200">
+                <div className="overflow-x-auto rounded-2xl border border-slate-200">
                   <Table>
                     <TableHeader>
                       <TableRow>
@@ -718,7 +733,7 @@ const Orders = () => {
                             </TableCell>
                           )}
                           <TableCell>
-                            <div className="flex flex-wrap justify-end gap-2">
+                            <div className="flex flex-nowrap items-center justify-end gap-2">
                               <Button
                                 size="sm"
                                 variant="outline"
@@ -728,6 +743,21 @@ const Orders = () => {
                                 <BookOpenCheck size={16} className="mr-2" />
                                 Avance
                               </Button>
+                              {isFinishedOrder(order) && canDuplicate && (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() =>
+                                    navigate(
+                                      `/ordenes/crear?duplicate=${order.id}`,
+                                    )
+                                  }
+                                  className="border-[#13529a]/30 text-[#13529a] hover:bg-[#13529a]/10 cursor-pointer"
+                                >
+                                  <Copy size={16} className="mr-2" />
+                                  Duplicar
+                                </Button>
+                              )}
                               {canEdit && (
                                 <Button
                                   size="sm"

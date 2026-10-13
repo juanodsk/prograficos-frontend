@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 import ordersService from "@/services/orders.service";
 import thirdsService from "@/services/thirds.service";
@@ -230,7 +230,11 @@ const renderProcessFieldInput = (
 const OrderForm = () => {
   const navigate = useNavigate();
   const { id } = useParams();
+  const [searchParams] = useSearchParams();
   const isEditing = Boolean(id);
+  // Duplicar: crear una nueva orden precargando SOLO el encabezado de otra.
+  const duplicateFromId = !isEditing ? searchParams.get("duplicate") : null;
+  const isDuplicating = Boolean(duplicateFromId);
 
   const [loading, setLoading] = useState(false);
   const [fetching, setFetching] = useState(true);
@@ -262,7 +266,7 @@ const OrderForm = () => {
 
   useEffect(() => {
     loadData();
-  }, [id]);
+  }, [id, duplicateFromId]);
 
   const loadData = async () => {
     try {
@@ -280,7 +284,11 @@ const OrderForm = () => {
         paperTypesService.getAll({ onlyActive: true }),
         productsService.getAll({ onlyActive: true, pageSize: 1000 }),
         processesService.getAll({ onlyActive: true }),
-        isEditing ? ordersService.getById(id) : Promise.resolve(null),
+        isEditing
+          ? ordersService.getById(id)
+          : isDuplicating
+            ? ordersService.getById(duplicateFromId)
+            : Promise.resolve(null),
       ]);
 
       const measures = measuresRes?.data || [];
@@ -313,10 +321,13 @@ const OrderForm = () => {
 
       if (orderRes?.data) {
         const order = orderRes.data;
+        // Al duplicar se crea una orden nueva: nunca queda bloqueada.
         setIsOrderLocked(
-          (order.detail_production_orders || []).some(
-            (detail) => detail.process_state !== "PENDIENTE",
-          ),
+          isDuplicating
+            ? false
+            : (order.detail_production_orders || []).some(
+                (detail) => detail.process_state !== "PENDIENTE",
+              ),
         );
         setForm({
           calculation_mode: "TOTAL_REQUIRED",
@@ -339,22 +350,28 @@ const OrderForm = () => {
           paper_type_id: order.paper_type_id ? String(order.paper_type_id) : "",
           troquel_id: order.troquel_id ? String(order.troquel_id) : "",
           product_id: order.product_id ? String(order.product_id) : "",
-          processes:
-            order.detail_production_orders?.map((detail) =>
-              String(detail.process_id),
-            ) || [],
+          // Al duplicar NO se arrastran los procesos: se eligen de nuevo.
+          processes: isDuplicating
+            ? []
+            : order.detail_production_orders?.map((detail) =>
+                String(detail.process_id),
+              ) || [],
         });
 
-        const prefillFieldValues = {};
-        (order.detail_production_orders || []).forEach((detail) => {
-          (detail.field_values || []).forEach((fieldValue) => {
-            if (fieldValue.field_definition_id != null) {
-              prefillFieldValues[fieldValue.field_definition_id] =
-                fieldValue.value;
-            }
+        if (isDuplicating) {
+          setProcessFieldValues({});
+        } else {
+          const prefillFieldValues = {};
+          (order.detail_production_orders || []).forEach((detail) => {
+            (detail.field_values || []).forEach((fieldValue) => {
+              if (fieldValue.field_definition_id != null) {
+                prefillFieldValues[fieldValue.field_definition_id] =
+                  fieldValue.value;
+              }
+            });
           });
-        });
-        setProcessFieldValues(prefillFieldValues);
+          setProcessFieldValues(prefillFieldValues);
+        }
       } else {
         setIsOrderLocked(false);
         setProcessFieldValues({});
@@ -705,11 +722,16 @@ const OrderForm = () => {
               Orden de producción
             </p>
             <h1 className="text-3xl font-bold">
-              {isEditing ? "Editar Orden" : "Nueva Orden"}
+              {isEditing
+                ? "Editar Orden"
+                : isDuplicating
+                  ? "Duplicar Orden"
+                  : "Nueva Orden"}
             </h1>
             <p className="max-w-2xl text-sm text-blue-100">
-              Configura la orden base y el flujo de procesos que se diligenciará
-              luego en planta.
+              {isDuplicating
+                ? `Encabezado precargado de la orden #${duplicateFromId}. Ajusta lo necesario, elige los procesos y guárdala como una orden nueva.`
+                : "Configura la orden base y el flujo de procesos que se diligenciará luego en planta."}
             </p>
           </div>
 

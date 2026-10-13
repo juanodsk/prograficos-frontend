@@ -127,7 +127,9 @@ const router = createBrowserRouter([
   },
   {
     path: "/",
-    element: <ProtectedRoute permissions={["orders:create"]} />,
+    element: (
+      <ProtectedRoute permissions={["orders:create", "orders:duplicate"]} />
+    ),
     children: [{ path: "ordenes/crear", element: <OrderForm /> }],
   },
   {
