@@ -3,7 +3,14 @@ import { useReactToPrint } from "react-to-print";
 import { toast } from "sonner";
 import ordersService from "@/services/orders.service";
 import { Button } from "@/components/ui/button";
-import { Loader2, Printer, X, AlertTriangle } from "lucide-react";
+import {
+  Loader2,
+  Printer,
+  X,
+  AlertTriangle,
+  Pencil,
+  Check,
+} from "lucide-react";
 
 const MESES = [
   "ENERO",
@@ -35,6 +42,11 @@ const MIN_ROWS = 6;
 export default function RemisionModal({ open, onClose, orderId }) {
   const [order, setOrder] = useState(null);
   const [loading, setLoading] = useState(false);
+  // Cantidad a facturar: editable SOLO para esta impresión (no toca la BD).
+  const [qtyOverride, setQtyOverride] = useState("");
+  const [editingQty, setEditingQty] = useState(false);
+  const qtyBeforeEdit = useRef("");
+  const qtyInputRef = useRef(null);
   const printRef = useRef(null);
 
   const handlePrint = useReactToPrint({
@@ -58,7 +70,14 @@ export default function RemisionModal({ open, onClose, orderId }) {
       try {
         setLoading(true);
         const res = await ordersService.getById(orderId);
-        if (active) setOrder(res?.data || null);
+        if (active) {
+          const data = res?.data || null;
+          setOrder(data);
+          setQtyOverride(
+            String(data?.total_real_delivered ?? data?.total_delivered ?? 0),
+          );
+          setEditingQty(false);
+        }
       } catch {
         toast.error("No se pudo cargar la orden para la remisión");
         onClose();
@@ -73,13 +92,27 @@ export default function RemisionModal({ open, onClose, orderId }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, orderId]);
 
+  // Al entrar en edición, enfocar y seleccionar el input de cantidad.
+  useEffect(() => {
+    if (!editingQty) return;
+    const t = setTimeout(() => {
+      qtyInputRef.current?.focus();
+      qtyInputRef.current?.select();
+    }, 0);
+    return () => clearTimeout(t);
+  }, [editingQty]);
+
   if (!open) return null;
 
   const product = order?.product || null;
   const client = product?.third || null;
   const price = product?.sale_price != null ? Number(product.sale_price) : null;
   const hasPrice = price != null && price > 0;
-  const quantity = order?.total_real_delivered ?? order?.total_delivered ?? 0;
+  // Unidades realmente entregadas (de la BD, solo referencia).
+  const deliveredQty =
+    order?.total_real_delivered ?? order?.total_delivered ?? 0;
+  // Cantidad que se imprime = la editable (puede ser menor por holgura).
+  const quantity = Number(qtyOverride) || 0;
 
   // Línea(s) de la remisión. Hoy una orden = un producto = una línea.
   const lines = order
@@ -95,6 +128,29 @@ export default function RemisionModal({ open, onClose, orderId }) {
     : [];
   const grandTotal = lines.reduce((acc, l) => acc + l.total, 0);
   const fillerRows = Math.max(0, MIN_ROWS - lines.length);
+
+  // ── Edición inline de la cantidad ──
+  const startEditQty = () => {
+    qtyBeforeEdit.current = qtyOverride; // snapshot para poder cancelar
+    setEditingQty(true);
+  };
+  const acceptEditQty = () => {
+    const n = Number(qtyOverride);
+    // No permitido: vacío, 0, negativo o mayor a lo entregado.
+    if (!qtyOverride || Number.isNaN(n) || n <= 0 || n > deliveredQty) {
+      toast.error(
+        `Valor no permitido. La cantidad debe estar entre 1 y ${nf.format(deliveredQty)} (lo entregado).`,
+      );
+      setQtyOverride(String(deliveredQty)); // vuelve al valor entregado original
+      setEditingQty(false);
+      return;
+    }
+    setEditingQty(false);
+  };
+  const cancelEditQty = () => {
+    setQtyOverride(qtyBeforeEdit.current); // vuelve al valor original
+    setEditingQty(false);
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -132,6 +188,17 @@ export default function RemisionModal({ open, onClose, orderId }) {
                     No es posible imprimir la orden porque algún producto no
                     tiene precio asignado.
                   </span>
+                </div>
+              )}
+
+              {hasPrice && (
+                <div className="mb-3 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs text-slate-500">
+                  Entregadas:{" "}
+                  <span className="font-semibold text-slate-700">
+                    {nf.format(deliveredQty)}
+                  </span>
+                  . Puedes ajustar la <strong>cantidad</strong> a facturar solo
+                  para esta impresión; no modifica la orden original.
                 </div>
               )}
 
@@ -213,7 +280,68 @@ export default function RemisionModal({ open, onClose, orderId }) {
                           {l.description}
                         </td>
                         <td className="border border-black px-2 py-1 text-center">
-                          {nf.format(l.quantity)}
+                          <div className="flex items-center justify-center gap-1">
+                            <input
+                              ref={qtyInputRef}
+                              type="text"
+                              inputMode="numeric"
+                              value={qtyOverride}
+                              disabled={!editingQty}
+                              title={`Entregadas: ${nf.format(deliveredQty)} (máx.)`}
+                              onChange={(e) => {
+                                const digits = e.target.value.replace(
+                                  /\D/g,
+                                  "",
+                                );
+                                if (digits === "") {
+                                  setQtyOverride("");
+                                  return;
+                                }
+                                // No puede facturar más de lo entregado.
+                                setQtyOverride(
+                                  String(
+                                    Math.min(Number(digits), deliveredQty),
+                                  ),
+                                );
+                              }}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") acceptEditQty();
+                                if (e.key === "Escape") cancelEditQty();
+                              }}
+                              className="w-16 bg-transparent text-center font-semibold text-black outline-none disabled:cursor-default disabled:opacity-100"
+                            />
+                            <span className="flex items-center gap-0.5 print:hidden">
+                              {!editingQty ? (
+                                <button
+                                  type="button"
+                                  title="Editar cantidad"
+                                  onClick={startEditQty}
+                                  className="cursor-pointer text-slate-400 transition-colors hover:text-[#13529a]"
+                                >
+                                  <Pencil size={13} />
+                                </button>
+                              ) : (
+                                <>
+                                  <button
+                                    type="button"
+                                    title="Aceptar"
+                                    onClick={acceptEditQty}
+                                    className="cursor-pointer text-blue-700 transition-colors hover:text-blue-800"
+                                  >
+                                    <Check size={15} />
+                                  </button>
+                                  <button
+                                    type="button"
+                                    title="Cancelar edición"
+                                    onClick={cancelEditQty}
+                                    className="cursor-pointer text-red-700 transition-colors hover:text-red-800"
+                                  >
+                                    <X size={15} />
+                                  </button>
+                                </>
+                              )}
+                            </span>
+                          </div>
                         </td>
                         <td className="border border-black px-2 py-1 text-right">
                           {hasPrice ? money(l.unit) : "-"}
