@@ -6,6 +6,7 @@ import { hasPermission } from "@/lib/permissions";
 import ConfirmDialog from "../../components/common/ConfirmDialog";
 import ServerPagination from "../../components/common/ServerPagination";
 import RemisionModal from "./RemisionModal";
+import RemisionModalMassive from "./RemisionModalMassive";
 import ordersService from "@/services/orders.service";
 import { connectSocket } from "@/services/socket.service";
 import StatusBadge from "@/components/common/StatusBadge";
@@ -128,12 +129,15 @@ const Orders = () => {
   const canCreate = hasPermission(currentUser, "orders:create");
   const canDuplicate = hasPermission(currentUser, "orders:duplicate");
   const canPrint = hasPermission(currentUser, "orders:print");
+  const canPrintMassive = hasPermission(currentUser, "orders:print-massive");
   const canEdit = hasPermission(currentUser, "orders:update");
   // Terminar una orden requiere el permiso dedicado orders:finish.
   const canFinishOrder = hasPermission(currentUser, "orders:finish");
 
   // Orden cuya remisión se está previsualizando (modal de impresión).
   const [remisionOrderId, setRemisionOrderId] = useState(null);
+  // Modal de impresión masiva (varias órdenes de un cliente).
+  const [massiveOpen, setMassiveOpen] = useState(false);
 
   const [sort, setSort] = useState({ sortBy: "date", sortDirection: "desc" });
 
@@ -435,7 +439,19 @@ const Orders = () => {
             </div>
 
             <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
-              <div className="inline-flex rounded-2xl border border-slate-200 bg-white p-1 shadow-sm">
+              {isFinishedTab && canPrintMassive && (
+                <Button
+                  onClick={() => setMassiveOpen(true)}
+                  className="cursor-pointer bg-[#13529a] text-white hover:bg-[#0f3f7a]"
+                >
+                  <Printer size={16} className="mr-2" />
+                  Impresión Masiva
+                </Button>
+              )}
+              <div
+                id="view-mode-orders-finished"
+                className="inline-flex rounded-2xl border border-slate-200 bg-white p-1 shadow-sm"
+              >
                 <button
                   type="button"
                   onClick={() => setViewMode("cards")}
@@ -682,10 +698,7 @@ const Orders = () => {
                         <TableHead>Estado</TableHead>
                         {isFinishedTab ? (
                           <>
-                            {sortHead(
-                              "Entregado",
-                              "total_real_delivered",
-                            )}
+                            {sortHead("Entregado", "total_real_delivered")}
                             {sortHead("Dañadas", "total_damaged")}
                           </>
                         ) : (
@@ -870,6 +883,11 @@ const Orders = () => {
         open={remisionOrderId != null}
         orderId={remisionOrderId}
         onClose={() => setRemisionOrderId(null)}
+      />
+
+      <RemisionModalMassive
+        open={massiveOpen}
+        onClose={() => setMassiveOpen(false)}
       />
     </div>
   );
