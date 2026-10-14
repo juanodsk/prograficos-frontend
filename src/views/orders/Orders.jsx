@@ -5,6 +5,7 @@ import { useAuthStore } from "../../store/authStore";
 import { hasPermission } from "@/lib/permissions";
 import ConfirmDialog from "../../components/common/ConfirmDialog";
 import ServerPagination from "../../components/common/ServerPagination";
+import RemisionModal from "./RemisionModal";
 import ordersService from "@/services/orders.service";
 import { connectSocket } from "@/services/socket.service";
 import StatusBadge from "@/components/common/StatusBadge";
@@ -22,6 +23,7 @@ import {
 import {
   CheckCircle,
   Copy,
+  Printer,
   Eye,
   BookOpenCheck,
   LayoutGrid,
@@ -125,9 +127,13 @@ const Orders = () => {
   const canDeleteOrder = hasPermission(currentUser, "orders:delete");
   const canCreate = hasPermission(currentUser, "orders:create");
   const canDuplicate = hasPermission(currentUser, "orders:duplicate");
+  const canPrint = hasPermission(currentUser, "orders:print");
   const canEdit = hasPermission(currentUser, "orders:update");
   // Terminar una orden requiere el permiso dedicado orders:finish.
   const canFinishOrder = hasPermission(currentUser, "orders:finish");
+
+  // Orden cuya remisión se está previsualizando (modal de impresión).
+  const [remisionOrderId, setRemisionOrderId] = useState(null);
 
   const [sort, setSort] = useState({ sortBy: "date", sortDirection: "desc" });
 
@@ -625,6 +631,17 @@ const Orders = () => {
                           Editar
                         </Button>
                       )}
+                      {isFinishedOrder(order) && canPrint && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => setRemisionOrderId(order.id)}
+                          className="border-teal-300 text-teal-700 hover:bg-teal-600 hover:text-white cursor-pointer"
+                        >
+                          <Printer size={16} className="mr-2" />
+                          Imprimir
+                        </Button>
+                      )}
                       {!isFinishedOrder(order) && canFinishOrder && (
                         <Button
                           size="sm"
@@ -771,6 +788,17 @@ const Orders = () => {
                                   Editar
                                 </Button>
                               )}
+                              {isFinishedOrder(order) && canPrint && (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => setRemisionOrderId(order.id)}
+                                  className="border-teal-300 text-teal-700 hover:bg-teal-600 hover:text-white cursor-pointer"
+                                >
+                                  <Printer size={16} className="mr-2" />
+                                  Imprimir
+                                </Button>
+                              )}
                               {!isFinishedOrder(order) && canFinishOrder && (
                                 <Button
                                   size="sm"
@@ -836,6 +864,12 @@ const Orders = () => {
         confirmText="Sí, eliminar"
         cancelText="Cancelar"
         variant="danger"
+      />
+
+      <RemisionModal
+        open={remisionOrderId != null}
+        orderId={remisionOrderId}
+        onClose={() => setRemisionOrderId(null)}
       />
     </div>
   );
