@@ -14,9 +14,24 @@ import {
   UtensilsCrossed,
   X,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import Seo from "@/components/common/Seo";
+
+// El visor 3D (three.js + R3F) se carga aparte para no inflar el bundle inicial.
+const PackageHero3D = lazy(() => import("./PackageHero3D"));
+
+// Fallback liviano (sin three): se usa mientras carga el 3D y con
+// prefers-reduced-motion / dispositivos que no deben animar.
+const Hero3DFallback = () => (
+  <div className="flex h-full w-full items-center justify-center rounded-[2rem] border border-white/70 bg-[linear-gradient(145deg,_rgba(19,82,154,0.96),_rgba(9,28,52,0.98))] shadow-[0_30px_120px_rgba(15,63,119,0.35)]">
+    <img
+      src="/logo_pr.png"
+      alt="Prográficos"
+      className="h-24 w-24 rounded-2xl bg-white/10 p-3"
+    />
+  </div>
+);
 import productOne from "./productos/img_1.jpeg";
 import productTwo from "./productos/img_2.jpeg";
 import productFour from "./productos/img_4.jpeg";
@@ -217,6 +232,15 @@ const ProductCarousel = () => {
 
 const Landing = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [reducedMotion, setReducedMotion] = useState(false);
+
+  useEffect(() => {
+    const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
+    setReducedMotion(mq.matches);
+    const onChange = (e) => setReducedMotion(e.matches);
+    mq.addEventListener?.("change", onChange);
+    return () => mq.removeEventListener?.("change", onChange);
+  }, []);
 
   const structuredData = [
     {
@@ -350,7 +374,7 @@ const Landing = () => {
                   Neiva, Huila
                 </div>
 
-                <h1 className="mt-6 max-w-4xl text-4xl leading-tight font-semibold tracking-tight text-slate-950 md:text-6xl">
+                <h1 className="mt-6 max-w-4xl text-4xl leading-tight font-semibold tracking-tight text-slate-950">
                   Cajas y empaques personalizados en papel y cartón para tu
                   negocio
                 </h1>
@@ -392,50 +416,17 @@ const Landing = () => {
               </div>
 
               <div className="relative">
-                <div className="absolute -left-8 top-10 hidden h-36 w-36 rounded-full border border-[#a8cf45]/50 bg-white/60 blur-[1px] md:block" />
-                <div className="relative rounded-[2rem] border border-white/70 bg-slate-950 p-6 text-white shadow-[0_30px_120px_rgba(15,63,119,0.35)]">
-                  <div className="rounded-[1.7rem] border border-white/10 bg-[linear-gradient(145deg,_rgba(19,82,154,0.96),_rgba(9,28,52,0.98))] p-8">
-                    <div className="flex items-center justify-between">
-                      <span className="rounded-full border border-white/15 bg-white/10 px-3 py-1 text-xs uppercase tracking-[0.28em] text-white/75">
-                        Prográficos
-                      </span>
-                      <img
-                        src="/logo_pr.png"
-                        alt="Icono Prográficos"
-                        className="h-14 w-14 rounded-2xl bg-white/10 p-2"
-                      />
-                    </div>
-
-                    <div className="mt-10 space-y-4">
-                      <p className="text-sm uppercase tracking-[0.3em] text-[#a8cf45]">
-                        Empaques y piezas gráficas
-                      </p>
-                      <h2 className="text-3xl font-semibold leading-tight">
-                        Presencia digital clara, para mostrar lo que tu empresa
-                        hace
-                      </h2>
-                      <p className="max-w-md text-sm leading-7 text-white/78">
-                        Cajas, empaques y soluciones visuales pensadas para
-                        marcas que necesitan presentación profesional y una
-                        mejor imagen comercial.
-                      </p>
-                    </div>
-
-                    <div className="mt-10 grid gap-4 sm:grid-cols-2">
-                      <div className="rounded-3xl border border-white/10 bg-white/8 p-4">
-                        <p className="text-sm text-white/65">Línea principal</p>
-                        <p className="mt-2 text-xl font-semibold">
-                          Papel y cartón
-                        </p>
-                      </div>
-                      <div className="rounded-3xl border border-white/10 bg-white/8 p-4">
-                        <p className="text-sm text-white/65">Aplicación</p>
-                        <p className="mt-2 text-xl font-semibold">
-                          Empaque personalizado
-                        </p>
-                      </div>
-                    </div>
-                  </div>
+                <div
+                  id="3dBox"
+                  className="relative h-[320px] w-full cursor-grab active:cursor-grabbing sm:h-[400px] md:h-[460px] lg:h-[500px] xl:h-[560px]"
+                >
+                  {reducedMotion ? (
+                    <Hero3DFallback />
+                  ) : (
+                    <Suspense fallback={<Hero3DFallback />}>
+                      <PackageHero3D />
+                    </Suspense>
+                  )}
                 </div>
               </div>
             </div>
