@@ -1,27 +1,53 @@
 import {
   ArrowRight,
-  Box,
   Building2,
   ChevronLeft,
   ChevronRight,
   CheckCircle2,
   Facebook,
   Instagram,
+  Loader2,
   Menu,
   MessageCircle,
   Package,
-  ShoppingBag,
-  UtensilsCrossed,
   X,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import Seo from "@/components/common/Seo";
+import AOS from "aos";
+import "aos/dist/aos.css";
+
+// El visor 3D (three.js + R3F) se carga aparte para no inflar el bundle inicial.
+const PackageHero3D = lazy(() => import("./PackageHero3D"));
+
+// Fallback liviano (sin three): se usa mientras carga el 3D y con
+// prefers-reduced-motion / dispositivos que no deben animar.
+const Hero3DFallback = () => (
+  <div className="flex h-full w-full items-center justify-center rounded-[2rem] border border-white/70 bg-[linear-gradient(145deg,_rgba(19,82,154,0.96),_rgba(9,28,52,0.98))] shadow-[0_30px_120px_rgba(15,63,119,0.35)]">
+    <img
+      src="/logo_pr.png"
+      alt="Prográficos"
+      className="h-24 w-24 rounded-2xl bg-white/10 p-3"
+    />
+  </div>
+);
+
+// Spinner sutil mientras se descarga el chunk del 3D (sin fondo, para evitar el
+// "destello" de la card azul antes de que aparezca la caja).
+const Hero3DLoader = () => (
+  <div className="flex h-full w-full items-center justify-center">
+    <Loader2 className="h-9 w-9 animate-spin text-[#13529a]/50" />
+  </div>
+);
 import productOne from "./productos/img_1.jpeg";
 import productTwo from "./productos/img_2.jpeg";
 import productFour from "./productos/img_4.jpeg";
 import productFive from "./productos/img_5.jpeg";
 import productSix from "./productos/img_6.jpeg";
+import solucionCajas1 from "@/assets/images/cajas-1.jpg";
+import solucionCajas2 from "@/assets/images/cajas-2.jpg";
+import solucionCajas3 from "@/assets/images/cajas-3.jpg";
 
 const highlights = [
   "Cajas y empaques personalizados en papel y cartón.",
@@ -31,19 +57,19 @@ const highlights = [
 
 const solutions = [
   {
-    icon: <Box className="h-6 w-6" />,
+    image: solucionCajas1,
     title: "Cajas personalizadas",
     description:
       "Desarrollamos empaques en papel y cartón adaptados a la presentación, protección y estilo de cada producto.",
   },
   {
-    icon: <UtensilsCrossed className="h-6 w-6" />,
+    image: solucionCajas2,
     title: "Empaques para alimentos",
     description:
       "Opciones funcionales para negocios que necesitan empaques prácticos, visuales y alineados con su marca.",
   },
   {
-    icon: <ShoppingBag className="h-6 w-6" />,
+    image: solucionCajas3,
     title: "Empaques para retail",
     description:
       "Soluciones orientadas a joyería, belleza y otras líneas comerciales que requieren una mejor presentación.",
@@ -217,6 +243,28 @@ const ProductCarousel = () => {
 
 const Landing = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [reducedMotion, setReducedMotion] = useState(false);
+
+  useEffect(() => {
+    const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
+    setReducedMotion(mq.matches);
+    const onChange = (e) => setReducedMotion(e.matches);
+    mq.addEventListener?.("change", onChange);
+    return () => mq.removeEventListener?.("change", onChange);
+  }, []);
+
+  // Animaciones al hacer scroll (AOS). Accesibilidad: se desactivan por completo
+  // si el usuario prefiere menos movimiento (prefers-reduced-motion).
+  useEffect(() => {
+    AOS.init({
+      duration: 700,
+      easing: "ease-out-cubic",
+      once: true,
+      offset: 80,
+      disable: () =>
+        window.matchMedia("(prefers-reduced-motion: reduce)").matches,
+    });
+  }, []);
 
   const structuredData = [
     {
@@ -350,7 +398,7 @@ const Landing = () => {
                   Neiva, Huila
                 </div>
 
-                <h1 className="mt-6 max-w-4xl text-4xl leading-tight font-semibold tracking-tight text-slate-950 md:text-6xl">
+                <h1 className="mt-6 max-w-4xl text-4xl leading-tight font-semibold tracking-tight text-slate-950">
                   Cajas y empaques personalizados en papel y cartón para tu
                   negocio
                 </h1>
@@ -392,50 +440,17 @@ const Landing = () => {
               </div>
 
               <div className="relative">
-                <div className="absolute -left-8 top-10 hidden h-36 w-36 rounded-full border border-[#a8cf45]/50 bg-white/60 blur-[1px] md:block" />
-                <div className="relative rounded-[2rem] border border-white/70 bg-slate-950 p-6 text-white shadow-[0_30px_120px_rgba(15,63,119,0.35)]">
-                  <div className="rounded-[1.7rem] border border-white/10 bg-[linear-gradient(145deg,_rgba(19,82,154,0.96),_rgba(9,28,52,0.98))] p-8">
-                    <div className="flex items-center justify-between">
-                      <span className="rounded-full border border-white/15 bg-white/10 px-3 py-1 text-xs uppercase tracking-[0.28em] text-white/75">
-                        Prográficos
-                      </span>
-                      <img
-                        src="/logo_pr.png"
-                        alt="Icono Prográficos"
-                        className="h-14 w-14 rounded-2xl bg-white/10 p-2"
-                      />
-                    </div>
-
-                    <div className="mt-10 space-y-4">
-                      <p className="text-sm uppercase tracking-[0.3em] text-[#a8cf45]">
-                        Empaques y piezas gráficas
-                      </p>
-                      <h2 className="text-3xl font-semibold leading-tight">
-                        Presencia digital clara, para mostrar lo que tu empresa
-                        hace
-                      </h2>
-                      <p className="max-w-md text-sm leading-7 text-white/78">
-                        Cajas, empaques y soluciones visuales pensadas para
-                        marcas que necesitan presentación profesional y una
-                        mejor imagen comercial.
-                      </p>
-                    </div>
-
-                    <div className="mt-10 grid gap-4 sm:grid-cols-2">
-                      <div className="rounded-3xl border border-white/10 bg-white/8 p-4">
-                        <p className="text-sm text-white/65">Línea principal</p>
-                        <p className="mt-2 text-xl font-semibold">
-                          Papel y cartón
-                        </p>
-                      </div>
-                      <div className="rounded-3xl border border-white/10 bg-white/8 p-4">
-                        <p className="text-sm text-white/65">Aplicación</p>
-                        <p className="mt-2 text-xl font-semibold">
-                          Empaque personalizado
-                        </p>
-                      </div>
-                    </div>
-                  </div>
+                <div
+                  id="3dBox"
+                  className="relative h-[320px] w-full cursor-grab active:cursor-grabbing sm:h-[400px] md:h-[460px] lg:h-[500px] xl:h-[560px]"
+                >
+                  {reducedMotion ? (
+                    <Hero3DFallback />
+                  ) : (
+                    <Suspense fallback={<Hero3DLoader />}>
+                      <PackageHero3D />
+                    </Suspense>
+                  )}
                 </div>
               </div>
             </div>
@@ -449,7 +464,7 @@ const Landing = () => {
           className="mx-auto w-full max-w-7xl px-6 py-20 lg:px-10"
         >
           <div className="grid gap-10 lg:grid-cols-[0.9fr_1.1fr]">
-            <div>
+            <div data-aos="fade-right">
               <p className="text-sm font-semibold uppercase tracking-[0.25em] text-[#13529a]">
                 Empresa
               </p>
@@ -459,7 +474,7 @@ const Landing = () => {
               </h2>
             </div>
 
-            <div className=" text-lg  text-slate-700">
+            <div className=" text-lg  text-slate-700" data-aos="fade-left">
               <p>
                 Prográficos S.A.S. proyecta una propuesta orientada a empaques
                 en papel y cartón, cajas personalizadas y piezas gráficas para
@@ -471,7 +486,7 @@ const Landing = () => {
 
         <section id="soluciones" className="bg-white/70 py-20">
           <div className="mx-auto w-full max-w-7xl px-6 lg:px-10">
-            <div className="max-w-2xl">
+            <div className="max-w-2xl" data-aos="fade-up">
               <p className="text-sm font-semibold uppercase tracking-[0.25em] text-[#13529a]">
                 Soluciones
               </p>
@@ -481,13 +496,20 @@ const Landing = () => {
             </div>
 
             <div className="mt-10 grid gap-6 md:grid-cols-3">
-              {solutions.map(({ icon, title, description }) => (
+              {solutions.map(({ image, title, description }, i) => (
                 <article
                   key={title}
-                  className="rounded-[2rem] border border-slate-200/70 bg-white p-7 shadow-[0_18px_60px_rgba(15,63,119,0.08)]"
+                  data-aos="fade-up"
+                  data-aos-delay={i * 120}
+                  className="flex flex-col items-center overflow-hidden rounded-[2rem] border border-slate-200/70 bg-white p-6 text-center shadow-[0_18px_60px_rgba(15,63,119,0.08)] sm:p-7"
                 >
-                  <div className="inline-flex rounded-2xl bg-[#13529a]/10 p-3 text-[#13529a]">
-                    {icon}
+                  <div className="w-full overflow-hidden rounded-2xl">
+                    <img
+                      src={image}
+                      alt={title}
+                      loading="lazy"
+                      className="mx-auto h-40 w-full object-cover object-center sm:h-48 lg:h-52"
+                    />
                   </div>
                   <h3 className="mt-5 text-2xl font-semibold text-slate-950">
                     {title}
@@ -499,7 +521,10 @@ const Landing = () => {
               ))}
             </div>
 
-            <div className="mt-12 rounded-[2rem] border border-slate-200/70 bg-[#f9fbf7] p-8">
+            <div
+              className="mt-12 rounded-[2rem] border border-slate-200/70 bg-[#f9fbf7] p-8"
+              data-aos="fade-up"
+            >
               <div className="flex items-center gap-3">
                 <Package className="h-5 w-5 text-[#13529a]" />
                 <p className="text-sm font-semibold uppercase tracking-[0.2em] text-[#13529a]">
@@ -522,7 +547,10 @@ const Landing = () => {
         </section>
 
         <section className="px-6 py-6 lg:px-10">
-          <div className="mx-auto w-full max-w-7xl rounded-[2.2rem] border border-[#13529a]/15 bg-[linear-gradient(135deg,_rgba(19,82,154,0.08),_rgba(168,207,69,0.12))] p-8 shadow-[0_18px_60px_rgba(15,63,119,0.08)] md:p-10">
+          <div
+            className="mx-auto w-full max-w-7xl rounded-[2.2rem] border border-[#13529a]/15 bg-[linear-gradient(135deg,_rgba(19,82,154,0.08),_rgba(168,207,69,0.12))] p-8 shadow-[0_18px_60px_rgba(15,63,119,0.08)] md:p-10"
+            data-aos="zoom-in-up"
+          >
             <div className="grid gap-8 lg:grid-cols-[1.1fr_0.9fr] lg:items-center">
               <div>
                 <p className="text-sm font-semibold uppercase tracking-[0.25em] text-[#13529a]">
@@ -563,7 +591,7 @@ const Landing = () => {
           id="proceso"
           className="mx-auto w-full max-w-7xl px-6 py-20 lg:px-10"
         >
-          <div className="max-w-2xl">
+          <div className="max-w-2xl" data-aos="fade-up">
             <p className="text-sm font-semibold uppercase tracking-[0.25em] text-[#13529a]">
               Proceso
             </p>
@@ -573,9 +601,11 @@ const Landing = () => {
           </div>
 
           <div className="mt-12 grid gap-6 lg:grid-cols-3">
-            {processSteps.map((step) => (
+            {processSteps.map((step, i) => (
               <article
                 key={step.number}
+                data-aos="fade-up"
+                data-aos-delay={i * 120}
                 className="rounded-[2rem] border border-slate-200 bg-[#f9fbf7] p-7"
               >
                 <span className="text-sm font-semibold uppercase tracking-[0.3em] text-[#a8cf45]">
