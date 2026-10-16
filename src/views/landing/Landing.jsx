@@ -1,6 +1,5 @@
 import {
   ArrowRight,
-  Box,
   Building2,
   ChevronLeft,
   ChevronRight,
@@ -10,13 +9,13 @@ import {
   Menu,
   MessageCircle,
   Package,
-  ShoppingBag,
-  UtensilsCrossed,
   X,
 } from "lucide-react";
 import { lazy, Suspense, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import Seo from "@/components/common/Seo";
+import AOS from "aos";
+import "aos/dist/aos.css";
 
 // El visor 3D (three.js + R3F) se carga aparte para no inflar el bundle inicial.
 const PackageHero3D = lazy(() => import("./PackageHero3D"));
@@ -37,6 +36,9 @@ import productTwo from "./productos/img_2.jpeg";
 import productFour from "./productos/img_4.jpeg";
 import productFive from "./productos/img_5.jpeg";
 import productSix from "./productos/img_6.jpeg";
+import solucionCajas1 from "@/assets/images/cajas-1.jpg";
+import solucionCajas2 from "@/assets/images/cajas-2.jpg";
+import solucionCajas3 from "@/assets/images/cajas-3.jpg";
 
 const highlights = [
   "Cajas y empaques personalizados en papel y cartón.",
@@ -46,19 +48,19 @@ const highlights = [
 
 const solutions = [
   {
-    icon: <Box className="h-6 w-6" />,
+    image: solucionCajas1,
     title: "Cajas personalizadas",
     description:
       "Desarrollamos empaques en papel y cartón adaptados a la presentación, protección y estilo de cada producto.",
   },
   {
-    icon: <UtensilsCrossed className="h-6 w-6" />,
+    image: solucionCajas2,
     title: "Empaques para alimentos",
     description:
       "Opciones funcionales para negocios que necesitan empaques prácticos, visuales y alineados con su marca.",
   },
   {
-    icon: <ShoppingBag className="h-6 w-6" />,
+    image: solucionCajas3,
     title: "Empaques para retail",
     description:
       "Soluciones orientadas a joyería, belleza y otras líneas comerciales que requieren una mejor presentación.",
@@ -240,6 +242,19 @@ const Landing = () => {
     const onChange = (e) => setReducedMotion(e.matches);
     mq.addEventListener?.("change", onChange);
     return () => mq.removeEventListener?.("change", onChange);
+  }, []);
+
+  // Animaciones al hacer scroll (AOS). Accesibilidad: se desactivan por completo
+  // si el usuario prefiere menos movimiento (prefers-reduced-motion).
+  useEffect(() => {
+    AOS.init({
+      duration: 700,
+      easing: "ease-out-cubic",
+      once: true,
+      offset: 80,
+      disable: () =>
+        window.matchMedia("(prefers-reduced-motion: reduce)").matches,
+    });
   }, []);
 
   const structuredData = [
@@ -440,7 +455,7 @@ const Landing = () => {
           className="mx-auto w-full max-w-7xl px-6 py-20 lg:px-10"
         >
           <div className="grid gap-10 lg:grid-cols-[0.9fr_1.1fr]">
-            <div>
+            <div data-aos="fade-right">
               <p className="text-sm font-semibold uppercase tracking-[0.25em] text-[#13529a]">
                 Empresa
               </p>
@@ -450,7 +465,7 @@ const Landing = () => {
               </h2>
             </div>
 
-            <div className=" text-lg  text-slate-700">
+            <div className=" text-lg  text-slate-700" data-aos="fade-left">
               <p>
                 Prográficos S.A.S. proyecta una propuesta orientada a empaques
                 en papel y cartón, cajas personalizadas y piezas gráficas para
@@ -462,7 +477,7 @@ const Landing = () => {
 
         <section id="soluciones" className="bg-white/70 py-20">
           <div className="mx-auto w-full max-w-7xl px-6 lg:px-10">
-            <div className="max-w-2xl">
+            <div className="max-w-2xl" data-aos="fade-up">
               <p className="text-sm font-semibold uppercase tracking-[0.25em] text-[#13529a]">
                 Soluciones
               </p>
@@ -472,13 +487,20 @@ const Landing = () => {
             </div>
 
             <div className="mt-10 grid gap-6 md:grid-cols-3">
-              {solutions.map(({ icon, title, description }) => (
+              {solutions.map(({ image, title, description }, i) => (
                 <article
                   key={title}
-                  className="rounded-[2rem] border border-slate-200/70 bg-white p-7 shadow-[0_18px_60px_rgba(15,63,119,0.08)]"
+                  data-aos="fade-up"
+                  data-aos-delay={i * 120}
+                  className="flex flex-col items-center overflow-hidden rounded-[2rem] border border-slate-200/70 bg-white p-6 text-center shadow-[0_18px_60px_rgba(15,63,119,0.08)] sm:p-7"
                 >
-                  <div className="inline-flex rounded-2xl bg-[#13529a]/10 p-3 text-[#13529a]">
-                    {icon}
+                  <div className="w-full overflow-hidden rounded-2xl">
+                    <img
+                      src={image}
+                      alt={title}
+                      loading="lazy"
+                      className="mx-auto h-40 w-full object-cover object-center sm:h-48 lg:h-52"
+                    />
                   </div>
                   <h3 className="mt-5 text-2xl font-semibold text-slate-950">
                     {title}
@@ -490,7 +512,10 @@ const Landing = () => {
               ))}
             </div>
 
-            <div className="mt-12 rounded-[2rem] border border-slate-200/70 bg-[#f9fbf7] p-8">
+            <div
+              className="mt-12 rounded-[2rem] border border-slate-200/70 bg-[#f9fbf7] p-8"
+              data-aos="fade-up"
+            >
               <div className="flex items-center gap-3">
                 <Package className="h-5 w-5 text-[#13529a]" />
                 <p className="text-sm font-semibold uppercase tracking-[0.2em] text-[#13529a]">
@@ -513,7 +538,10 @@ const Landing = () => {
         </section>
 
         <section className="px-6 py-6 lg:px-10">
-          <div className="mx-auto w-full max-w-7xl rounded-[2.2rem] border border-[#13529a]/15 bg-[linear-gradient(135deg,_rgba(19,82,154,0.08),_rgba(168,207,69,0.12))] p-8 shadow-[0_18px_60px_rgba(15,63,119,0.08)] md:p-10">
+          <div
+            className="mx-auto w-full max-w-7xl rounded-[2.2rem] border border-[#13529a]/15 bg-[linear-gradient(135deg,_rgba(19,82,154,0.08),_rgba(168,207,69,0.12))] p-8 shadow-[0_18px_60px_rgba(15,63,119,0.08)] md:p-10"
+            data-aos="zoom-in-up"
+          >
             <div className="grid gap-8 lg:grid-cols-[1.1fr_0.9fr] lg:items-center">
               <div>
                 <p className="text-sm font-semibold uppercase tracking-[0.25em] text-[#13529a]">
@@ -554,7 +582,7 @@ const Landing = () => {
           id="proceso"
           className="mx-auto w-full max-w-7xl px-6 py-20 lg:px-10"
         >
-          <div className="max-w-2xl">
+          <div className="max-w-2xl" data-aos="fade-up">
             <p className="text-sm font-semibold uppercase tracking-[0.25em] text-[#13529a]">
               Proceso
             </p>
@@ -564,9 +592,11 @@ const Landing = () => {
           </div>
 
           <div className="mt-12 grid gap-6 lg:grid-cols-3">
-            {processSteps.map((step) => (
+            {processSteps.map((step, i) => (
               <article
                 key={step.number}
+                data-aos="fade-up"
+                data-aos-delay={i * 120}
                 className="rounded-[2rem] border border-slate-200 bg-[#f9fbf7] p-7"
               >
                 <span className="text-sm font-semibold uppercase tracking-[0.3em] text-[#a8cf45]">
