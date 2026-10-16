@@ -6,6 +6,7 @@ import {
   CheckCircle2,
   Facebook,
   Instagram,
+  Loader2,
   Menu,
   MessageCircle,
   Package,
@@ -29,6 +30,14 @@ const Hero3DFallback = () => (
       alt="Prográficos"
       className="h-24 w-24 rounded-2xl bg-white/10 p-3"
     />
+  </div>
+);
+
+// Spinner sutil mientras se descarga el chunk del 3D (sin fondo, para evitar el
+// "destello" de la card azul antes de que aparezca la caja).
+const Hero3DLoader = () => (
+  <div className="flex h-full w-full items-center justify-center">
+    <Loader2 className="h-9 w-9 animate-spin text-[#13529a]/50" />
   </div>
 );
 import productOne from "./productos/img_1.jpeg";
@@ -438,7 +447,7 @@ const Landing = () => {
                   {reducedMotion ? (
                     <Hero3DFallback />
                   ) : (
-                    <Suspense fallback={<Hero3DFallback />}>
+                    <Suspense fallback={<Hero3DLoader />}>
                       <PackageHero3D />
                     </Suspense>
                   )}
