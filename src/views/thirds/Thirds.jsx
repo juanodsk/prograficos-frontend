@@ -195,6 +195,22 @@ const Thirds = () => {
       key: "name",
       label: "Nombre",
     },
+    // El prefijo solo aplica a clientes; se muestra en el tab "Cliente"
+    // para revisar visualmente cuáles están sin prefijo.
+    ...(typePerson === "CLIENTE"
+      ? [
+          {
+            key: "prefix",
+            label: "Prefijo",
+            render: (row) =>
+              row.prefix ? (
+                row.prefix
+              ) : (
+                <span className="italic text-gray-500">Pendiente</span>
+              ),
+          },
+        ]
+      : []),
     {
       key: "type_person",
       label: "Tipo de tercero",

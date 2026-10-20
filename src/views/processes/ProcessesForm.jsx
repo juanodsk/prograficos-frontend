@@ -2,6 +2,8 @@ import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import processesService from "@/services/processes.service";
 import machineryService from "@/services/machinery.service";
+import serviceLinesService from "@/services/service_lines.service";
+import ComboboxChips from "@/components/ui/combobox-chips";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -84,6 +86,7 @@ const createFieldDraft = (index = 0, field = {}) => {
 const createInitialFormState = () => ({
   name: "",
   category: "OTRO",
+  service_line_ids: [],
   is_active: true,
   machinery_ids: [],
   field_definitions: [],
@@ -141,6 +144,7 @@ const ProcessesForm = ({ isOpen, onClose, onSuccess, processId }) => {
   const [errors, setErrors] = useState({});
   const [form, setForm] = useState(createInitialFormState);
   const [machineryList, setMachineryList] = useState([]);
+  const [serviceLines, setServiceLines] = useState([]);
 
   const setFieldState = (index, updater) => {
     setForm((prev) => ({
@@ -170,6 +174,7 @@ const ProcessesForm = ({ isOpen, onClose, onSuccess, processId }) => {
       setForm({
         name: process?.name || "",
         category: process?.category || "OTRO",
+        service_line_ids: (process?.service_lines || []).map((line) => line.id),
         is_active: process?.is_active ?? true,
         machinery_ids: (process?.machineries || [])
           .filter((pm) => pm.machinery_id != null)
@@ -194,6 +199,7 @@ const ProcessesForm = ({ isOpen, onClose, onSuccess, processId }) => {
       setForm(createInitialFormState());
       setErrors({});
       setMachineryList([]);
+      setServiceLines([]);
       return;
     }
 
@@ -203,6 +209,15 @@ const ProcessesForm = ({ isOpen, onClose, onSuccess, processId }) => {
         setMachineryList(res?.data || []);
       })
       .catch(() => {});
+
+    serviceLinesService
+      .getAll({ onlyActive: true })
+      .then((res) => {
+        setServiceLines(res?.data || []);
+      })
+      .catch(() => {
+        toast.error("No se pudieron cargar las líneas de servicio");
+      });
 
     if (isEditing) {
       loadProcess();
@@ -412,6 +427,8 @@ const ProcessesForm = ({ isOpen, onClose, onSuccess, processId }) => {
   const validate = () => {
     const nextErrors = {};
 
+    if (!form.service_line_ids.length)
+      nextErrors.service_line_ids = "Selecciona al menos una línea de servicio";
     if (!form.name.trim()) nextErrors.name = "El nombre es requerido";
     if (!form.category) nextErrors.category = "La categoria es obligatoria";
 
@@ -511,6 +528,7 @@ const ProcessesForm = ({ isOpen, onClose, onSuccess, processId }) => {
     const payload = {
       name: form.name.trim(),
       category: form.category,
+      service_line_ids: form.service_line_ids,
       is_active: form.is_active,
       machinery_ids: form.machinery_ids.map(Number),
       field_definitions: normalizeFieldDefinitions(),
@@ -576,7 +594,30 @@ const ProcessesForm = ({ isOpen, onClose, onSuccess, processId }) => {
             </div>
           ) : (
             <form onSubmit={handleSubmit} className="space-y-6">
-              <div className="grid gap-4 md:grid-cols-2">
+              <div className="grid gap-4 md:grid-cols-3">
+                <div className="space-y-2">
+                  <Label>
+                    Líneas <span className="text-red-500">*</span>
+                  </Label>
+                  <ComboboxChips
+                    items={serviceLines}
+                    value={form.service_line_ids}
+                    onChange={(ids) => {
+                      setForm((prev) => ({ ...prev, service_line_ids: ids }));
+                      if (errors.service_line_ids) {
+                        setErrors((prev) => ({ ...prev, service_line_ids: "" }));
+                      }
+                    }}
+                    placeholder="Selecciona una o varias líneas"
+                    emptyText="Sin líneas de servicio."
+                  />
+                  {errors.service_line_ids && (
+                    <p className="text-xs text-red-500">
+                      {errors.service_line_ids}
+                    </p>
+                  )}
+                </div>
+
                 <div className="space-y-2">
                   <Label>Nombre</Label>
                   <Input

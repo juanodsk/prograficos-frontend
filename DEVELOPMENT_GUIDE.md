@@ -27,7 +27,8 @@ Las palabras **DEBE**, **NO DEBE** y **DEBERÍA** se usan con sentido normativo.
 | Vistas | `src/views` | Orquestar casos de uso y estado de pantalla |
 | Componentes comunes | `src/components/common` | Piezas reutilizables propias del negocio (`ConfirmDialog`, `StatusBadge`, `ServerPagination`, `Seo`) |
 | Tabla de datos | `src/components/data-table` | `DataTable` reutilizable para listados |
-| Primitivas UI | `src/components/ui` | Componentes shadcn/Base UI sin lógica de dominio |
+| Primitivas UI | `src/components/ui` | Componentes shadcn/Base UI sin lógica de dominio (incluye `combobox-chips` multi-select con chips en línea) |
+| Utilidades/adaptadores | `src/lib` | Funciones puras transversales; **`permissions.js`** expone `hasPermission` / `hasAnyPermission` (ADMIN bypass) |
 | Servicios | `src/services` | Traducir operaciones del dominio a HTTP (uno por recurso) |
 | Cliente HTTP | `src/services/api.js` | URL base, cookies e interceptores globales |
 | Tiempo real | `src/services/socket.service.js` | Cliente Socket.IO para eventos de producción |
@@ -180,9 +181,10 @@ La extracción debe mejorar cohesión; el número de líneas por sí solo no jus
 - Las URLs nuevas usan español y kebab-case.
 - Las rutas hijas usan segmentos relativos cuando están dentro de un layout padre.
 - Un wildcard no debe ocultar rutas rotas enviando silenciosamente al login; se recomienda una vista `NotFound` separada.
-- `ProtectedRoute` controla acceso visual, pero el backend debe validar el mismo rol para cada endpoint.
+- El acceso se controla **por permisos (claims)**, no por rol fijo: `ProtectedRoute` recibe `permissions={["catalogs:view", ...]}` (basta uno) y, solo para la zona de Seguridad, `roles={["ADMIN"]}`. `ProtectedRoute` controla acceso visual; el backend revalida el mismo permiso en cada endpoint.
+- En la UI se muestran/ocultan acciones con `hasPermission(user, key)` / `hasAnyPermission(user, ...keys)` de `@/lib/permissions` (ADMIN hace bypass). Mismo criterio que el backend.
 - Ocultar una opción del menú no equivale a autorizar ni desautorizar.
-- Al agregar o cambiar un rol se revisan, en el mismo cambio: router, navegación, acciones visibles, formularios, pruebas y backend.
+- Al agregar o cambiar un permiso se revisan, en el mismo cambio: router (`permissions`), navegación (`Sidebar`), acciones visibles, formularios, pruebas y backend.
 
 ### 7.2 Patrón recomendado
 
@@ -203,19 +205,33 @@ export const ROUTES = Object.freeze({
 
 No se debe registrar una vista vacía solo para que el enlace “funcione”. Una funcionalidad incompleta se oculta mediante una bandera explícita o no se publica en el menú.
 
-### 7.3 Matriz de navegación actual
+### 7.3 Navegación y permisos actuales
 
-Las rutas de configuración están agrupadas bajo `/configuracion/*` (usuarios, terceros, productos, troqueles, medidas, formatos, maquinarias, tipos_papel, procesos) y las de operación bajo `/ordenes/*` (incluye `/ordenes/auditoria`, `/ordenes/crear`, `/ordenes/:id`, `/ordenes/:id/editar` y `/ordenes/monitor`).
+Las rutas de configuración se agrupan bajo `/configuracion/*` (usuarios, terceros, productos, troqueles, medidas, formatos, maquinarias, tipos_papel, procesos y **líneas de servicio** → `/configuracion/lineas-servicio`) y las de operación bajo `/ordenes/*` (incluye `/ordenes/auditoria`, `/ordenes/crear`, `/ordenes/:id`, `/ordenes/:id/editar` y `/ordenes/monitor`).
 
-| Módulo | ADMIN | SUPERVISOR | EMPLOYEE | USER |
-| --- | :---: | :---: | :---: | :---: |
-| Dashboard | Sí | Sí | Sí | Sí |
-| Órdenes (`/ordenes/*`) | Sí | Sí | Sí | No |
-| Configuración › Usuarios | Sí | Sí | No | No |
-| Configuración › Procesos | Sí | Sí | No | No |
-| Configuración › Otros catálogos | Sí | Sí | No | No |
+Roles del sistema (tabla en BD): `ADMIN`, `SUPERVISOR`, `OPERATOR`, `CUSTOMER` (reservado). Cada ruta/acción se protege por **permiso**, no por rol:
 
-> El rol `USER` no tiene navegación de catálogos ni órdenes en el frontend actual (solo Dashboard), aunque el backend le permite iniciar/finalizar procesos vía `/order-processes/*`.
+| Módulo (ruta) | Permiso que exige |
+| --- | --- |
+| Órdenes (`/ordenes/*`) | `orders:view` (crear `orders:create`/`orders:duplicate`, editar `orders:update`, monitor `monitor:view`, auditoría `audit:view`) |
+| Configuración › Terceros | `thirds:view` |
+| Configuración › Productos | `products:view` |
+| Configuración › Troqueles | `troqueles:view` |
+| Configuración › Catálogos (medidas, formatos, papel, maquinaria, procesos, **líneas de servicio**) | `catalogs:view` (gestión `catalogs:manage`) |
+| Configuración › Usuarios y Roles (Seguridad) | `roles={["ADMIN"]}` |
+
+> Reparto por rol (matriz por defecto del backend): **ADMIN** todo; **SUPERVISOR** gestión operativa y de catálogos completa; **OPERATOR** ve catálogos/terceros/productos/troqueles y trabaja órdenes (`orders:view/create/update/operate`, `monitor:view`); **CUSTOMER** sin permisos (reservado). Ocultar un ítem del menú no autoriza nada: el backend revalida.
+
+### 7.4 Líneas de servicio (patrón transversal de UI)
+
+Las líneas de servicio (Offset, Cartón Microcorrugado, Serigrafía, …) atraviesan varios módulos y condicionan el filtrado de campos dependientes:
+
+- Catálogo propio en `/configuracion/lineas-servicio` (`service_lines.service.js`, `views/service_lines/*`).
+- **ThirdForm** y **ProcessesForm** usan `ComboboxChips` (multi-select, m2m): un tercero/proceso pertenece a 1+ líneas.
+- **PaperTypesForm** y **ProductForm** usan `<Select>` (único): papel/producto pertenece a una sola línea. En productos, el Tercero se filtra a los de esa línea.
+- **OrderForm**: el `<Select>` de línea es el **primer** campo y es solo visual (no se envía al backend). Al elegir/cambiar la línea se filtran y reinician cliente, productos, tipos de papel y procesos, mostrando únicamente los **activos** de esa línea.
+- Listados: `PaperTypes`, `Products` y `Processes` muestran la columna de línea; `Orders` muestra la línea derivada de `product.service_line` (una orden = una línea).
+- Al mapear opciones dependientes de la línea, filtrar siempre por activos (`is_active !== false`) además de por pertenencia a la línea.
 
 ## 8. Comunicación con el backend
 

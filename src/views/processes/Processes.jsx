@@ -1,7 +1,8 @@
 import { useAuthStore } from "../../store/authStore";
 import { hasPermission } from "@/lib/permissions";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import processesService from "@/services/processes.service";
+import serviceLinesService from "@/services/service_lines.service";
 
 //VIEWS
 import ProcessesForm from "./ProcessesForm";
@@ -12,6 +13,16 @@ import DataTable from "../../components/data-table/DataTable";
 import ConfirmDialog from "../../components/common/ConfirmDialog";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectLabel,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { GripVertical, Loader2, Pencil, Plus, Trash2 } from "lucide-react";
 
 const reorderProcessList = (items, draggedProcessId, targetProcessId) => {
@@ -40,6 +51,8 @@ const Processes = () => {
   const { user: currentUser } = useAuthStore();
   const canManage = hasPermission(currentUser, "catalogs:manage");
   const [processes, setProcesses] = useState([]);
+  const [serviceLines, setServiceLines] = useState([]);
+  const [selectedLineId, setSelectedLineId] = useState("");
   const [loading, setLoading] = useState(true);
   const [draggedProcessId, setDraggedProcessId] = useState(null);
   const [dragTargetProcessId, setDragTargetProcessId] = useState(null);
@@ -59,6 +72,36 @@ const Processes = () => {
   useEffect(() => {
     fetchProcesses();
   }, []);
+
+  // Líneas de servicio activas para elegir qué flujo ver/ordenar.
+  useEffect(() => {
+    let active = true;
+    serviceLinesService
+      .getAll({ onlyActive: true })
+      .then((res) => {
+        if (!active) return;
+        const lines = res?.data || [];
+        setServiceLines(lines);
+        // Preselecciona la primera línea para mostrar un flujo de una vez.
+        setSelectedLineId((prev) => prev || (lines[0] ? String(lines[0].id) : ""));
+      })
+      .catch(() => {
+        if (active) toast.error("Error al cargar las líneas de servicio");
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  // Procesos de la línea elegida (el flujo dragable se filtra por línea).
+  const visibleProcesses = useMemo(() => {
+    if (!selectedLineId) return [];
+    return processes.filter((process) =>
+      (process.service_lines || []).some(
+        (line) => String(line.id) === selectedLineId,
+      ),
+    );
+  }, [processes, selectedLineId]);
 
   // ───────────── CARGAR PROCESOS ─────────────
   const fetchProcesses = async () => {
@@ -98,17 +141,28 @@ const Processes = () => {
     }
 
     const previousProcesses = processes;
-    const nextProcesses = reorderProcessList(
-      previousProcesses,
+    // El reordenamiento aplica solo a los procesos de la línea visible.
+    const reorderedVisible = reorderProcessList(
+      visibleProcesses,
       processIdToMove,
       targetProcessId,
     );
 
-    if (nextProcesses === previousProcesses) {
+    if (reorderedVisible === visibleProcesses) {
       setDraggedProcessId(null);
       setDragTargetProcessId(null);
       return;
     }
+
+    // Mezcla la secuencia reordenada de la línea de vuelta en la lista completa,
+    // conservando en su sitio los procesos de otras líneas.
+    let visibleIndex = 0;
+    const nextProcesses = previousProcesses.map((process) => {
+      const isVisible = (process.service_lines || []).some(
+        (line) => String(line.id) === selectedLineId,
+      );
+      return isVisible ? reorderedVisible[visibleIndex++] : process;
+    });
 
     setProcesses(nextProcesses);
     setDraggedProcessId(null);
@@ -117,7 +171,7 @@ const Processes = () => {
     try {
       setReordering(true);
       const response = await processesService.reorder(
-        nextProcesses.map((process) => process.id),
+        reorderedVisible.map((process) => process.id),
       );
       setProcesses(response?.data || nextProcesses);
       toast.success("Orden de procesos actualizado");
@@ -130,7 +184,7 @@ const Processes = () => {
     } finally {
       setReordering(false);
     }
-  }, [draggedProcessId, processes, reordering]);
+  }, [draggedProcessId, processes, reordering, selectedLineId, visibleProcesses]);
 
   const handlePointerStart = (event, processId) => {
     if (reordering) return;
@@ -226,6 +280,12 @@ const Processes = () => {
   // ───────────── COLUMNAS ─────────────
   const columns = [
     { key: "id", label: "ID" },
+    {
+      key: "service_lines",
+      label: "Líneas",
+      render: (row) =>
+        (row.service_lines || []).map((line) => line.name).join(", ") || "—",
+    },
     { key: "name", label: "Nombre" },
     { key: "category", label: "Categoria" },
     {
@@ -320,6 +380,38 @@ const Processes = () => {
           </div>
         ) : (
           <div className="space-y-5">
+            {/* Selector de línea: define qué flujo de procesos se ve y ordena. */}
+            <div className="flex flex-col items-center gap-2 text-center">
+              <Label className="text-sm font-medium text-slate-700">
+                Línea de servicio
+              </Label>
+              <Select
+                value={selectedLineId}
+                onValueChange={(value) => setSelectedLineId(value)}
+              >
+                <SelectTrigger className="h-10 w-full max-w-sm">
+                  <SelectValue placeholder="Selecciona una línea">
+                    {serviceLines.find(
+                      (line) => String(line.id) === selectedLineId,
+                    )?.name || null}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectGroup>
+                    <SelectLabel>Líneas de servicio</SelectLabel>
+                    {serviceLines.map((line) => (
+                      <SelectItem key={line.id} value={String(line.id)}>
+                        {line.name}
+                      </SelectItem>
+                    ))}
+                  </SelectGroup>
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-slate-500">
+                Elige la línea para ver y ordenar sus procesos.
+              </p>
+            </div>
+
             <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4">
               <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                 <div>
@@ -340,7 +432,14 @@ const Processes = () => {
               </div>
 
               <div className="mt-4 grid gap-3">
-                {processes.map((process, index) => {
+                {visibleProcesses.length === 0 && (
+                  <div className="rounded-xl border border-dashed border-slate-300 bg-white px-4 py-6 text-center text-sm text-slate-500">
+                    {selectedLineId
+                      ? "Esta línea aún no tiene procesos."
+                      : "Selecciona una línea para ver su flujo de procesos."}
+                  </div>
+                )}
+                {visibleProcesses.map((process, index) => {
                   const isDragging = draggedProcessId === process.id;
                   const isDropTarget =
                     draggedProcessId &&

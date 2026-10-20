@@ -3,6 +3,7 @@ import { toast } from "sonner";
 import productsService from "../../services/products.service";
 import troquelesService from "../../services/troqueles.service";
 import thirdsService from "../../services/thirds.service";
+import serviceLinesService from "@/services/service_lines.service";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -54,10 +55,15 @@ export default function ProductForm({
   const [catalogLoading, setCatalogLoading] = useState(false);
   const [checkingCode, setCheckingCode] = useState(false);
   const [errors, setErrors] = useState({});
-  const [catalogs, setCatalogs] = useState({ troqueles: [], thirds: [] });
+  const [catalogs, setCatalogs] = useState({
+    troqueles: [],
+    thirds: [],
+    serviceLines: [],
+  });
   const [form, setForm] = useState({
     name: "",
     code: "",
+    service_line_id: "",
     troquel_id: "",
     third_id: "",
     sale_price: "",
@@ -85,6 +91,7 @@ export default function ProductForm({
     setForm({
       name: "",
       code: "",
+      service_line_id: "",
       troquel_id: "",
       third_id: defaultThirdId ? String(defaultThirdId) : "",
       sale_price: "",
@@ -96,16 +103,18 @@ export default function ProductForm({
   const loadCatalogs = async () => {
     try {
       setCatalogLoading(true);
-      const [troquelesRes, thirdsRes] = await Promise.all([
+      const [troquelesRes, thirdsRes, serviceLinesRes] = await Promise.all([
         troquelesService.getAll({ onlyActive: true, pageSize: 1000 }),
         lockThird
           ? Promise.resolve({ data: { thirds: [] } })
           : thirdsService.getAll({ onlyActive: true, pageSize: 1000 }),
+        serviceLinesService.getAll({ onlyActive: true }),
       ]);
 
       setCatalogs({
         troqueles: troquelesRes?.data || [],
         thirds: thirdsRes?.data?.thirds || thirdsRes?.data || [],
+        serviceLines: serviceLinesRes?.data || [],
       });
     } catch {
       toast.error("Error al cargar los catálogos");
@@ -125,6 +134,9 @@ export default function ProductForm({
         name: product?.name || "",
         // El código guardado es prefijo + número; en el input solo va el número.
         code: (product?.code || "").match(/\d+$/)?.[0] || "",
+        service_line_id: product?.service_line_id
+          ? String(product.service_line_id)
+          : "",
         troquel_id: product?.troquel_id ? String(product.troquel_id) : "",
         third_id: product?.third_id
           ? String(product.third_id)
@@ -149,6 +161,23 @@ export default function ProductForm({
       ) || null,
     [catalogs.troqueles, form.troquel_id],
   );
+
+  const selectedServiceLine = useMemo(
+    () =>
+      catalogs.serviceLines.find(
+        (line) => String(line.id) === form.service_line_id,
+      ) || null,
+    [catalogs.serviceLines, form.service_line_id],
+  );
+
+  // El tercero debe pertenecer a la línea de servicio elegida.
+  const filteredThirds = useMemo(() => {
+    if (!form.service_line_id) return [];
+    const lineId = Number(form.service_line_id);
+    return catalogs.thirds.filter((third) =>
+      (third.service_lines || []).some((line) => line.id === lineId),
+    );
+  }, [catalogs.thirds, form.service_line_id]);
 
   const selectedThird = useMemo(() => {
     if (defaultThirdId && String(defaultThirdId) === form.third_id) {
@@ -197,6 +226,10 @@ export default function ProductForm({
   const validate = () => {
     const nextErrors = {};
 
+    if (!form.service_line_id) {
+      nextErrors.service_line_id = "Selecciona una línea de servicio";
+    }
+
     if (!form.troquel_id) {
       nextErrors.troquel_id = "Selecciona un troquel";
     }
@@ -224,6 +257,7 @@ export default function ProductForm({
         name: form.name.trim() || null,
         // Se guarda prefijo + número (ej: GRN1); null si no se digitó número.
         code: form.code.trim() ? `${activePrefix}${form.code.trim()}` : null,
+        service_line_id: Number(form.service_line_id),
         troquel_id: Number(form.troquel_id),
         third_id: Number(form.third_id),
         sale_price: form.sale_price === "" ? null : Number(form.sale_price),
@@ -350,6 +384,110 @@ export default function ProductForm({
                 </aside>
 
                 <div className="grid gap-4 md:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label>
+                      Línea <span className="text-red-500">*</span>
+                    </Label>
+                    <Select
+                      value={form.service_line_id}
+                      onValueChange={(value) => {
+                        setForm((prev) => ({
+                          ...prev,
+                          service_line_id: value,
+                          // Al cambiar de línea se reinicia el tercero: debe
+                          // pertenecer a la línea elegida.
+                          ...(lockThird ? {} : { third_id: "" }),
+                        }));
+                        setErrors((prev) => ({
+                          ...prev,
+                          service_line_id: "",
+                          third_id: "",
+                        }));
+                      }}
+                    >
+                      <SelectTrigger className="h-9 w-full text-sm">
+                        <SelectValue placeholder="Selecciona una línea">
+                          {selectedServiceLine
+                            ? selectedServiceLine.name
+                            : null}
+                        </SelectValue>
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectGroup>
+                          <SelectLabel>Líneas de servicio</SelectLabel>
+                          {catalogs.serviceLines.map((line) => (
+                            <SelectItem key={line.id} value={String(line.id)}>
+                              {line.name}
+                            </SelectItem>
+                          ))}
+                        </SelectGroup>
+                      </SelectContent>
+                    </Select>
+                    {errors.service_line_id && (
+                      <p className="text-xs text-red-500">
+                        {errors.service_line_id}
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>
+                      Tercero <span className="text-red-500">*</span>
+                    </Label>
+                    {lockThird ? (
+                      <div className="rounded-lg border bg-gray-50 px-3 py-2.5 text-sm text-gray-700">
+                        Este producto quedará asociado al cliente actual.
+                      </div>
+                    ) : (
+                      <Combobox
+                        items={filteredThirds}
+                        itemToStringValue={(third) => formatThirdLabel(third)}
+                        value={selectedThird ?? null}
+                        disabled={!form.service_line_id}
+                        onValueChange={(third) => {
+                          if (third) {
+                            setForm((prev) => ({
+                              ...prev,
+                              third_id: String(third.id),
+                            }));
+                          } else {
+                            setForm((prev) => ({ ...prev, third_id: "" }));
+                          }
+                          if (errors.third_id) {
+                            setErrors((prev) => ({ ...prev, third_id: "" }));
+                          }
+                        }}
+                      >
+                        <ComboboxInput
+                          placeholder={
+                            form.service_line_id
+                              ? "Buscar tercero..."
+                              : "Primero selecciona una línea"
+                          }
+                          showClear
+                        />
+                        <ComboboxContent>
+                          <ComboboxEmpty>
+                            No hay terceros en esta línea.
+                          </ComboboxEmpty>
+                          <ComboboxList>
+                            {(third) => (
+                              <ComboboxItem
+                                key={third.id}
+                                value={formatThirdLabel(third)}
+                              >
+                                {formatThirdLabel(third)}
+                              </ComboboxItem>
+                            )}
+                          </ComboboxList>
+                        </ComboboxContent>
+                      </Combobox>
+                    )}
+                    {errors.third_id && (
+                      <p className="text-xs text-red-500">{errors.third_id}</p>
+                    )}
+                  </div>
+
                   <div className="flex flex-col gap-4 sm:flex-row sm:items-start md:col-span-2">
                     <div className="space-y-2 sm:w-40">
                       <Label>Código (opcional)</Label>
@@ -444,46 +582,6 @@ export default function ProductForm({
                       <p className="text-xs text-red-500">
                         {errors.troquel_id}
                       </p>
-                    )}
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label>Tercero</Label>
-                    {lockThird ? (
-                      <div className="rounded-lg border bg-gray-50 px-3 py-2.5 text-sm text-gray-700">
-                        Este producto quedará asociado al cliente actual.
-                      </div>
-                    ) : (
-                      <Combobox
-                        items={catalogs.thirds}
-                        itemToStringValue={(third) => formatThirdLabel(third)}
-                        value={selectedThird ?? null}
-                        onValueChange={(third) => {
-                          if (third) {
-                            setForm((prev) => ({ ...prev, third_id: String(third.id) }));
-                          } else {
-                            setForm((prev) => ({ ...prev, third_id: "" }));
-                          }
-                          if (errors.third_id) {
-                            setErrors((prev) => ({ ...prev, third_id: "" }));
-                          }
-                        }}
-                      >
-                        <ComboboxInput placeholder="Buscar tercero..." showClear />
-                        <ComboboxContent>
-                          <ComboboxEmpty>No se encontró ningún tercero.</ComboboxEmpty>
-                          <ComboboxList>
-                            {(third) => (
-                              <ComboboxItem key={third.id} value={formatThirdLabel(third)}>
-                                {formatThirdLabel(third)}
-                              </ComboboxItem>
-                            )}
-                          </ComboboxList>
-                        </ComboboxContent>
-                      </Combobox>
-                    )}
-                    {errors.third_id && (
-                      <p className="text-xs text-red-500">{errors.third_id}</p>
                     )}
                   </div>
 

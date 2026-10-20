@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import paperTypesService from "../../services/paper_types.service";
 import thirdsService from "../../services/thirds.service";
+import serviceLinesService from "@/services/service_lines.service";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -20,6 +21,7 @@ const buildInitialForm = () => ({
   name: "",
   description: "",
   grammage: "",
+  service_line_id: "",
   is_active: true,
   supplier_id: "",
   supplier_price: "",
@@ -53,6 +55,7 @@ export default function PaperTypesForm({
   const [loading, setLoading] = useState(false);
   const [fetching, setFetching] = useState(false);
   const [providers, setProviders] = useState([]);
+  const [serviceLines, setServiceLines] = useState([]);
   const [errors, setErrors] = useState({});
   const [form, setForm] = useState(buildInitialForm());
 
@@ -73,6 +76,14 @@ export default function PaperTypesForm({
     [providers, form.supplier_id],
   );
 
+  const selectedServiceLine = useMemo(
+    () =>
+      serviceLines.find(
+        (line) => String(line.id) === String(form.service_line_id),
+      ) || null,
+    [serviceLines, form.service_line_id],
+  );
+
   useEffect(() => {
     if (!isOpen) {
       resetForm();
@@ -91,12 +102,13 @@ export default function PaperTypesForm({
   const loadData = async () => {
     try {
       setFetching(true);
-      const [thirdsRes, paperTypeRes] = await Promise.all([
+      const [thirdsRes, serviceLinesRes, paperTypeRes] = await Promise.all([
         thirdsService.getAll({
           onlyActive: true,
           typePerson: "PROVEEDOR",
           pageSize: 1000,
         }),
+        serviceLinesService.getAll({ onlyActive: true }),
         isEditing
           ? paperTypesService.getById(paperTypeId)
           : Promise.resolve(null),
@@ -104,6 +116,7 @@ export default function PaperTypesForm({
 
       const thirds = thirdsRes?.data?.thirds || thirdsRes?.data || [];
       setProviders(thirds);
+      setServiceLines(serviceLinesRes?.data || []);
 
       if (paperTypeRes?.data) {
         const paperType = paperTypeRes.data;
@@ -112,6 +125,10 @@ export default function PaperTypesForm({
           description: paperType.description || "",
           grammage:
             paperType.grammage != null ? String(paperType.grammage) : "",
+          service_line_id:
+            paperType.service_line_id != null
+              ? String(paperType.service_line_id)
+              : "",
           is_active: paperType.is_active ?? true,
           supplier_id: "",
           supplier_price: "",
@@ -135,6 +152,8 @@ export default function PaperTypesForm({
   const validate = () => {
     const newErrors = {};
 
+    if (!form.service_line_id)
+      newErrors.service_line_id = "Selecciona una línea de servicio";
     if (!form.name.trim()) newErrors.name = "El nombre es requerido";
     if (!form.description.trim())
       newErrors.description = "La descripción es requerida";
@@ -162,6 +181,7 @@ export default function PaperTypesForm({
         name: form.name.trim(),
         description: form.description.trim(),
         grammage: Number(form.grammage),
+        service_line_id: Number(form.service_line_id),
         is_active: form.is_active,
         suppliers: form.suppliers.map((supplier) => ({
           third_id: supplier.third_id,
@@ -305,6 +325,42 @@ export default function PaperTypesForm({
             <form onSubmit={handleSubmit} className="space-y-5">
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 <div className="space-y-1">
+                  <Label className="text-xs">
+                    Línea <span className="text-red-500">*</span>
+                  </Label>
+                  <Select
+                    value={form.service_line_id}
+                    onValueChange={(value) => {
+                      setForm((prev) => ({ ...prev, service_line_id: value }));
+                      if (errors.service_line_id) {
+                        setErrors((prev) => ({ ...prev, service_line_id: "" }));
+                      }
+                    }}
+                  >
+                    <SelectTrigger className="h-9 w-full text-sm">
+                      <SelectValue placeholder="Selecciona una línea">
+                        {selectedServiceLine ? selectedServiceLine.name : null}
+                      </SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectGroup>
+                        <SelectLabel>Líneas de servicio</SelectLabel>
+                        {serviceLines.map((line) => (
+                          <SelectItem key={line.id} value={String(line.id)}>
+                            {line.name}
+                          </SelectItem>
+                        ))}
+                      </SelectGroup>
+                    </SelectContent>
+                  </Select>
+                  {errors.service_line_id && (
+                    <p className="text-xs text-red-500">
+                      {errors.service_line_id}
+                    </p>
+                  )}
+                </div>
+
+                <div className="space-y-1">
                   <Label className="text-xs">Nombre</Label>
                   <Input
                     name="name"
@@ -317,8 +373,10 @@ export default function PaperTypesForm({
                     <p className="text-xs text-red-500">{errors.name}</p>
                   )}
                 </div>
+              </div>
 
-                <div className="space-y-1">
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
+                <div className="space-y-1 md:col-span-2">
                   <Label className="text-xs">Descripción</Label>
                   <Input
                     name="description"
@@ -331,9 +389,7 @@ export default function PaperTypesForm({
                     <p className="text-xs text-red-500">{errors.description}</p>
                   )}
                 </div>
-              </div>
 
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 <div className="space-y-1">
                   <Label className="text-xs">Gramaje</Label>
                   <Input

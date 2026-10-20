@@ -191,6 +191,18 @@ const Products = () => {
   const columns = [
     { key: "id", label: "ID" },
     {
+      key: "service_line",
+      label: "Línea",
+      render: (row) =>
+        row.service_line?.name ? (
+          <span className="font-medium text-gray-700">
+            {row.service_line.name}
+          </span>
+        ) : (
+          "—"
+        ),
+    },
+    {
       key: "code",
       label: "Código",
       render: (row) =>
