@@ -1,10 +1,12 @@
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import thirdsService from "../../services/thirds.service";
+import serviceLinesService from "@/services/service_lines.service";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import ComboboxChips from "@/components/ui/combobox-chips";
 import {
   DOCUMENT_TYPE_OPTIONS,
   PERSON_TYPE_OPTIONS,
@@ -27,6 +29,7 @@ export default function ThirdForm({ isOpen, onClose, onSuccess, thirdId }) {
   const [loading, setLoading] = useState(false);
   const [fetching, setFetching] = useState(false);
   const [errors, setErrors] = useState({});
+  const [serviceLines, setServiceLines] = useState([]);
 
   const [form, setForm] = useState({
     name: "",
@@ -38,13 +41,26 @@ export default function ThirdForm({ isOpen, onClose, onSuccess, thirdId }) {
     document_number: "",
     company_name: "",
     prefix: "",
+    service_line_ids: [],
     is_active: true,
   });
 
   useEffect(() => {
+    if (isOpen) fetchServiceLines();
     if (isOpen && isEditing) fetchThird();
     if (!isOpen) resetForm();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, thirdId]);
+
+  const fetchServiceLines = async () => {
+    try {
+      const res = await serviceLinesService.getAll({ onlyActive: true });
+      setServiceLines(res?.data || []);
+    } catch {
+      setServiceLines([]);
+      toast.error("No se pudieron cargar las líneas de servicio");
+    }
+  };
 
   const resetForm = () => {
     setForm({
@@ -57,6 +73,7 @@ export default function ThirdForm({ isOpen, onClose, onSuccess, thirdId }) {
       document_number: "",
       company_name: "",
       prefix: "",
+      service_line_ids: [],
       is_active: true,
     });
     setErrors({});
@@ -79,6 +96,7 @@ export default function ThirdForm({ isOpen, onClose, onSuccess, thirdId }) {
         document_number: t?.document_number || "",
         company_name: t?.company_name || "",
         prefix: t?.prefix || "",
+        service_line_ids: (t?.service_lines || []).map((l) => l.id),
         is_active: t?.is_active ?? true,
       });
     } catch {
@@ -91,6 +109,9 @@ export default function ThirdForm({ isOpen, onClose, onSuccess, thirdId }) {
 
   const validate = () => {
     const newErrors = {};
+
+    if (!form.service_line_ids.length)
+      newErrors.service_line_ids = "Selecciona al menos una línea de servicio";
 
     if (!form.name.trim()) newErrors.name = "El nombre es requerido";
 
@@ -152,6 +173,7 @@ export default function ThirdForm({ isOpen, onClose, onSuccess, thirdId }) {
         document_number: form.document_number,
         company_name: form.company_name || null,
         prefix: form.type_person === "CLIENTE" ? form.prefix || null : null,
+        service_line_ids: form.service_line_ids,
         is_active: form.is_active,
       };
 
@@ -328,6 +350,35 @@ export default function ThirdForm({ isOpen, onClose, onSuccess, thirdId }) {
                 <div className="space-y-5">
                   <div className="grid gap-4 md:grid-cols-2">
                     <div className="space-y-1">
+                      <Label className="text-xs">
+                        Línea <span className="text-red-500">*</span>
+                      </Label>
+                      <ComboboxChips
+                        items={serviceLines}
+                        value={form.service_line_ids}
+                        onChange={(ids) => {
+                          setForm((prev) => ({
+                            ...prev,
+                            service_line_ids: ids,
+                          }));
+                          if (errors.service_line_ids) {
+                            setErrors((prev) => ({
+                              ...prev,
+                              service_line_ids: "",
+                            }));
+                          }
+                        }}
+                        placeholder="Selecciona una o más líneas"
+                        emptyText="No hay líneas de servicio activas."
+                      />
+                      {errors.service_line_ids && (
+                        <p className="text-xs text-red-500">
+                          {errors.service_line_ids}
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="space-y-1">
                       <Label className="text-xs">Nombre</Label>
                       <Input
                         name="name"
@@ -356,7 +407,7 @@ export default function ThirdForm({ isOpen, onClose, onSuccess, thirdId }) {
                       )}
                     </div>
 
-                    <div className="space-y-1 md:col-span-2">
+                    <div className="space-y-1">
                       <Label className="text-xs">Dirección</Label>
                       <Input
                         name="address"

@@ -7,6 +7,7 @@ import measuresService from "@/services/measures.service";
 import paperTypesService from "@/services/paper_types.service";
 import productsService from "@/services/products.service";
 import processesService from "@/services/processes.service";
+import serviceLinesService from "@/services/service_lines.service";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -247,6 +248,7 @@ const OrderForm = () => {
     paperTypes: [],
     products: [],
     processes: [],
+    serviceLines: [],
   });
   const [form, setForm] = useState({
     calculation_mode: "TOTAL_REQUIRED",
@@ -254,6 +256,8 @@ const OrderForm = () => {
     amount_sheets_additional: "0",
     cavities: "1",
     total_estimated: "",
+    // Línea de servicio: SOLO filtro visual (no se guarda en la orden).
+    line_id: "",
     format_id: "",
     measure_id: "",
     third_id: "",
@@ -277,6 +281,7 @@ const OrderForm = () => {
         paperTypesRes,
         productsRes,
         processesRes,
+        serviceLinesRes,
         orderRes,
       ] = await Promise.all([
         measuresService.getAll({ onlyActive: true }),
@@ -284,6 +289,7 @@ const OrderForm = () => {
         paperTypesService.getAll({ onlyActive: true }),
         productsService.getAll({ onlyActive: true, pageSize: 1000 }),
         processesService.getAll({ onlyActive: true }),
+        serviceLinesService.getAll({ onlyActive: true }),
         isEditing
           ? ordersService.getById(id)
           : isDuplicating
@@ -317,6 +323,7 @@ const OrderForm = () => {
         paperTypes: paperTypesRes?.data || [],
         products: productsRes?.data?.products || [],
         processes: (processesRes?.data || []).sort((a, b) => a.order - b.order),
+        serviceLines: serviceLinesRes?.data || [],
       });
 
       if (orderRes?.data) {
@@ -339,6 +346,10 @@ const OrderForm = () => {
           cavities: order.cavities ? String(order.cavities) : "1",
           total_estimated: order.total_estimated
             ? String(order.total_estimated)
+            : "",
+          // Línea derivada del producto (filtro visual; no se persiste).
+          line_id: order.product?.service_line_id
+            ? String(order.product.service_line_id)
             : "",
           format_id: order.measure?.format?.id
             ? String(order.measure.format.id)
@@ -413,6 +424,7 @@ const OrderForm = () => {
       (!form.total_estimated || Number(form.total_estimated) <= 0)
     )
       nextErrors.total_estimated = "El total requerido debe ser mayor a 0";
+    if (!form.line_id) nextErrors.line_id = "Selecciona una línea";
     if (!form.format_id) nextErrors.format_id = "Selecciona un formato";
     if (!form.measure_id) nextErrors.measure_id = "Selecciona un tamaño";
     if (!form.third_id) nextErrors.third_id = "Selecciona un cliente";
@@ -474,6 +486,25 @@ const OrderForm = () => {
     [catalogs.measures, form.measure_id],
   );
 
+  const selectedServiceLine = useMemo(
+    () =>
+      catalogs.serviceLines.find(
+        (line) => String(line.id) === form.line_id,
+      ) || null,
+    [catalogs.serviceLines, form.line_id],
+  );
+
+  // Clientes ACTIVOS de la línea elegida (JOIN m2m terceros ↔ líneas).
+  const availableThirds = useMemo(() => {
+    if (!form.line_id) return [];
+    const lineId = Number(form.line_id);
+    return catalogs.thirds.filter(
+      (third) =>
+        third.is_active !== false &&
+        (third.service_lines || []).some((line) => line.id === lineId),
+    );
+  }, [catalogs.thirds, form.line_id]);
+
   const selectedThird = useMemo(
     () =>
       catalogs.thirds.find((third) => String(third.id) === form.third_id) ||
@@ -531,12 +562,38 @@ const OrderForm = () => {
   }, [catalogs.measures, form.format_id]);
 
   const availableProducts = useMemo(() => {
-    if (!form.third_id) return [];
+    if (!form.third_id || !form.line_id) return [];
 
+    const lineId = Number(form.line_id);
     return catalogs.products.filter(
-      (product) => String(product.third_id) === form.third_id,
+      (product) =>
+        String(product.third_id) === form.third_id &&
+        product.service_line_id === lineId,
     );
-  }, [catalogs.products, form.third_id]);
+  }, [catalogs.products, form.third_id, form.line_id]);
+
+  // Tipos de papel ACTIVOS de la línea de servicio elegida (FK única).
+  const availablePaperTypes = useMemo(() => {
+    if (!form.line_id) return [];
+    const lineId = Number(form.line_id);
+    return catalogs.paperTypes.filter(
+      (paperType) =>
+        paperType.is_active !== false &&
+        Number(paperType.service_line_id ?? paperType.service_line?.id) ===
+          lineId,
+    );
+  }, [catalogs.paperTypes, form.line_id]);
+
+  // Procesos ACTIVOS de la línea de servicio elegida (m2m).
+  const availableProcesses = useMemo(() => {
+    if (!form.line_id) return [];
+    const lineId = Number(form.line_id);
+    return catalogs.processes.filter(
+      (process) =>
+        process.is_active !== false &&
+        (process.service_lines || []).some((line) => line.id === lineId),
+    );
+  }, [catalogs.processes, form.line_id]);
 
   useEffect(() => {
     if (!selectedProduct) return;
@@ -773,9 +830,62 @@ const OrderForm = () => {
 
                 <div className="grid gap-5 md:grid-cols-2">
                   <div className="space-y-2">
+                    <Label>
+                      Línea <span className="text-red-500">*</span>
+                    </Label>
+                    <Select
+                      value={form.line_id}
+                      disabled={isOrderLocked}
+                      onValueChange={(value) => {
+                        // Cambiar de línea reinicia cliente, producto y los
+                        // procesos: todos dependen de la línea elegida.
+                        setForm((prev) => ({
+                          ...prev,
+                          line_id: value,
+                          third_id: "",
+                          product_id: "",
+                          troquel_id: "",
+                          paper_type_id: "",
+                          processes: [],
+                        }));
+                        setProcessFieldValues({});
+                        setErrors((prev) => ({
+                          ...prev,
+                          line_id: "",
+                          third_id: "",
+                          product_id: "",
+                          paper_type_id: "",
+                          processes: "",
+                        }));
+                      }}
+                    >
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Selecciona una línea">
+                          {selectedServiceLine
+                            ? selectedServiceLine.name
+                            : null}
+                        </SelectValue>
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectGroup>
+                          <SelectLabel>Líneas de servicio</SelectLabel>
+                          {catalogs.serviceLines.map((line) => (
+                            <SelectItem key={line.id} value={String(line.id)}>
+                              {line.name}
+                            </SelectItem>
+                          ))}
+                        </SelectGroup>
+                      </SelectContent>
+                    </Select>
+                    {errors.line_id && (
+                      <p className="text-xs text-red-500">{errors.line_id}</p>
+                    )}
+                  </div>
+
+                  <div className="space-y-2">
                     <Label>Cliente</Label>
                     <Combobox
-                      items={catalogs.thirds}
+                      items={availableThirds}
                       itemToStringValue={(third) => formatThirdLabel(third)}
                       value={selectedThird ?? null}
                       onValueChange={(third) => {
@@ -785,10 +895,14 @@ const OrderForm = () => {
                           setField("troquel_id", "");
                         }
                       }}
-                      disabled={isOrderLocked}
+                      disabled={isOrderLocked || !form.line_id}
                     >
                       <ComboboxInput
-                        placeholder="Buscar cliente..."
+                        placeholder={
+                          form.line_id
+                            ? "Buscar cliente..."
+                            : "Primero selecciona una línea"
+                        }
                         showClear
                       />
                       <ComboboxContent>
@@ -1025,17 +1139,23 @@ const OrderForm = () => {
                     )}
                   </div>
 
-                  <div className="space-y-2 md:col-span-2">
+                  <div className="space-y-2">
                     <Label>Tipo de papel</Label>
                     <Select
                       value={form.paper_type_id}
-                      disabled={isOrderLocked}
+                      disabled={isOrderLocked || !form.line_id}
                       onValueChange={(value) =>
                         setField("paper_type_id", value)
                       }
                     >
                       <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Selecciona un tipo de papel">
+                        <SelectValue
+                          placeholder={
+                            form.line_id
+                              ? "Selecciona un tipo de papel"
+                              : "Primero selecciona una línea"
+                          }
+                        >
                           {selectedPaperType
                             ? formatPaperTypeLabel(selectedPaperType)
                             : null}
@@ -1044,7 +1164,7 @@ const OrderForm = () => {
                       <SelectContent>
                         <SelectGroup>
                           <SelectLabel>Tipos de papel</SelectLabel>
-                          {catalogs.paperTypes.map((paperType) => (
+                          {availablePaperTypes.map((paperType) => (
                             <SelectItem
                               key={paperType.id}
                               value={String(paperType.id)}
@@ -1107,8 +1227,16 @@ const OrderForm = () => {
                   </p>
                 </div>
 
+                {availableProcesses.length === 0 && (
+                  <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-center text-sm text-slate-500">
+                    {form.line_id
+                      ? "Esta línea de servicio no tiene procesos configurados."
+                      : "Primero selecciona una línea de servicio para ver sus procesos."}
+                  </div>
+                )}
+
                 <div className="grid gap-3 md:grid-cols-2">
-                  {catalogs.processes.map((process) => {
+                  {availableProcesses.map((process) => {
                     const checked = form.processes.includes(String(process.id));
                     return (
                       <label

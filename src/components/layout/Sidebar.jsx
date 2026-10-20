@@ -29,6 +29,7 @@ import {
   ShieldCheck,
   Shield,
   KeyRound,
+  Workflow,
 } from "lucide-react";
 
 const menuItems = [
@@ -113,6 +114,12 @@ const menuItems = [
         label: "Procesos",
         path: "/configuracion/procesos",
         icon: Settings,
+        perm: "catalogs:view",
+      },
+      {
+        label: "Líneas de servicio",
+        path: "/configuracion/lineas-servicio",
+        icon: Workflow,
         perm: "catalogs:view",
       },
     ],

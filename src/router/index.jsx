@@ -20,6 +20,7 @@ import Formats from "../views/formats/Formats";
 import PaperTypes from "../views/paper_types/PaperTypes";
 import Processes from "../views/processes/Processes";
 import Machinery from "../views/machinery/Machinery";
+import ServiceLines from "../views/service_lines/ServiceLines";
 
 import Unauthorized from "../views/Unauthorized";
 
@@ -87,6 +88,10 @@ const router = createBrowserRouter([
       {
         path: "/configuracion/procesos",
         element: <Processes />,
+      },
+      {
+        path: "/configuracion/lineas-servicio",
+        element: <ServiceLines />,
       },
     ],
   },

@@ -75,6 +75,11 @@ const getOrderClientLabel = (order) =>
   order?.product?.third?.name ||
   "Sin cliente";
 
+// Línea de la orden = la del producto elegido al crearla (FK única). Una orden
+// pertenece a una sola línea, aunque el cliente pueda estar en varias.
+const getOrderLineLabel = (order) =>
+  order?.product?.service_line?.name || "—";
+
 const PROCESS_STATE_LABEL = {
   PENDIENTE: "Pendiente",
   EN_PROCESO: "En proceso",
@@ -528,6 +533,9 @@ const Orders = () => {
                         <p className="text-sm text-slate-500">
                           {getOrderClientLabel(order)}
                         </p>
+                        <p className="text-xs italic text-blue-700">
+                          {getOrderLineLabel(order)}
+                        </p>
                       </div>
                       <StatusBadge status={order.order_status} />
                     </div>
@@ -690,8 +698,10 @@ const Orders = () => {
                     <TableHeader>
                       <TableRow>
                         {sortHead("Orden", "id")}
+                        <TableHead>Línea</TableHead>
                         {sortHead("Producto", "product")}
                         {sortHead("Cliente", "third")}
+
                         {sortHead("Creación", "date")}
                         {sortHead("Pliegos", "amount_sheets")}
                         {sortHead("Unidades", "total_estimated")}
@@ -713,8 +723,12 @@ const Orders = () => {
                           <TableCell className="font-semibold text-slate-900">
                             #{order.id}
                           </TableCell>
+                          <TableCell className="text-blue-900">
+                            {getOrderLineLabel(order)}
+                          </TableCell>
                           <TableCell>{getOrderProductLabel(order)}</TableCell>
                           <TableCell>{getOrderClientLabel(order)}</TableCell>
+
                           <TableCell>{formatShortDate(order.date)}</TableCell>
                           <TableCell>{order.amount_sheets}</TableCell>
                           <TableCell>

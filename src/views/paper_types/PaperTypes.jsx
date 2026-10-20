@@ -1,7 +1,8 @@
 import { useAuthStore } from "../../store/authStore";
 import { hasPermission } from "@/lib/permissions";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import paperTypesService from "@/services/paper_types.service";
+import serviceLinesService from "@/services/service_lines.service";
 
 //VIEWS
 import PaperTypesForm from "./PaperTypesForm";
@@ -11,6 +12,13 @@ import DataTable from "../../components/data-table/DataTable";
 import ConfirmDialog from "../../components/common/ConfirmDialog";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Plus, Pencil, Trash2, Loader2 } from "lucide-react";
 import usePersistedTableState from "../../hooks/usePersistedTableState";
 
@@ -27,6 +35,7 @@ const defaultTableState = {
   pageSize: defaultMeta.pageSize,
   sortKey: "name",
   sortDirection: "asc",
+  service_line_id: "",
 };
 
 const PaperTypes = () => {
@@ -38,9 +47,18 @@ const PaperTypes = () => {
     "config-paper-types",
     defaultTableState,
   );
-  const { search, page, pageSize, sortKey, sortDirection } = tableState;
+  const { search, page, pageSize, sortKey, sortDirection, service_line_id } =
+    tableState;
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [meta, setMeta] = useState(defaultMeta);
+  const [serviceLines, setServiceLines] = useState([]);
+
+  const selectedLineLabel = useMemo(
+    () =>
+      serviceLines.find((line) => String(line.id) === String(service_line_id))
+        ?.name || null,
+    [serviceLines, service_line_id],
+  );
 
   const [formModal, setFormModal] = useState({
     isOpen: false,
@@ -64,6 +82,7 @@ const PaperTypes = () => {
           search: debouncedSearch || undefined,
           sortBy: sortKey,
           sortDirection,
+          service_line_id: service_line_id || undefined,
         }),
       ]);
       setPaperTypes(paperTypesRes?.data || []);
@@ -77,7 +96,23 @@ const PaperTypes = () => {
     } finally {
       setLoading(false);
     }
-  }, [debouncedSearch, page, pageSize, sortDirection, sortKey]);
+  }, [debouncedSearch, page, pageSize, sortDirection, sortKey, service_line_id]);
+
+  // Cargar líneas de servicio (activas) para el filtro del toolbar.
+  useEffect(() => {
+    let active = true;
+    serviceLinesService
+      .getAll({ onlyActive: true })
+      .then((res) => {
+        if (active) setServiceLines(res?.data || []);
+      })
+      .catch(() => {
+        if (active) toast.error("Error al cargar las líneas de servicio");
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {
@@ -146,6 +181,11 @@ const PaperTypes = () => {
   // ───────────── COLUMNAS ─────────────
   const columns = [
     { key: "id", label: "ID" },
+    {
+      key: "service_line",
+      label: "Línea",
+      render: (row) => row.service_line?.name || "—",
+    },
     { key: "name", label: "Nombre" },
     { key: "description", label: "Descripción" },
     {
@@ -258,6 +298,32 @@ const PaperTypes = () => {
             onSearchChange={(value) => {
               setTableState((prev) => ({ ...prev, search: value, page: 1 }));
             }}
+            toolbarExtra={
+              <Select
+                value={service_line_id || "ALL"}
+                onValueChange={(value) =>
+                  setTableState((prev) => ({
+                    ...prev,
+                    service_line_id: value === "ALL" ? "" : value,
+                    page: 1,
+                  }))
+                }
+              >
+                <SelectTrigger className="h-9 w-[220px] cursor-pointer text-sm">
+                  <SelectValue placeholder="Filtrar por línea">
+                    {selectedLineLabel || "Mostrar todos"}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ALL">Mostrar todos</SelectItem>
+                  {serviceLines.map((line) => (
+                    <SelectItem key={line.id} value={String(line.id)}>
+                      {line.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            }
             currentPage={meta.page}
             currentPageSize={meta.pageSize}
             total={meta.total}
