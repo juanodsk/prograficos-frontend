@@ -21,6 +21,7 @@ import PaperTypes from "../views/paper_types/PaperTypes";
 import Processes from "../views/processes/Processes";
 import Machinery from "../views/machinery/Machinery";
 import ServiceLines from "../views/service_lines/ServiceLines";
+import Quotations from "../views/quotations/Quotations";
 
 import Unauthorized from "../views/Unauthorized";
 
@@ -152,6 +153,12 @@ const router = createBrowserRouter([
     path: "/",
     element: <ProtectedRoute permissions={["monitor:view"]} withoutShell />,
     children: [{ path: "ordenes/monitor", element: <ProductionBoard /> }],
+  },
+  // Cotizaciones: acceso por permiso quotations:view. ADMIN pasa siempre.
+  {
+    path: "/",
+    element: <ProtectedRoute permissions={["quotations:view"]} />,
+    children: [{ path: "cotizaciones", element: <Quotations /> }],
   },
   {
     path: "/unauthorized",

@@ -30,6 +30,7 @@ import {
   Shield,
   KeyRound,
   Workflow,
+  Calculator,
 } from "lucide-react";
 
 const menuItems = [
@@ -50,6 +51,12 @@ const menuItems = [
     path: "/ordenes/monitor",
     icon: Factory,
     perm: "monitor:view",
+  },
+  {
+    label: "Cotizaciones",
+    path: "/cotizaciones",
+    icon: Calculator,
+    perm: "quotations:view",
   },
 
   {
