@@ -69,6 +69,7 @@ const Quotations = () => {
   const canCreate = hasPermission(currentUser, "quotations:create");
   const canUpdate = hasPermission(currentUser, "quotations:update");
   const canDelete = hasPermission(currentUser, "quotations:delete");
+  const canPrint = hasPermission(currentUser, "quotations:print");
 
   const [quotations, setQuotations] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -245,15 +246,17 @@ const Quotations = () => {
         >
           <Eye size={16} />
         </Button>
-        <Button
-          size="icon"
-          variant="ghost"
-          title="Imprimir"
-          onClick={() => setPrintId(row.id)}
-          className="cursor-pointer text-teal-700 hover:bg-teal-50 hover:text-teal-800"
-        >
-          <Printer size={16} />
-        </Button>
+        {canPrint && (
+          <Button
+            size="icon"
+            variant="ghost"
+            title="Imprimir"
+            onClick={() => setPrintId(row.id)}
+            className="cursor-pointer text-teal-700 hover:bg-teal-50 hover:text-teal-800"
+          >
+            <Printer size={16} />
+          </Button>
+        )}
         {canUpdate && isDraft && (
           <Button
             size="icon"
