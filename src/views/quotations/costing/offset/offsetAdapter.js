@@ -28,8 +28,30 @@ const emptyItem = () => ({
   formatId: "",
   measureId: "",
   porcentajeGanancia: "",
+  // "" = usar el precio sugerido (automático). Si el usuario lo ajusta, queda
+  // el número; se re-sincroniza al sugerido si cambia algo del costeo.
+  valorUnitarioFinal: "",
   costos: emptyCostos(),
 });
+
+// Campos cuyo cambio afecta el precio automático → re-sincronizan el final.
+const PRICE_KEYS = new Set([
+  "cantidad",
+  "cavidad",
+  "tintas",
+  "paperTypeId",
+  "supplierThirdId",
+  "formatId",
+]);
+const affectsPrice = (keys) => keys.some((k) => PRICE_KEYS.has(k));
+
+// Precio unitario efectivo: el ajustado por el usuario o el sugerido.
+const effectiveUnit = (item, costing) => {
+  if (item.valorUnitarioFinal !== "" && item.valorUnitarioFinal != null) {
+    return Number(item.valorUnitarioFinal);
+  }
+  return costing ? costing.valorUnitario : 0;
+};
 
 // Precarga un ítem a partir del documento guardado (modo editar).
 const prefillItem = (it) => {
@@ -49,6 +71,12 @@ const prefillItem = (it) => {
     formatId: it.formato?.formatId ? String(it.formato.formatId) : "",
     measureId: it.medida?.measureId ? String(it.medida.measureId) : "",
     porcentajeGanancia: String(pct),
+    // Solo se carga como "ajustado" si difiere del sugerido congelado.
+    valorUnitarioFinal:
+      it.costing?.valorUnitarioFinal != null &&
+      it.costing.valorUnitarioFinal !== it.costing.valorUnitario
+        ? String(it.costing.valorUnitarioFinal)
+        : "",
     costos: {
       diseno: String(it.costosManuales?.diseno ?? 0),
       troquel: String(it.costosManuales?.troquel ?? 0),
@@ -106,6 +134,8 @@ const fieldErrors = (it) => {
   const pct = Number(it.porcentajeGanancia);
   if (!Number.isFinite(pct) || pct <= 0 || pct > 100)
     e.porcentajeGanancia = "Entre 1% y 100%";
+  if (it.valorUnitarioFinal !== "" && !(Number(it.valorUnitarioFinal) > 0))
+    e.valorUnitarioFinal = "Debe ser mayor a 0";
   return e;
 };
 
@@ -123,6 +153,9 @@ const toPayloadItem = (it) => ({
   formatId: Number(it.formatId),
   measureId: it.measureId ? Number(it.measureId) : null,
   porcentajeGanancia: num(it.porcentajeGanancia),
+  // null = el backend usa el sugerido; número = precio final ajustado.
+  valorUnitarioFinal:
+    it.valorUnitarioFinal !== "" ? Number(it.valorUnitarioFinal) : null,
   costos: {
     diseno: num(it.costos.diseno),
     troquel: num(it.costos.troquel),
@@ -134,9 +167,9 @@ const toPayloadItem = (it) => ({
   },
 });
 
-// Total de la línea a cobrar al cliente = valor unitario × cantidad.
+// Total de la línea a cobrar al cliente = precio unitario efectivo × cantidad.
 const lineTotal = (it, costing) =>
-  costing ? costing.valorUnitario * (Number(it.cantidad) || 0) : 0;
+  effectiveUnit(it, costing) * (Number(it.cantidad) || 0);
 
 const offsetAdapter = {
   label: "Offset",
@@ -149,6 +182,8 @@ const offsetAdapter = {
   isItemValid,
   toPayloadItem,
   lineTotal,
+  affectsPrice,
+  effectiveUnit,
 };
 
 export default offsetAdapter;

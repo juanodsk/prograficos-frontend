@@ -172,16 +172,33 @@ const QuotationForm = () => {
   const setItem = (index, patch) =>
     setForm((prev) => ({
       ...prev,
-      items: prev.items.map((it, i) =>
-        i === index ? { ...it, ...patch } : it,
-      ),
+      items: prev.items.map((it, i) => {
+        if (i !== index) return it;
+        const next = { ...it, ...patch };
+        // Cambiar algo del costeo (no el propio precio final) re-sincroniza el
+        // precio final al nuevo valor sugerido.
+        if (
+          !("valorUnitarioFinal" in patch) &&
+          costingModule?.affectsPrice?.(Object.keys(patch))
+        ) {
+          next.valorUnitarioFinal = "";
+        }
+        return next;
+      }),
     }));
 
   const setItemCosto = (index, key, value) =>
     setForm((prev) => ({
       ...prev,
       items: prev.items.map((it, i) =>
-        i === index ? { ...it, costos: { ...it.costos, [key]: value } } : it,
+        i === index
+          ? {
+              ...it,
+              costos: { ...it.costos, [key]: value },
+              // Los costos afectan el precio → re-sincroniza el final.
+              valorUnitarioFinal: "",
+            }
+          : it,
       ),
     }));
 

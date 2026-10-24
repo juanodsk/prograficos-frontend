@@ -63,7 +63,9 @@ export default function QuotationPrintModal({ open, onClose, quotationId }) {
 
   const q = quotation;
   const lines = (q?.items || []).map((it) => {
-    const unit = it.costing?.valorUnitario || 0;
+    // Precio al cliente = final (ajustado) o, si no, el sugerido.
+    const unit =
+      it.costing?.valorUnitarioFinal ?? it.costing?.valorUnitario ?? 0;
     const quantity = it.cantidad || 0;
     return {
       description: it.descripcionProducto || "Sin descripción",

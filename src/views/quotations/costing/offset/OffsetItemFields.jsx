@@ -1,3 +1,6 @@
+import { useState } from "react";
+import { AlertTriangle, Pencil, RotateCcw } from "lucide-react";
+
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -74,6 +77,46 @@ export default function OffsetItemFields({
   const measuresForFormat = measures.filter(
     (m) => String(m.format_id) === item.formatId,
   );
+
+  // Precio final (negociación) sobre el sugerido del motor.
+  // Se edita en un borrador local y SOLO se confirma al salir (onBlur/Enter),
+  // para no tomar como precio real los valores intermedios al teclear/borrar.
+  const [editingPrice, setEditingPrice] = useState(false);
+  const [priceDraft, setPriceDraft] = useState("");
+  const cantidadN = Number(item.cantidad) || 0;
+  const overridden =
+    Boolean(costing) &&
+    item.valorUnitarioFinal !== "" &&
+    Number(item.valorUnitarioFinal) !== costing.valorUnitario;
+  const finalUnit =
+    item.valorUnitarioFinal !== "" && item.valorUnitarioFinal != null
+      ? Number(item.valorUnitarioFinal)
+      : costing?.valorUnitario || 0;
+  const margenReal = costing
+    ? finalUnit * cantidadN - costing.subtotalCostos
+    : 0;
+  const unitCost =
+    costing && cantidadN > 0 ? costing.subtotalCostos / cantidadN : 0;
+  const belowCost = Boolean(costing) && finalUnit < unitCost;
+
+  // Abre el inline cargando el borrador con el valor actual (final o sugerido).
+  const openPriceEdit = () => {
+    setPriceDraft(
+      item.valorUnitarioFinal !== "" && item.valorUnitarioFinal != null
+        ? String(item.valorUnitarioFinal)
+        : String(costing?.valorUnitario ?? ""),
+    );
+    setEditingPrice(true);
+  };
+
+  // Confirma el borrador: vacío o 0 → vuelve al sugerido; si no, el número.
+  const commitPrice = () => {
+    const digits = onlyDigits(priceDraft);
+    onItem({
+      valorUnitarioFinal: digits === "" || Number(digits) === 0 ? "" : digits,
+    });
+    setEditingPrice(false);
+  };
 
   return (
     <>
@@ -375,7 +418,10 @@ export default function OffsetItemFields({
       {costing && (
         <div className="mt-8 rounded-xl border border-slate-200 bg-blue-50 p-3">
           <h5 className="pb-4 pt-2 text-center font-bold">RESUMEN COSTOS</h5>
-          <div name="summary-cost" className="grid gap-2 text-sm md:grid-cols-4">
+          <div
+            name="summary-cost"
+            className="grid gap-2 text-sm md:grid-cols-4"
+          >
             <Summary label="Pliegos a comprar" value={costing.pliegos} />
             <Summary label="Millares" value={costing.millares} />
             <Summary
@@ -408,12 +454,87 @@ export default function OffsetItemFields({
               label="Costo Planchas"
               value={formatCOP(costing.precioPlanchas)}
             />
+            <Summary label="Margen real" value={formatCOP(margenReal)} strong />
+            {/* Sugerido: fijo, solo referencia (automático). */}
             <Summary
-              label="Valor unitario"
+              label="Valor unitario (sugerido)"
               value={formatCOP(costing.valorUnitario)}
-              strong
             />
+            {/* Precio final al cliente: lo editable (negociación del jefe). */}
+            <div>
+              <div className="flex items-center gap-1.5">
+                <p className="text-xs text-slate-500">Precio final al cliente</p>
+                {!editingPrice && (
+                  <button
+                    type="button"
+                    title="Ajustar precio al cliente"
+                    onClick={openPriceEdit}
+                    className="cursor-pointer text-slate-400 transition-colors hover:text-[#13529a]"
+                  >
+                    <Pencil size={13} />
+                  </button>
+                )}
+              </div>
+              {!editingPrice ? (
+                <p
+                  className={`font-bold ${
+                    overridden ? "text-amber-700" : "text-[#13529a]"
+                  }`}
+                >
+                  {formatCOP(finalUnit)}
+                  {overridden && (
+                    <span className="ml-1 text-xs font-normal">(ajustado)</span>
+                  )}
+                </p>
+              ) : (
+                <div className="mt-0.5 flex items-center gap-1">
+                  <div className="flex items-center overflow-hidden rounded-md border border-input text-sm focus-within:border-[#13529a]">
+                    <span className="bg-slate-100 px-1.5 py-0.5 text-xs font-semibold text-slate-600">
+                      $
+                    </span>
+                    <input
+                      autoFocus
+                      type="text"
+                      inputMode="numeric"
+                      className="w-20 px-1.5 py-0.5 text-sm outline-none"
+                      value={formatMiles(priceDraft)}
+                      onChange={(e) => setPriceDraft(onlyDigits(e.target.value))}
+                      onBlur={commitPrice}
+                      onKeyDown={(e) => {
+                        // Enter NO envía la cotización: confirma y cierra.
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          commitPrice();
+                        }
+                      }}
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    title="Volver al sugerido"
+                    // onMouseDown evita el blur (que confirmaría el borrador)
+                    // antes de resetear al sugerido.
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => {
+                      onItem({ valorUnitarioFinal: "" });
+                      setEditingPrice(false);
+                    }}
+                    className="cursor-pointer text-slate-400 hover:text-[#13529a]"
+                  >
+                    <RotateCcw size={14} />
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
+
+          {belowCost && (
+            <p className="mt-2 flex items-center gap-1 text-xs font-medium text-amber-700">
+              <AlertTriangle size={13} />
+              El precio final está por debajo del costo unitario (
+              {formatCOP(Math.round(unitCost))}).
+            </p>
+          )}
         </div>
       )}
     </>

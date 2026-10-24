@@ -156,12 +156,17 @@ const QuotationDetail = () => {
                     {it.descripcionProducto}
                   </TableCell>
                   <TableCell className="text-right">
-                    {formatCOP(it.costing?.valorUnitario)}
+                    {formatCOP(
+                      it.costing?.valorUnitarioFinal ??
+                        it.costing?.valorUnitario,
+                    )}
                   </TableCell>
                   <TableCell className="text-right">{it.cantidad}</TableCell>
                   <TableCell className="text-right font-semibold">
                     {formatCOP(
-                      (it.costing?.valorUnitario || 0) * (it.cantidad || 0),
+                      (it.costing?.valorUnitarioFinal ??
+                        it.costing?.valorUnitario ??
+                        0) * (it.cantidad || 0),
                     )}
                   </TableCell>
                 </TableRow>
@@ -191,7 +196,9 @@ const QuotationDetail = () => {
         </h2>
         {(q.items || []).map((it, i) => {
           const c = it.costing || {};
-          const margen = (c.totalCotizar || 0) - (c.subtotalCostos || 0);
+          const finalUnit = c.valorUnitarioFinal ?? c.valorUnitario ?? 0;
+          // Margen real con el precio efectivo al cliente.
+          const margen = finalUnit * (it.cantidad || 0) - (c.subtotalCostos || 0);
           return (
             <div
               key={i}
@@ -236,15 +243,14 @@ const QuotationDetail = () => {
                   label="Subtotal costos"
                   value={formatCOP(c.subtotalCostos)}
                 />
-                <Cell label="Ganancia (margen)" value={formatCOP(margen)} />
+                <Cell label="Margen real" value={formatCOP(margen)} />
                 <Cell
-                  label="Total producto"
-                  value={formatCOP(c.totalCotizar)}
-                  strong
+                  label="Valor unitario (sugerido)"
+                  value={formatCOP(c.valorUnitario)}
                 />
                 <Cell
-                  label="Valor unitario"
-                  value={formatCOP(c.valorUnitario)}
+                  label="Precio final al cliente"
+                  value={formatCOP(finalUnit)}
                   strong
                 />
               </div>
