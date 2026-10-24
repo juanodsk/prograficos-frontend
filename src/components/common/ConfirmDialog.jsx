@@ -25,6 +25,10 @@ export default function ConfirmDialog({
   cancelText = "Cancelar",
   variant = "danger",
   loading = false,
+  // Ícono personalizado (opcional); si no se pasa, usa el del variant.
+  icon = null,
+  // Texto mientras procesa (opcional).
+  loadingText = "Eliminando...",
 }) {
   const cancelBtnRef = useRef(null);
 
@@ -139,7 +143,7 @@ export default function ConfirmDialog({
             <div
               className={`shrink-0 flex items-center justify-center w-12 h-12 rounded-full ${v.iconBg} ${v.iconColor}`}
             >
-              {v.icon}
+              {icon || v.icon}
             </div>
             <div className="flex-1 min-w-0">
               <h3
@@ -190,7 +194,7 @@ export default function ConfirmDialog({
                       d="M4 12a8 8 0 018-8v4l3-3-3-3v4a8 8 0 00-8 8h4z"
                     />
                   </svg>
-                  Eliminando...
+                  {loadingText}
                 </>
               ) : (
                 confirmText
