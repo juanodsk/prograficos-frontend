@@ -11,12 +11,13 @@ import ConfirmDialog from "../../components/common/ConfirmDialog";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+  Combobox,
+  ComboboxInput,
+  ComboboxContent,
+  ComboboxEmpty,
+  ComboboxList,
+  ComboboxItem,
+} from "@/components/ui/combobox";
 import { Plus, Pencil, Trash2, Loader2, ScanEye } from "lucide-react";
 import usePersistedTableState from "../../hooks/usePersistedTableState";
 import { formatTroquelLabel } from "@/lib/troquel";
@@ -70,19 +71,25 @@ const Products = () => {
   const [meta, setMeta] = useState(defaultMeta);
   const [clients, setClients] = useState([]);
 
+  // Nombre visible de un cliente (empresa > contacto > #id).
+  const clientName = (client) =>
+    client.company_name || client.name || `Cliente #${client.id}`;
+
   useEffect(() => {
     productsService
       .getClients()
-      .then((res) => setClients(res?.data || []))
+      .then((res) => {
+        const list = res?.data || [];
+        // Orden ascendente por nombre (es, sin distinguir mayúsculas/acentos).
+        list.sort((a, b) =>
+          clientName(a).localeCompare(clientName(b), "es", {
+            sensitivity: "base",
+          }),
+        );
+        setClients(list);
+      })
       .catch(() => {});
   }, []);
-
-  const clientLabel = (id) => {
-    const client = clients.find((item) => String(item.id) === id);
-    return client
-      ? client.company_name || client.name || `Cliente #${client.id}`
-      : null;
-  };
 
   const [viewModal, setViewModal] = useState({
     isOpen: false,
@@ -335,32 +342,32 @@ const Products = () => {
               setTableState((prev) => ({ ...prev, search: value, page: 1 }));
             }}
             toolbarExtra={
-              <Select
-                value={thirdFilter || "ALL"}
-                onValueChange={(value) =>
+              <Combobox
+                className="w-[240px]"
+                items={clients}
+                itemToStringValue={clientName}
+                value={
+                  clients.find((c) => String(c.id) === thirdFilter) || null
+                }
+                onValueChange={(client) =>
                   setTableState((prev) => ({
                     ...prev,
-                    third_id: value === "ALL" ? "" : value,
+                    // Limpiar (X) = sin filtro → todos los clientes.
+                    third_id: client ? String(client.id) : "",
                     page: 1,
                   }))
                 }
               >
-                <SelectTrigger className="h-9 w-[220px] cursor-pointer text-sm">
-                  <SelectValue placeholder="Filtrar por cliente">
-                    {thirdFilter ? clientLabel(thirdFilter) : null}
-                  </SelectValue>
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="ALL">Todos los clientes</SelectItem>
-                  {clients.map((client) => (
-                    <SelectItem key={client.id} value={String(client.id)}>
-                      {client.company_name ||
-                        client.name ||
-                        `Cliente #${client.id}`}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                <ComboboxInput placeholder="Filtrar por cliente" showClear />
+                <ComboboxContent>
+                  <ComboboxEmpty>Sin clientes</ComboboxEmpty>
+                  <ComboboxList>
+                    {(client) => (
+                      <ComboboxItem>{clientName(client)}</ComboboxItem>
+                    )}
+                  </ComboboxList>
+                </ComboboxContent>
+              </Combobox>
             }
             currentPage={meta.page}
             currentPageSize={meta.pageSize}
