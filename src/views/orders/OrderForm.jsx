@@ -1096,7 +1096,24 @@ const OrderForm = () => {
                   </div>
 
                   <div className="space-y-2">
-                    <Label>Pliegos adicionales</Label>
+                    <div className="flex items-center justify-between gap-2">
+                      <Label>Pliegos adicionales</Label>
+                      {form.amount_sheets !== "" &&
+                        form.amount_sheets != null && (
+                          <span
+                            // Total informativo (requeridos + adicionales).
+                            // Solo lectura, no se persiste.
+                            className="inline-flex items-center gap-1 rounded-md bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-600"
+                            title="Total de pliegos (requeridos + adicionales)"
+                          >
+                            Total:{" "}
+                            <span className="text-[#13529a]">
+                              {(Number(form.amount_sheets) || 0) +
+                                (Number(form.amount_sheets_additional) || 0)}
+                            </span>
+                          </span>
+                        )}
+                    </div>
                     <Input
                       type="number"
                       min="0"
