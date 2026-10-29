@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import troquelesService from "../../services/troqueles.service";
+import serviceLinesService from "../../services/service_lines.service";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -26,6 +27,7 @@ const sizeLabels = {
   SMALL: "Pequeño",
   MEDIUM: "Mediano",
   LARGE: "Grande",
+  EXTRA_LARGE: "Extra grande",
   EXTERNAL: "Externo",
 };
 
@@ -33,6 +35,7 @@ const sizeBadgeClass = {
   SMALL: "bg-blue-100 text-blue-800",
   MEDIUM: "bg-red-100 text-red-800",
   LARGE: "bg-green-100 text-green-800",
+  EXTRA_LARGE: "bg-amber-100 text-amber-800",
   EXTERNAL: "bg-purple-100 text-purple-800",
 };
 
@@ -54,11 +57,13 @@ export default function TroquelFormModal({
   const [fetching, setFetching] = useState(false);
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [errors, setErrors] = useState({});
+  const [serviceLines, setServiceLines] = useState([]);
   const [form, setForm] = useState({
     code: "",
     description: "",
     elaboration_date: new Date(),
     size: "SMALL",
+    service_line_id: "",
     is_active: true,
   });
 
@@ -67,12 +72,22 @@ export default function TroquelFormModal({
     if (!isOpen) resetForm();
   }, [isOpen, troquelId]);
 
+  // Líneas de servicio activas (Offset / Cartón Microcorrugado...).
+  useEffect(() => {
+    if (!isOpen) return;
+    serviceLinesService
+      .getAll({ onlyActive: true })
+      .then((res) => setServiceLines(res?.data || []))
+      .catch(() => {});
+  }, [isOpen]);
+
   const resetForm = () => {
     setForm({
       code: "",
       description: "",
       elaboration_date: new Date(),
       size: "SMALL",
+      service_line_id: "",
       is_active: true,
     });
     setErrors({});
@@ -90,6 +105,7 @@ export default function TroquelFormModal({
         description: t.description || "",
         elaboration_date: new Date(t.elaboration_date),
         size: t.size || "SMALL",
+        service_line_id: t.service_line_id ? String(t.service_line_id) : "",
         is_active: t.is_active ?? true,
       });
     } catch {
@@ -113,6 +129,8 @@ export default function TroquelFormModal({
     if (!form.elaboration_date)
       newErrors.elaboration_date = "La fecha es requerida";
     if (!form.size) newErrors.size = "Selecciona un tamaño";
+    if (!form.service_line_id)
+      newErrors.service_line_id = "Selecciona una línea de servicio";
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -130,6 +148,7 @@ export default function TroquelFormModal({
         description: form.description.trim() || null,
         elaboration_date: form.elaboration_date.toISOString(),
         size: form.size,
+        service_line_id: Number(form.service_line_id),
         is_active: form.is_active,
       };
 
@@ -221,6 +240,16 @@ export default function TroquelFormModal({
                     </div>
                     <div>
                       <p className="text-xs uppercase tracking-wide text-slate-400">
+                        Línea
+                      </p>
+                      <p className="mt-1 font-medium text-slate-900">
+                        {serviceLines.find(
+                          (l) => String(l.id) === form.service_line_id,
+                        )?.name || "Sin línea"}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs uppercase tracking-wide text-slate-400">
                         Fecha
                       </p>
                       <p className="mt-1 font-medium text-slate-900">
@@ -262,6 +291,45 @@ export default function TroquelFormModal({
 
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
                   <div className="w-full min-w-0 flex-1 space-y-1">
+                    <Label className="text-xs">Línea de servicio</Label>
+                    <Select
+                      value={form.service_line_id}
+                      onValueChange={(value) => {
+                        setForm((prev) => ({
+                          ...prev,
+                          service_line_id: value,
+                        }));
+                        if (errors.service_line_id) {
+                          setErrors((prev) => ({
+                            ...prev,
+                            service_line_id: "",
+                          }));
+                        }
+                      }}
+                    >
+                      <SelectTrigger className="h-9 text-sm w-full">
+                        <SelectValue placeholder="Selecciona línea">
+                          {serviceLines.find(
+                            (l) => String(l.id) === form.service_line_id,
+                          )?.name || "Selecciona línea"}
+                        </SelectValue>
+                      </SelectTrigger>
+                      <SelectContent>
+                        {serviceLines.map((line) => (
+                          <SelectItem key={line.id} value={String(line.id)}>
+                            {line.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {errors.service_line_id && (
+                      <p className="text-xs text-red-500">
+                        {errors.service_line_id}
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="w-full min-w-0 flex-1 space-y-1">
                     <Label className="text-xs">Tamaño</Label>
                     <Select
                       value={form.size}
@@ -278,6 +346,7 @@ export default function TroquelFormModal({
                         <SelectItem value="SMALL">Pequeño</SelectItem>
                         <SelectItem value="MEDIUM">Mediano</SelectItem>
                         <SelectItem value="LARGE">Grande</SelectItem>
+                        <SelectItem value="EXTRA_LARGE">Extra grande</SelectItem>
                         <SelectItem value="EXTERNAL">Externo</SelectItem>
                       </SelectContent>
                     </Select>

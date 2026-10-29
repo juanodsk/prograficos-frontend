@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { toast } from "sonner";
 import troquelesService from "../../services/troqueles.service";
+import serviceLinesService from "../../services/service_lines.service";
 import ConfirmDialog from "../../components/common/ConfirmDialog";
 import TroquelForm from "../troqueles/TroquelForm";
 import TroquelImagesViewer from "./TroquelImagesViewer";
@@ -31,6 +32,7 @@ const defaultMeta = {
 const defaultTableState = {
   search: "",
   size: "",
+  service_line: "",
   page: 1,
   pageSize: defaultMeta.pageSize,
   sortKey: "elaboration_date",
@@ -43,6 +45,7 @@ const SIZE_FILTER_OPTIONS = [
   { value: "SMALL", label: "Pequeño", dot: "bg-blue-500" },
   { value: "MEDIUM", label: "Mediano", dot: "bg-red-500" },
   { value: "LARGE", label: "Grande", dot: "bg-green-500" },
+  { value: "EXTRA_LARGE", label: "Extra grande", dot: "bg-amber-500" },
   { value: "EXTERNAL", label: "Externo", dot: "bg-purple-500" },
 ];
 
@@ -58,6 +61,10 @@ const sizeConfig = {
   LARGE: {
     label: "L",
     className: "bg-green-100 text-green-800",
+  },
+  EXTRA_LARGE: {
+    label: "XL",
+    className: "bg-amber-100 text-amber-800",
   },
   EXTERNAL: {
     label: "E",
@@ -80,6 +87,7 @@ const Troqueles = () => {
   const {
     search,
     size: sizeFilter,
+    service_line: serviceLineFilter,
     page,
     pageSize,
     sortKey,
@@ -87,6 +95,7 @@ const Troqueles = () => {
   } = tableState;
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [meta, setMeta] = useState(defaultMeta);
+  const [serviceLines, setServiceLines] = useState([]);
 
   const [viewModal, setViewModal] = useState({
     isOpen: false,
@@ -117,6 +126,7 @@ const Troqueles = () => {
         pageSize,
         search: debouncedSearch || undefined,
         size: sizeFilter || undefined,
+        service_line_id: serviceLineFilter || undefined,
         sortBy: sortKey,
         sortDirection,
       });
@@ -132,7 +142,23 @@ const Troqueles = () => {
     } finally {
       setLoading(false);
     }
-  }, [debouncedSearch, sizeFilter, page, pageSize, sortDirection, sortKey]);
+  }, [
+    debouncedSearch,
+    sizeFilter,
+    serviceLineFilter,
+    page,
+    pageSize,
+    sortDirection,
+    sortKey,
+  ]);
+
+  // Líneas de servicio activas para el filtro (Offset / Cartón...).
+  useEffect(() => {
+    serviceLinesService
+      .getAll({ onlyActive: true })
+      .then((res) => setServiceLines(res?.data || []))
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {
@@ -236,6 +262,15 @@ const Troqueles = () => {
         ),
     },
 
+    {
+      key: "service_line",
+      label: "Línea",
+      render: (row) => (
+        <span className="text-sm text-slate-700">
+          {row.service_line?.name || "—"}
+        </span>
+      ),
+    },
     {
       key: "elaboration_date",
       label: "Fecha de Elaboración",
@@ -354,46 +389,77 @@ const Troqueles = () => {
               setTableState((prev) => ({ ...prev, search: value, page: 1 }));
             }}
             toolbarExtra={
-              <Select
-                value={sizeFilter || "ALL"}
-                onValueChange={(value) =>
-                  setTableState((prev) => ({
-                    ...prev,
-                    size: value === "ALL" ? "" : value,
-                    page: 1,
-                  }))
-                }
-              >
-                <SelectTrigger className="h-9 w-[190px] cursor-pointer text-sm">
-                  <SelectValue placeholder="Filtrar por tamaño">
-                    {(() => {
-                      const opt = SIZE_FILTER_OPTIONS.find(
-                        (o) => o.value === (sizeFilter || "ALL"),
-                      );
-                      return opt ? (
+              <div className="flex flex-wrap items-center gap-2">
+                <Select
+                  value={sizeFilter || "ALL"}
+                  onValueChange={(value) =>
+                    setTableState((prev) => ({
+                      ...prev,
+                      size: value === "ALL" ? "" : value,
+                      page: 1,
+                    }))
+                  }
+                >
+                  <SelectTrigger className="h-9 w-[180px] cursor-pointer text-sm">
+                    <SelectValue placeholder="Filtrar por tamaño">
+                      {(() => {
+                        const opt = SIZE_FILTER_OPTIONS.find(
+                          (o) => o.value === (sizeFilter || "ALL"),
+                        );
+                        return opt ? (
+                          <span className="flex items-center gap-2">
+                            <span
+                              className={`inline-block h-2.5 w-2.5 rounded-full ${opt.dot}`}
+                            />
+                            {opt.label}
+                          </span>
+                        ) : null;
+                      })()}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    {SIZE_FILTER_OPTIONS.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
                         <span className="flex items-center gap-2">
                           <span
-                            className={`inline-block h-2.5 w-2.5 rounded-full ${opt.dot}`}
+                            className={`inline-block h-2.5 w-2.5 rounded-full ${option.dot}`}
                           />
-                          {opt.label}
+                          {option.label}
                         </span>
-                      ) : null;
-                    })()}
-                  </SelectValue>
-                </SelectTrigger>
-                <SelectContent>
-                  {SIZE_FILTER_OPTIONS.map((option) => (
-                    <SelectItem key={option.value} value={option.value}>
-                      <span className="flex items-center gap-2">
-                        <span
-                          className={`inline-block h-2.5 w-2.5 rounded-full ${option.dot}`}
-                        />
-                        {option.label}
-                      </span>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+
+                <Select
+                  value={serviceLineFilter || "ALL"}
+                  onValueChange={(value) =>
+                    setTableState((prev) => ({
+                      ...prev,
+                      service_line: value === "ALL" ? "" : value,
+                      page: 1,
+                    }))
+                  }
+                >
+                  <SelectTrigger className="h-9 w-[200px] cursor-pointer text-sm">
+                    <SelectValue placeholder="Filtrar por línea">
+                      {serviceLineFilter
+                        ? serviceLines.find(
+                            (l) => String(l.id) === serviceLineFilter,
+                          )?.name || "Línea"
+                        : "Todas las líneas"}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="ALL">Todas las líneas</SelectItem>
+                    {serviceLines.map((line) => (
+                      <SelectItem key={line.id} value={String(line.id)}>
+                        {line.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             }
             currentPage={meta.page}
             currentPageSize={meta.pageSize}
