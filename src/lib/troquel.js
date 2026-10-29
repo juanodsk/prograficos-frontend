@@ -2,6 +2,7 @@ const sizePrefixMap = {
   SMALL: "S",
   MEDIUM: "M",
   LARGE: "L",
+  EXTRA_LARGE: "XL",
   EXTERNAL: "E",
 };
 

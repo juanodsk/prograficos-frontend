@@ -465,22 +465,16 @@ export default function ThirdForm({ isOpen, onClose, onSuccess, thirdId }) {
                       <Select
                         value={form.person_type}
                         onValueChange={(value) => {
+                          // Nombre comercial es opcional para ambos tipos de
+                          // persona (J y N); no se limpia al cambiar el tipo.
                           setForm((prev) => ({
                             ...prev,
                             person_type: value,
-                            company_name:
-                              value === "JURIDICA" ? prev.company_name : "",
                           }));
                           if (errors.person_type) {
                             setErrors((prev) => ({
                               ...prev,
                               person_type: "",
-                            }));
-                          }
-                          if (value !== "JURIDICA" && errors.company_name) {
-                            setErrors((prev) => ({
-                              ...prev,
-                              company_name: "",
                             }));
                           }
                         }}
@@ -558,20 +552,16 @@ export default function ThirdForm({ isOpen, onClose, onSuccess, thirdId }) {
                     </div>
                   </div>
 
-                  {form.person_type === "JURIDICA" && (
-                    <div className="space-y-1">
-                      <Label className="text-xs">
-                        Razón social / Empresa (opcional)
-                      </Label>
-                      <Input
-                        name="company_name"
-                        value={form.company_name}
-                        onChange={handleChange}
-                        placeholder="Nombre empresa"
-                        className="h-9 text-sm"
-                      />
-                    </div>
-                  )}
+                  <div className="space-y-1">
+                    <Label className="text-xs">Nombre Comercial (opcional)</Label>
+                    <Input
+                      name="company_name"
+                      value={form.company_name}
+                      onChange={handleChange}
+                      placeholder="Nombre comercial"
+                      className="h-9 text-sm"
+                    />
+                  </div>
                 </div>
               </div>
 

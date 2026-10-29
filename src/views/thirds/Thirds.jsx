@@ -223,7 +223,7 @@ const Thirds = () => {
     },
     {
       key: "company_name",
-      label: "Razón social",
+      label: "Nombre Comercial",
       render: (row) => row.company_name || "-",
     },
     {
