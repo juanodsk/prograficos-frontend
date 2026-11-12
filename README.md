@@ -66,8 +66,8 @@ No se deben conservar paquetes instalados manualmente dentro de `node_modules`. 
 | --- | --- | --- |
 | `VITE_API_URL` | Sí | URL base del backend. Por defecto: `http://localhost:5001` |
 | `ALLOWED_HOSTS` | Sí, en la configuración del servidor | Lista separada por comas para `server.allowedHosts`; debe existir en el entorno del proceso que inicia Vite |
-| `VITE_SOCKET_URL` | No | Reservada en `.env.example`; no existe cliente Socket.IO en el código fuente actual |
-| `VITE_SOCKET_PATH` | No | Reservada en `.env.example`; no existe cliente Socket.IO en el código fuente actual |
+| `VITE_SOCKET_URL` | No | Reservada; el cliente Socket.IO (`src/services/socket.service.js`) ya existe pero se conecta usando `VITE_API_URL`, no esta variable |
+| `VITE_SOCKET_PATH` | No | Reservada; el path del handshake lo maneja el cliente/servidor por defecto (`/socket.io`) |
 | `COOKIE_CROSS_SITE` | No | No se expone al cliente ni es leída por el frontend actual |
 | `COOKIE_SECURE` | No | No se expone al cliente ni es leída por el frontend actual |
 
@@ -146,31 +146,16 @@ frontend-prograficos/
 
 ## Rutas registradas
 
-| Ruta | Acceso | Estado/propósito |
+El acceso se controla **por permisos (claims)**, no por rol fijo (`ADMIN` hace bypass). El detalle de rutas, permisos y el patrón `ProtectedRoute` está en `DEVELOPMENT_GUIDE.md` §7.3–7.5 (fuente de verdad). Resumen:
+
+| Grupo | Rutas | Permiso/acceso |
 | --- | --- | --- |
-| `/` | Público | Redirige a `/login` |
-| `/login` | Solo no autenticados | Inicio de sesión; un usuario autenticado va a `/dashboard` |
-| `/dashboard` | Cualquier autenticado | Vista inicial, actualmente básica |
-| `/ordenes` | `ADMIN`, `SUPERVISOR`, `EMPLOYEE` | Listado y finalización de órdenes |
-| `/admin/usuarios` | `ADMIN`, `SUPERVISOR` | CRUD de usuarios mediante modales |
-| `/admin/usuario/create` | `ADMIN`, `SUPERVISOR` | Redirige al listado; el alta se abre en modal |
-| `/admin/usuario/:id/edit` | `ADMIN`, `SUPERVISOR` | Redirige al listado; la edición se abre en modal |
-| `/unauthorized` | Público | Mensaje de acceso denegado |
-| `*` | Público | Redirige a `/login` |
+| Público/base | `/` → `/login`, `/login`, `/dashboard`, `/unauthorized`, `*` → `/login` | Público / autenticado |
+| Operación | `/ordenes`, `/ordenes/crear`, `/ordenes/:id`, `/ordenes/:id/editar`, `/ordenes/monitor`, `/ordenes/auditoria` | `orders:view` (+ `create`/`update`/`monitor:view`/`audit:view`) |
+| Cotizaciones | `/cotizaciones`, `/cotizaciones/crear`, `/cotizaciones/:id` | `quotations:view` (+ `create`/`update`) |
+| Configuración | `/configuracion/*` (usuarios, terceros, productos, troqueles, medidas, formatos, maquinarias, tipos_papel, procesos, `lineas-servicio`) | permiso del módulo (`thirds:view`, `products:view`, `troqueles:view`, `catalogs:view`, …); Usuarios/Roles exigen rol `ADMIN` |
 
-### Navegación todavía no implementada
-
-El `Sidebar` muestra rutas que aún no existen en el router:
-
-- `/admin/terceros`
-- `/admin/productos`
-- `/admin/troqueles`
-- `/admin/medidad`
-- `/admin/formatos`
-- `/admin/tipos_de_papel`
-- `/admin/procesos`
-
-Además, las acciones de órdenes navegan a `/orders/create`, `/orders/:id` y `/orders/:id/edit`, pero ninguna de esas rutas está registrada y no siguen el nombre español `/ordenes`. Hasta que se implementen, el wildcard las enviará al login.
+Roles del sistema (tabla en BD): `ADMIN`, `SUPERVISOR`, `OPERATOR`, `CUSTOMER` (reservado). Las rutas de órdenes en español (`/ordenes/*`) ya están registradas; el `Sidebar` y el router concuerdan.
 
 ## Contrato REST consumido
 
