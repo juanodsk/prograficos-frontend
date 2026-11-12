@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { formatTroquelLabel } from "@/lib/troquel";
+import TroquelImagesViewer from "../troqueles/TroquelImagesViewer";
 import {
   Select,
   SelectContent,
@@ -31,7 +32,7 @@ import {
 } from "@/components/ui/combobox";
 
 import { Checkbox } from "@/components/ui/checkbox";
-import { ArrowLeft, Loader2, Save } from "lucide-react";
+import { ArrowLeft, Loader2, Save, Eye } from "lucide-react";
 
 const formatFormatLabel = (format) => {
   if (!format) return "Formato sin definir";
@@ -241,6 +242,7 @@ const OrderForm = () => {
   const [fetching, setFetching] = useState(true);
   const [errors, setErrors] = useState({});
   const [isOrderLocked, setIsOrderLocked] = useState(false);
+  const [troquelViewerOpen, setTroquelViewerOpen] = useState(false);
   const [catalogs, setCatalogs] = useState({
     formats: [],
     measures: [],
@@ -488,9 +490,8 @@ const OrderForm = () => {
 
   const selectedServiceLine = useMemo(
     () =>
-      catalogs.serviceLines.find(
-        (line) => String(line.id) === form.line_id,
-      ) || null,
+      catalogs.serviceLines.find((line) => String(line.id) === form.line_id) ||
+      null,
     [catalogs.serviceLines, form.line_id],
   );
 
@@ -803,7 +804,7 @@ const OrderForm = () => {
         </div>
       </div>
 
-      <div className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
+      <div className="grid gap-6 xl:grid-cols-[7fr_3fr]">
         <div className="rounded-2xl border bg-white shadow-sm">
           {fetching ? (
             <div className="flex items-center justify-center py-16">
@@ -1139,7 +1140,19 @@ const OrderForm = () => {
                   </div>
 
                   <div className="space-y-2">
-                    <Label>Troquel asignado</Label>
+                    <div className="flex items-center justify-between">
+                      <Label>Troquel asignado</Label>
+                      {selectedTroquel?.id && (
+                        <button
+                          type="button"
+                          onClick={() => setTroquelViewerOpen(true)}
+                          className="inline-flex items-center gap-1 text-xs font-semibold text-[#13529a] hover:underline cursor-pointer"
+                          title="Ver imágenes del troquel"
+                        >
+                          <Eye size={14} /> Ver troquel
+                        </button>
+                      )}
+                    </div>
                     <Input
                       value={
                         selectedTroquel
@@ -1412,6 +1425,13 @@ const OrderForm = () => {
           </div>
         </aside>
       </div>
+
+      <TroquelImagesViewer
+        open={troquelViewerOpen}
+        troquelId={selectedTroquel?.id}
+        title={`Imágenes Troquel No. · ${formatTroquelLabel(selectedTroquel)}`}
+        onClose={() => setTroquelViewerOpen(false)}
+      />
     </div>
   );
 };
