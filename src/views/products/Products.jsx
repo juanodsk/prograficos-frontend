@@ -181,11 +181,11 @@ const Products = () => {
     try {
       const response = await productsService.delete(confirmDialog.productId);
       await fetchProducts();
-      toast.success(response?.message || "Producto desactivado correctamente");
+      toast.success(response?.message || "Producto eliminado correctamente");
       handleCloseDialog();
     } catch (error) {
       toast.error(
-        error.response?.data?.message || "No se pudo desactivar el producto",
+        error.response?.data?.message || "No se pudo eliminar el producto",
       );
 
       setConfirmDialog((prev) => ({
@@ -416,9 +416,9 @@ const Products = () => {
         onClose={handleCloseDialog}
         onConfirm={handleConfirmDelete}
         loading={confirmDialog.loading}
-        title="¿Desactivar producto?"
-        description={`Estás a punto de desactivar "${confirmDialog.productName}". Esta acción no se puede deshacer.`}
-        confirmText="Sí, desactivar"
+        title="¿Eliminar producto?"
+        description={`Estás a punto de eliminar "${confirmDialog.productName}". Esta acción no se puede deshacer.`}
+        confirmText="Sí, eliminar"
         cancelText="Cancelar"
         variant="danger"
       />
