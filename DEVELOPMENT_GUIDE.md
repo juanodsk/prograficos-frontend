@@ -207,13 +207,14 @@ No se debe registrar una vista vacía solo para que el enlace “funcione”. Un
 
 ### 7.3 Navegación y permisos actuales
 
-Las rutas de configuración se agrupan bajo `/configuracion/*` (usuarios, terceros, productos, troqueles, medidas, formatos, maquinarias, tipos_papel, procesos y **líneas de servicio** → `/configuracion/lineas-servicio`) y las de operación bajo `/ordenes/*` (incluye `/ordenes/auditoria`, `/ordenes/crear`, `/ordenes/:id`, `/ordenes/:id/editar` y `/ordenes/monitor`).
+Las rutas de configuración se agrupan bajo `/configuracion/*` (usuarios, terceros, productos, troqueles, medidas, formatos, maquinarias, tipos_papel, procesos y **líneas de servicio** → `/configuracion/lineas-servicio`), las de operación bajo `/ordenes/*` (incluye `/ordenes/auditoria`, `/ordenes/crear`, `/ordenes/:id`, `/ordenes/:id/editar` y `/ordenes/monitor`) y las de **Cotizaciones** bajo `/cotizaciones/*` (`/cotizaciones`, `/cotizaciones/crear`, `/cotizaciones/:id`).
 
 Roles del sistema (tabla en BD): `ADMIN`, `SUPERVISOR`, `OPERATOR`, `CUSTOMER` (reservado). Cada ruta/acción se protege por **permiso**, no por rol:
 
 | Módulo (ruta) | Permiso que exige |
 | --- | --- |
 | Órdenes (`/ordenes/*`) | `orders:view` (crear `orders:create`/`orders:duplicate`, editar `orders:update`, monitor `monitor:view`, auditoría `audit:view`) |
+| Cotizaciones (`/cotizaciones/*`) | `quotations:view` (crear `quotations:create`, editar `quotations:update`) |
 | Configuración › Terceros | `thirds:view` |
 | Configuración › Productos | `products:view` |
 | Configuración › Troqueles | `troqueles:view` |
@@ -230,8 +231,17 @@ Las líneas de servicio (Offset, Cartón Microcorrugado, Serigrafía, …) atrav
 - **ThirdForm** y **ProcessesForm** usan `ComboboxChips` (multi-select, m2m): un tercero/proceso pertenece a 1+ líneas.
 - **PaperTypesForm** y **ProductForm** usan `<Select>` (único): papel/producto pertenece a una sola línea. En productos, el Tercero se filtra a los de esa línea.
 - **OrderForm**: el `<Select>` de línea es el **primer** campo y es solo visual (no se envía al backend). Al elegir/cambiar la línea se filtran y reinician cliente, productos, tipos de papel y procesos, mostrando únicamente los **activos** de esa línea.
-- Listados: `PaperTypes`, `Products` y `Processes` muestran la columna de línea; `Orders` muestra la línea derivada de `product.service_line` (una orden = una línea).
+- **Troqueles** también pertenecen a UNA línea (`<Select>` en `TroquelForm`, columna + filtro por línea en `Troqueles.jsx`).
+- Listados: `PaperTypes`, `Products`, `Processes` y `Troqueles` muestran la columna de línea; `Orders` muestra la línea derivada de `product.service_line` (una orden = una línea).
 - Al mapear opciones dependientes de la línea, filtrar siempre por activos (`is_active !== false`) además de por pertenencia a la línea.
+
+### 7.5 Patrones de UI recientes
+
+- **Modal de imágenes de troquel reutilizable** (`views/troqueles/TroquelImagesViewer.jsx`): se usa desde la lista de troqueles, `ProductView`, `ThirdView` y **`OrderForm`** (enlace "Ver troquel" junto a "Troquel asignado"), para ver/descargar las fotos del troquel desde R2 sin salir de la pantalla. Props: `open`, `troquelId`, `onClose`, `title`. Reutilizar este componente en vez de crear visores nuevos.
+- **Tamaño `EXTRA_LARGE`**: agregado a los mapas `sizeConfig`/`sizeLabels`/`sizeBadgeClass` de `Troqueles`, `TroquelForm`, `ProductView` y `ThirdView` (badge ámbar `bg-amber-100 text-amber-800`, dot `bg-amber-500`).
+- **Borrado de productos es DEFINITIVO**: el `ConfirmDialog` de `Products.jsx` dice "¿Eliminar producto?" y el backend borra la fila si no hay órdenes (muestra el 409 si las hay). _Inactivar_ (ocultar de futuras órdenes) se hace editando el producto, no con el botón eliminar.
+- **Filtros con buscador**: para filtrar por cliente en listados grandes (p. ej. `Products`) se prefiere `Combobox` con buscador incorporado, ordenando el array ascendente, en vez de un `<Select>` plano.
+- **Cotizaciones** (`views/quotations/*`, `quotations.service.js`): módulo nuevo con costeo (`costing/offset/*`). Precio sugerido de solo lectura y precio final editable que se confirma en `onBlur`/Enter (no en cada tecla) para no disparar validaciones a mitad de edición.
 
 ## 8. Comunicación con el backend
 
