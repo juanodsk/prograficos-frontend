@@ -286,11 +286,14 @@ const OrderForm = () => {
         serviceLinesRes,
         orderRes,
       ] = await Promise.all([
-        measuresService.getAll({ onlyActive: true }),
+        // pageSize alto: son selectores de catálogo para el formulario, no
+        // listados paginados. Sin esto el backend topa en 10 (pageSize por
+        // defecto) y se "pierden" opciones activas al crear/editar la orden.
+        measuresService.getAll({ onlyActive: true, pageSize: 1000 }),
         thirdsService.getAll({ onlyActive: true, pageSize: 1000 }),
-        paperTypesService.getAll({ onlyActive: true }),
+        paperTypesService.getAll({ onlyActive: true, pageSize: 1000 }),
         productsService.getAll({ onlyActive: true, pageSize: 1000 }),
-        processesService.getAll({ onlyActive: true }),
+        processesService.getAll({ onlyActive: true, pageSize: 1000 }),
         serviceLinesService.getAll({ onlyActive: true }),
         isEditing
           ? ordersService.getById(id)
